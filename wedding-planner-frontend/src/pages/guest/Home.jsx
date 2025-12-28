@@ -140,24 +140,48 @@ export default function GuestHome() {
       {/* Additional Photo Placeholders */}
       <div className="max-w-6xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="relative h-64 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center">
-            <div className="text-center">
-              <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
-              <p className="text-white/90 text-sm">Photo 1</p>
+          {WEDDING_PHOTOS.photo1 ? (
+            <img 
+              src={WEDDING_PHOTOS.photo1} 
+              alt="Wedding Photo 1"
+              className="w-full h-64 object-cover rounded-2xl shadow-lg"
+            />
+          ) : (
+            <div className="relative h-64 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
+                <p className="text-white/90 text-sm">Photo 1</p>
+              </div>
             </div>
-          </div>
-          <div className="relative h-64 bg-gradient-to-br from-purple-200 to-pink-200 rounded-2xl overflow-hidden flex items-center justify-center">
-            <div className="text-center">
-              <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
-              <p className="text-white/90 text-sm">Photo 2</p>
+          )}
+          {WEDDING_PHOTOS.photo2 ? (
+            <img 
+              src={WEDDING_PHOTOS.photo2} 
+              alt="Wedding Photo 2"
+              className="w-full h-64 object-cover rounded-2xl shadow-lg"
+            />
+          ) : (
+            <div className="relative h-64 bg-gradient-to-br from-purple-200 to-pink-200 rounded-2xl overflow-hidden flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
+                <p className="text-white/90 text-sm">Photo 2</p>
+              </div>
             </div>
-          </div>
-          <div className="relative h-64 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center">
-            <div className="text-center">
-              <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
-              <p className="text-white/90 text-sm">Photo 3</p>
+          )}
+          {WEDDING_PHOTOS.photo3 ? (
+            <img 
+              src={WEDDING_PHOTOS.photo3} 
+              alt="Wedding Photo 3"
+              className="w-full h-64 object-cover rounded-2xl shadow-lg"
+            />
+          ) : (
+            <div className="relative h-64 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
+                <p className="text-white/90 text-sm">Photo 3</p>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* RSVP Form */}
