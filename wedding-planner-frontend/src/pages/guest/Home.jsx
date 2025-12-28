@@ -3,6 +3,20 @@ import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
 import { Heart, Camera, Calendar, MapPin } from 'lucide-react'
 
+// ============================================
+// WEDDING PHOTOS CONFIGURATION
+// ============================================
+// Replace these URLs with your actual photo URLs
+// You can upload photos to Imgur, Google Photos, Dropbox, etc.
+// and paste the direct image URLs here
+const WEDDING_PHOTOS = {
+  hero: '', // Main couple photo (wide format recommended: 1920x600px)
+  photo1: '', // First grid photo
+  photo2: '', // Second grid photo
+  photo3: '', // Third grid photo
+}
+// ============================================
+
 export default function GuestHome() {
   const [formData, setFormData] = useState({
     username: '',
@@ -79,27 +93,48 @@ export default function GuestHome() {
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-pink-100/50 to-transparent"></div>
         
-        {/* Couple Photo Placeholder */}
-        <div className="relative h-96 bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 flex items-center justify-center">
-          <div className="text-center z-10">
-            <Camera className="w-16 h-16 text-white/80 mx-auto mb-4" />
-            <p className="text-white/90 text-lg font-medium">Couple Photo</p>
-            <p className="text-white/70 text-sm mt-2">Upload your beautiful photo here</p>
+        {/* Couple Photo - Hero Section */}
+        {WEDDING_PHOTOS.hero ? (
+          <div className="relative h-96 overflow-hidden">
+            <img 
+              src={WEDDING_PHOTOS.hero} 
+              alt="Couple Photo"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/30"></div>
+            {/* Header Text Overlay */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="max-w-4xl mx-auto text-center px-4">
+                <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+                  We're Getting Married!
+                </h1>
+                <p className="text-xl text-white/90 mb-8 drop-shadow-md">
+                  Please join us for our special day
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="absolute inset-0 bg-black/10"></div>
-        </div>
-
-        {/* Header Text */}
-        <div className="relative -mt-32 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-              We're Getting Married!
-            </h1>
-            <p className="text-xl text-white/90 mb-8 drop-shadow-md">
-              Please join us for our special day
-            </p>
+        ) : (
+          <div className="relative h-96 bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 flex items-center justify-center">
+            <div className="text-center z-10">
+              <Camera className="w-16 h-16 text-white/80 mx-auto mb-4" />
+              <p className="text-white/90 text-lg font-medium">Couple Photo</p>
+              <p className="text-white/70 text-sm mt-2">Add your photo URL in Home.jsx</p>
+            </div>
+            <div className="absolute inset-0 bg-black/10"></div>
+            {/* Header Text */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="max-w-4xl mx-auto text-center px-4">
+                <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+                  We're Getting Married!
+                </h1>
+                <p className="text-xl text-white/90 mb-8 drop-shadow-md">
+                  Please join us for our special day
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Additional Photo Placeholders */}
