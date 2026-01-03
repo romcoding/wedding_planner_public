@@ -5,9 +5,64 @@ from datetime import datetime
 
 guests_bp = Blueprint('guests', __name__)
 
-@guests_bp.route('/register', methods=['POST'])
-def register_guest():
-    """Public endpoint for guest registration"""
+@guests_bp.route('/update-rsvp', methods=['PUT'])
+@jwt_required()
+def update_rsvp():
+    """Update RSVP information (guest authenticated via token)"""
+    identity = get_jwt_identity()
+    
+    if not str(identity).startswith('guest_'):
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    guest_id = int(identity.split('_')[1])
+    guest = Guest.query.get(guest_id)
+    
+    if not guest:
+        return jsonify({'error': 'Guest not found'}), 404
+    
+    data = request.get_json()
+    
+    # Update RSVP fields
+    if 'rsvp_status' in data:
+        guest.rsvp_status = data['rsvp_status']
+    if 'attendance_type' in data:
+        guest.attendance_type = data['attendance_type']
+    if 'number_of_guests' in data:
+        guest.number_of_guests = data['number_of_guests']
+    if 'dietary_restrictions' in data:
+        guest.dietary_restrictions = data['dietary_restrictions']
+    if 'allergies' in data:
+        guest.allergies = data['allergies']
+    if 'special_requests' in data:
+        guest.special_requests = data['special_requests']
+    if 'music_wish' in data:
+        guest.music_wish = data['music_wish']
+    if 'phone' in data:
+        guest.phone = data['phone']
+    if 'address' in data:
+        guest.address = data['address']
+    
+    guest.updated_at = datetime.utcnow()
+    guest.last_accessed = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'RSVP updated successfully',
+        'guest': guest.to_dict(include_sensitive=False)
+    }), 200
+
+@guests_bp.route('', methods=['POST'])
+@jwt_required()
+def create_guest():
+    """Create a new guest (admin only) - generates unique token"""
+    user_id = get_jwt_identity()
+    # Convert to int if it's a string
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('first_name') or not data.get('last_name'):
@@ -15,36 +70,22 @@ def register_guest():
     
     # Check if guest already exists
     existing_guest = Guest.query.filter_by(email=data['email']).first()
-    
     if existing_guest:
-        # Update existing guest
-        existing_guest.first_name = data.get('first_name', existing_guest.first_name)
-        existing_guest.last_name = data.get('last_name', existing_guest.last_name)
-        existing_guest.phone = data.get('phone', existing_guest.phone)
-        existing_guest.rsvp_status = data.get('rsvp_status', existing_guest.rsvp_status)
-        existing_guest.attendance_type = data.get('attendance_type', existing_guest.attendance_type)
-        existing_guest.number_of_guests = data.get('number_of_guests', existing_guest.number_of_guests)
-        existing_guest.dietary_restrictions = data.get('dietary_restrictions', existing_guest.dietary_restrictions)
-        existing_guest.allergies = data.get('allergies', existing_guest.allergies)
-        existing_guest.special_requests = data.get('special_requests', existing_guest.special_requests)
-        existing_guest.music_wish = data.get('music_wish', existing_guest.music_wish)
-        existing_guest.address = data.get('address', existing_guest.address)
-        existing_guest.notes = data.get('notes', existing_guest.notes)
-        existing_guest.updated_at = datetime.utcnow()
-        existing_guest.last_accessed = datetime.utcnow()
-        
-        db.session.commit()
-        return jsonify({
-            'message': 'Guest information updated',
-            'guest': existing_guest.to_dict()
-        }), 200
+        return jsonify({'error': 'Guest with this email already exists'}), 400
     
-    # Create new guest
+    # Generate unique token
+    unique_token = Guest.generate_unique_token()
+    # Ensure uniqueness
+    while Guest.query.filter_by(unique_token=unique_token).first():
+        unique_token = Guest.generate_unique_token()
+    
+    # Create guest with all admin-provided info
     guest = Guest(
         email=data['email'],
         first_name=data['first_name'],
         last_name=data['last_name'],
         phone=data.get('phone'),
+        unique_token=unique_token,
         rsvp_status=data.get('rsvp_status', 'pending'),
         attendance_type=data.get('attendance_type'),
         number_of_guests=data.get('number_of_guests', 1),
@@ -59,9 +100,15 @@ def register_guest():
     db.session.add(guest)
     db.session.commit()
     
+    # Get frontend URL for the unique link
+    import os
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    rsvp_link = f"{frontend_url}/rsvp/{unique_token}"
+    
     return jsonify({
-        'message': 'Guest registered successfully',
-        'guest': guest.to_dict()
+        'message': 'Guest created successfully',
+        'guest': guest.to_dict(include_sensitive=True),
+        'rsvp_link': rsvp_link
     }), 201
 
 @guests_bp.route('', methods=['GET'])
@@ -69,6 +116,8 @@ def register_guest():
 def get_guests():
     """Get all guests (admin only)"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -87,13 +136,59 @@ def get_guests():
     
     guests = query.order_by(Guest.registered_at.desc()).all()
     
-    return jsonify([guest.to_dict() for guest in guests]), 200
+    # Include RSVP links for admin
+    import os
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    guests_data = []
+    for guest in guests:
+        guest_dict = guest.to_dict(include_sensitive=True)
+        guest_dict['rsvp_link'] = f"{frontend_url}/rsvp/{guest.unique_token}"
+        guests_data.append(guest_dict)
+    
+    return jsonify(guests_data), 200
+
+@guests_bp.route('/token/<token>', methods=['GET'])
+def get_guest_by_token(token):
+    """Get guest by unique token (public endpoint for RSVP link)"""
+    guest = Guest.query.filter_by(unique_token=token).first()
+    
+    if not guest:
+        return jsonify({'error': 'Invalid RSVP link'}), 404
+    
+    # Update last accessed
+    guest.last_accessed = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify(guest.to_dict(include_sensitive=False)), 200
+
+@guests_bp.route('/token/<token>/auth', methods=['POST'])
+def authenticate_with_token(token):
+    """Authenticate guest using unique token and return JWT (public endpoint)"""
+    guest = Guest.query.filter_by(unique_token=token).first()
+    
+    if not guest:
+        return jsonify({'error': 'Invalid RSVP link'}), 404
+    
+    # Update last accessed
+    guest.last_accessed = datetime.utcnow()
+    db.session.commit()
+    
+    # Generate JWT token
+    from flask_jwt_extended import create_access_token
+    access_token = create_access_token(identity=f"guest_{guest.id}")
+    
+    return jsonify({
+        'access_token': access_token,
+        'guest': guest.to_dict(include_sensitive=False)
+    }), 200
 
 @guests_bp.route('/<int:guest_id>', methods=['GET'])
 @jwt_required()
 def get_guest(guest_id):
     """Get specific guest details (admin only)"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -104,13 +199,21 @@ def get_guest(guest_id):
     if not guest:
         return jsonify({'error': 'Guest not found'}), 404
     
-    return jsonify(guest.to_dict()), 200
+    # Include RSVP link
+    import os
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    guest_dict = guest.to_dict(include_sensitive=True)
+    guest_dict['rsvp_link'] = f"{frontend_url}/rsvp/{guest.unique_token}"
+    
+    return jsonify(guest_dict), 200
 
 @guests_bp.route('/<int:guest_id>', methods=['PUT'])
 @jwt_required()
 def update_guest(guest_id):
     """Update guest information (admin only)"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -161,6 +264,8 @@ def update_guest(guest_id):
 def delete_guest(guest_id):
     """Delete guest (admin only)"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:

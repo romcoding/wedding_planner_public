@@ -1,6 +1,7 @@
 from src.models import db
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+import secrets
 
 class Guest(db.Model):
     """Guest model for wedding registration"""
@@ -13,9 +14,10 @@ class Guest(db.Model):
     email = db.Column(db.String(120), nullable=False, index=True)
     phone = db.Column(db.String(20))
     
-    # Authentication
-    username = db.Column(db.String(80), unique=True, index=True)
-    password_hash = db.Column(db.String(255))
+    # Authentication - Passwordless with unique token
+    unique_token = db.Column(db.String(64), unique=True, nullable=False, index=True)  # Unique link token
+    username = db.Column(db.String(80), unique=True, nullable=True, index=True)  # Optional, for backward compatibility
+    password_hash = db.Column(db.String(255))  # Optional, for backward compatibility
     
     # RSVP information
     rsvp_status = db.Column(db.String(20), default='pending')  # pending, confirmed, declined
@@ -37,6 +39,11 @@ class Guest(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_accessed = db.Column(db.DateTime)
     
+    @staticmethod
+    def generate_unique_token():
+        """Generate a secure unique token for guest link"""
+        return secrets.token_urlsafe(32)  # 32 bytes = 43 characters URL-safe
+    
     def set_password(self, password):
         """Hash and set password"""
         self.password_hash = generate_password_hash(password)
@@ -53,6 +60,7 @@ class Guest(db.Model):
             'last_name': self.last_name,
             'email': self.email,
             'phone': self.phone,
+            'unique_token': self.unique_token if include_sensitive else None,
             'username': self.username if include_sensitive else None,
             'rsvp_status': self.rsvp_status,
             'attendance_type': self.attendance_type,
@@ -60,6 +68,7 @@ class Guest(db.Model):
             'dietary_restrictions': self.dietary_restrictions,
             'allergies': self.allergies,
             'special_requests': self.special_requests,
+            'music_wish': self.music_wish,
             'address': self.address,
             'notes': self.notes,
             'registered_at': self.registered_at.isoformat() if self.registered_at else None,

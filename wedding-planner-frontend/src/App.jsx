@@ -18,6 +18,7 @@ import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
 import GuestRegister from './pages/guest/Register'
+import RSVP from './pages/guest/RSVP'
 
 function GuestRoutes() {
   const { guest, loading } = useGuestAuth()
@@ -34,6 +35,7 @@ function GuestRoutes() {
     <Routes>
       <Route path="/login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
       <Route path="/register" element={<GuestRegister />} />
+      <Route path="/rsvp/:token" element={<RSVP />} />
       <Route path="/" element={<GuestLayout />}>
         <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
         <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />

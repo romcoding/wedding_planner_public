@@ -1,18 +1,55 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { CheckCircle, XCircle, Clock, Search, Filter } from 'lucide-react'
+import { CheckCircle, XCircle, Clock, Search, Filter, PlusCircle, Copy, QrCode, Mail, Link as LinkIcon } from 'lucide-react'
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 
 export default function GuestsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [showForm, setShowForm] = useState(false)
+  const [selectedGuest, setSelectedGuest] = useState(null)
+  const [showQRCode, setShowQRCode] = useState(null)
   const queryClient = useQueryClient()
+
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    number_of_guests: 1,
+    rsvp_status: 'pending',
+  })
 
   const { data: guests, isLoading } = useQuery({
     queryKey: ['guests'],
     queryFn: async () => {
       const response = await api.get('/guests')
       return response.data
+    },
+  })
+
+  const createGuestMutation = useMutation({
+    mutationFn: async (data) => {
+      const response = await api.post('/guests', data)
+      return response.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['guests'])
+      setShowForm(false)
+      setFormData({
+        first_name: '',
+        last_name: '',
+        email: '',
+        phone: '',
+        number_of_guests: 1,
+        rsvp_status: 'pending',
+      })
+      // Show the QR code for the newly created guest
+      if (data.guest) {
+        setSelectedGuest(data.guest)
+        setShowQRCode(data.guest.id)
+      }
     },
   })
 
@@ -34,6 +71,16 @@ export default function GuestsPage() {
       queryClient.invalidateQueries(['guests'])
     },
   })
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text)
+    alert('Link copied to clipboard!')
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    createGuestMutation.mutate(formData)
+  }
 
   if (isLoading) {
     return <div className="text-center py-12">Loading guests...</div>
@@ -75,13 +122,198 @@ export default function GuestsPage() {
     <div>
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">RSVP Requests</h1>
-          <p className="text-gray-600 mt-1">Manage all guest registrations and RSVPs</p>
+          <h1 className="text-3xl font-bold text-gray-900">Guest Management</h1>
+          <p className="text-gray-600 mt-1">Create guests and manage RSVPs</p>
         </div>
-        <div className="text-sm text-gray-500">
-          Total: {guests?.length || 0} guests
+        <div className="flex gap-4 items-center">
+          <div className="text-sm text-gray-500">
+            Total: {guests?.length || 0} guests
+          </div>
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            <PlusCircle className="w-5 h-5" />
+            Add Guest
+          </button>
         </div>
       </div>
+
+      {/* Create Guest Form */}
+      {showForm && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Create New Guest</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.first_name}
+                  onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.last_name}
+                  onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Email *
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Phone
+                </label>
+                <input
+                  type="tel"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Guests
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.number_of_guests}
+                  onChange={(e) => setFormData({ ...formData, number_of_guests: parseInt(e.target.value) || 1 })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Initial RSVP Status
+                </label>
+                <select
+                  value={formData.rsvp_status}
+                  onChange={(e) => setFormData({ ...formData, rsvp_status: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="declined">Declined</option>
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                Create Guest
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForm(false)
+                  setFormData({
+                    first_name: '',
+                    last_name: '',
+                    email: '',
+                    phone: '',
+                    number_of_guests: 1,
+                    rsvp_status: 'pending',
+                  })
+                }}
+                className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* QR Code Modal */}
+      {showQRCode && selectedGuest && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
+            <h3 className="text-2xl font-bold mb-4">RSVP Link & QR Code</h3>
+            <p className="text-gray-600 mb-4">
+              Share this link with <strong>{selectedGuest.first_name} {selectedGuest.last_name}</strong>
+            </p>
+            <div className="bg-gray-50 p-4 rounded-lg mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <LinkIcon className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">RSVP Link:</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={selectedGuest.rsvp_link}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
+                />
+                <button
+                  onClick={() => copyToClipboard(selectedGuest.rsvp_link)}
+                  className="p-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  title="Copy link"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            <div className="flex justify-center mb-4">
+              <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                <QRCodeSVG value={selectedGuest.rsvp_link} size={200} />
+              </div>
+            </div>
+            <p className="text-sm text-gray-500 text-center mb-4">
+              Scan this QR code or share the link above
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (selectedGuest.email) {
+                    window.location.href = `mailto:${selectedGuest.email}?subject=Your Wedding RSVP&body=Hi ${selectedGuest.first_name},%0D%0A%0D%0APlease use this link to RSVP: ${selectedGuest.rsvp_link}`
+                  }
+                }}
+                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                <Mail className="w-4 h-4" />
+                Email Link
+              </button>
+              <button
+                onClick={() => {
+                  setShowQRCode(null)
+                  setSelectedGuest(null)
+                }}
+                className="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
@@ -134,6 +366,9 @@ export default function GuestsPage() {
                   Guests
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  RSVP Link
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -141,8 +376,8 @@ export default function GuestsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredGuests.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="px-6 py-12 text-center text-gray-500">
-                    No guests found
+                  <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
+                    No guests found. Click "Add Guest" to create one.
                   </td>
                 </tr>
               ) : (
@@ -175,6 +410,27 @@ export default function GuestsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {guest.number_of_guests || 1}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => {
+                            setSelectedGuest(guest)
+                            setShowQRCode(guest.id)
+                          }}
+                          className="p-1 text-blue-600 hover:text-blue-800"
+                          title="Show QR Code"
+                        >
+                          <QrCode className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => copyToClipboard(guest.rsvp_link)}
+                          className="p-1 text-gray-600 hover:text-gray-800"
+                          title="Copy Link"
+                        >
+                          <Copy className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
                         <select
@@ -190,7 +446,11 @@ export default function GuestsPage() {
                           <option value="declined">Declined</option>
                         </select>
                         <button
-                          onClick={() => deleteGuestMutation.mutate(guest.id)}
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this guest?')) {
+                              deleteGuestMutation.mutate(guest.id)
+                            }
+                          }}
                           className="text-red-600 hover:text-red-900 text-xs"
                         >
                           Delete

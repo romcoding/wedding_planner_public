@@ -37,6 +37,12 @@ export function GuestAuthProvider({ children }) {
     }
   }
 
+  const loginWithToken = (access_token, guestInfo) => {
+    localStorage.setItem('guest_token', access_token)
+    localStorage.setItem('guest', JSON.stringify(guestInfo))
+    setGuest(guestInfo)
+  }
+
   const logout = () => {
     localStorage.removeItem('guest_token')
     localStorage.removeItem('guest')
@@ -44,7 +50,7 @@ export function GuestAuthProvider({ children }) {
   }
 
   return (
-    <GuestAuthContext.Provider value={{ guest, loading, login, logout }}>
+    <GuestAuthContext.Provider value={{ guest, loading, login, loginWithToken, logout }}>
       {children}
     </GuestAuthContext.Provider>
   )
