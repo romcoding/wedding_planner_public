@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { Edit, Plane, Gift, ArrowLeft, Calendar, MapPin, Music } from 'lucide-react'
+import { Edit, Plane, Gift, ArrowLeft, Calendar, MapPin, Music, Camera, Mail } from 'lucide-react'
 import Timeline from '../../components/Timeline'
+import PhotoGallery from './PhotoGallery'
+import GiftRegistry from './GiftRegistry'
+import Contact from './Contact'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
@@ -114,53 +117,38 @@ export default function GuestInfo() {
                   <Gift className="w-8 h-8 text-pink-500" />
                   <h2 className="text-3xl font-bold text-gray-900">Event & Gifts</h2>
                 </div>
-                <div className="space-y-6">
+                <div className="space-y-8">
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Calendar className="w-5 h-5 text-pink-500" />
                       Event Schedule
                     </h3>
-                    <div className="space-y-4">
-                      <div className="border-l-4 border-pink-500 pl-4">
-                        <h4 className="font-semibold text-gray-900">Ceremony</h4>
-                        <p className="text-gray-600">Date and time to be confirmed</p>
-                      </div>
-                      <div className="border-l-4 border-purple-500 pl-4">
-                        <h4 className="font-semibold text-gray-900">Cocktail Hour</h4>
-                        <p className="text-gray-600">Date and time to be confirmed</p>
-                      </div>
-                      <div className="border-l-4 border-pink-500 pl-4">
-                        <h4 className="font-semibold text-gray-900">Reception</h4>
-                        <p className="text-gray-600">Date and time to be confirmed</p>
-                      </div>
-                    </div>
+                    <Timeline />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Gift className="w-5 h-5 text-pink-500" />
-                      Gift Registry
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      Your presence at our wedding is the greatest gift of all. However, if you wish to honor us with a gift, we have registered at:
-                    </p>
-                    <ul className="list-disc list-inside space-y-2 text-gray-600">
-                      <li>Registry Option 1 - Link will be provided</li>
-                      <li>Registry Option 2 - Link will be provided</li>
-                    </ul>
-                    <p className="text-sm text-gray-500 mt-4">
-                      We also appreciate contributions to our honeymoon fund.
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Music className="w-5 h-5 text-pink-500" />
-                      Dress Code
-                    </h3>
-                    <p className="text-gray-600">
-                      We'd love to see you dressed in your finest! Formal attire is requested. Please avoid white.
-                    </p>
+                    <GiftRegistry />
                   </div>
                 </div>
+              </div>
+            )}
+
+            {activeSection === 'gallery' && (
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <Camera className="w-8 h-8 text-pink-500" />
+                  <h2 className="text-3xl font-bold text-gray-900">Photo Gallery</h2>
+                </div>
+                <PhotoGallery />
+              </div>
+            )}
+
+            {activeSection === 'contact' && (
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <Mail className="w-8 h-8 text-pink-500" />
+                  <h2 className="text-3xl font-bold text-gray-900">Contact Us</h2>
+                </div>
+                <Contact />
               </div>
             )}
           </div>
@@ -209,7 +197,7 @@ export default function GuestInfo() {
 
       {/* Navigation Sections */}
       <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Edit RSVP */}
           <div
             onClick={() => handleSectionClick('edit_rsvp')}
@@ -284,6 +272,42 @@ export default function GuestInfo() {
                 <Gift className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
                 <h3 className="text-2xl font-bold mb-2">Event & Gifts</h3>
                 <p className="text-white/90">Schedule and registry</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Photo Gallery */}
+          <div
+            onClick={() => handleSectionClick('gallery')}
+            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
+          >
+            <div className="w-full h-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center">
+              <Camera className="w-16 h-16 text-white/80" />
+            </div>
+            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-white">
+                <Camera className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                <h3 className="text-2xl font-bold mb-2">Photo Gallery</h3>
+                <p className="text-white/90">Share your photos</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div
+            onClick={() => handleSectionClick('contact')}
+            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
+          >
+            <div className="w-full h-full bg-gradient-to-br from-green-200 to-teal-200 flex items-center justify-center">
+              <Mail className="w-16 h-16 text-white/80" />
+            </div>
+            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="text-center text-white">
+                <Mail className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
+                <h3 className="text-2xl font-bold mb-2">Contact Us</h3>
+                <p className="text-white/90">Send us a message</p>
               </div>
             </div>
           </div>
