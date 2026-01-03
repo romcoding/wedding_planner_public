@@ -40,6 +40,10 @@ const TasksPage = () => {
         actual_cost: '',
       })
     },
+    onError: (error) => {
+      console.error('Error creating task:', error)
+      alert(error.response?.data?.error || 'Failed to create task. Please try again.')
+    },
   })
 
   const updateTask = useMutation({
@@ -54,10 +58,19 @@ const TasksPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (!formData.title.trim()) {
+      alert('Please enter a task title')
+      return
+    }
     const payload = {
       ...formData,
+      title: formData.title.trim(),
+      description: formData.description?.trim() || '',
+      category: formData.category?.trim() || '',
+      assigned_to: formData.assigned_to?.trim() || '',
       estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
       actual_cost: formData.actual_cost ? parseFloat(formData.actual_cost) : null,
+      due_date: formData.due_date || null,
     }
     createTask.mutate(payload)
   }

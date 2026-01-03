@@ -1,22 +1,18 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Image as ImageIcon, Eye, EyeOff } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X } from 'lucide-react'
 
 const ImagesPage = () => {
   const queryClient = useQueryClient()
+  const fileInputRef = useRef(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [formData, setFormData] = useState({
-    name: '',
-    url: '',
-    alt_text: '',
-    description: '',
-    category: 'gallery',
     position: '',
-    order: 0,
-    is_active: true,
-    is_public: true,
   })
 
   const { data: images, isLoading } = useQuery({
@@ -25,11 +21,28 @@ const ImagesPage = () => {
   })
 
   const createImage = useMutation({
-    mutationFn: (payload) => api.post('/images', payload),
+    mutationFn: async (payload) => {
+      // If we have a file, we need to upload it first
+      // For now, we'll convert to base64 and use data URL, or guide user to upload to Imgur
+      if (selectedFile) {
+        // Convert file to base64 for preview/storage
+        const base64 = await fileToBase64(selectedFile)
+        // For production, you'd upload to a service like Imgur API
+        // For now, we'll use the base64 data URL (not ideal for large images)
+        // Or we can guide the user to upload manually
+        payload.url = base64
+        payload.name = selectedFile.name
+      }
+      return api.post('/images', payload)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries(['images'])
       resetForm()
       setShowForm(false)
+    },
+    onError: (error) => {
+      console.error('Error creating image:', error)
+      alert(error.response?.data?.error || 'Failed to create image. Please upload to Imgur first and paste the URL.')
     },
   })
 
@@ -47,51 +60,139 @@ const ImagesPage = () => {
     onSuccess: () => queryClient.invalidateQueries(['images']),
   })
 
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
+  const handleFileSelect = async (file) => {
+    if (!file) return
+    
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file')
+      return
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image size must be less than 10MB')
+      return
+    }
+
+    setSelectedFile(file)
+    
+    // Create preview
+    const base64 = await fileToBase64(file)
+    setImagePreview(base64)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+    
+    const file = e.dataTransfer.files[0]
+    handleFileSelect(file)
+  }
+
+  const handleFileInputChange = (e) => {
+    const file = e.target.files[0]
+    handleFileSelect(file)
+  }
+
   const resetForm = () => {
     setFormData({
-      name: '',
-      url: '',
-      alt_text: '',
-      description: '',
-      category: 'gallery',
       position: '',
-      order: 0,
-      is_active: true,
-      is_public: true,
     })
+    setSelectedFile(null)
+    setImagePreview(null)
     setEditingId(null)
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+    }
   }
 
   const handleEdit = (image) => {
     setFormData({
-      name: image.name,
-      url: image.url,
-      alt_text: image.alt_text || '',
-      description: image.description || '',
-      category: image.category || 'gallery',
       position: image.position || '',
-      order: image.order || 0,
-      is_active: image.is_active,
-      is_public: image.is_public,
     })
+    setSelectedFile(null)
+    setImagePreview(image.url)
     setEditingId(image.id)
     setShowForm(true)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    
     if (editingId) {
-      updateImage.mutate({ id: editingId, data: formData })
+      // For editing, we need to keep existing image data
+      const image = images.find(img => img.id === editingId)
+      updateImage.mutate({
+        id: editingId,
+        data: {
+          ...image,
+          position: formData.position,
+        },
+      })
     } else {
-      createImage.mutate(formData)
+      // For new images, we need a URL
+      if (!selectedFile && !imagePreview) {
+        alert('Please select an image file')
+        return
+      }
+
+      if (!formData.position) {
+        alert('Please select a position for the image')
+        return
+      }
+
+      // If user selected a file, use it
+      // Otherwise, if they have a preview URL, use that
+      const payload = {
+        name: selectedFile ? selectedFile.name : `Image ${Date.now()}`,
+        url: imagePreview || '',
+        position: formData.position,
+        category: 'gallery',
+        is_active: true,
+        is_public: true,
+      }
+
+      // If using base64, warn user it's better to upload to Imgur
+      if (imagePreview && imagePreview.startsWith('data:')) {
+        const useBase64 = window.confirm(
+          'Using base64 images can be slow. For better performance, upload to Imgur (imgur.com) and paste the direct image URL instead. Continue with base64?'
+        )
+        if (!useBase64) {
+          // Show instructions
+          alert('1. Go to imgur.com\n2. Upload your image\n3. Right-click the image → Copy image address\n4. Paste the URL in the form')
+          return
+        }
+      }
+
+      createImage.mutate(payload)
     }
   }
 
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target
+    const { name, value } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value,
+      [name]: value,
     }))
   }
 
@@ -118,166 +219,142 @@ const ImagesPage = () => {
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
           <h2 className="text-xl font-semibold mb-4">
-            {editingId ? 'Edit Image' : 'Add New Image'}
+            {editingId ? 'Edit Image Position' : 'Add New Image'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name *
-              </label>
-              <input
-                type="text"
-                name="name"
-                value={formData.name}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Image URL *
-              </label>
-              <input
-                type="url"
-                name="url"
-                value={formData.url}
-                onChange={handleChange}
-                required
-                placeholder="https://example.com/image.jpg"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Upload to Imgur, Google Photos, or Dropbox and paste the direct image URL here
-              </p>
-            </div>
-
-            {formData.url && (
-              <div className="border rounded-lg p-4 bg-gray-50">
-                <p className="text-sm text-gray-600 mb-2">Preview:</p>
-                <img
-                  src={formData.url}
-                  alt="Preview"
-                  className="max-w-full h-48 object-cover rounded"
-                  onError={(e) => {
-                    e.target.style.display = 'none'
-                    e.target.nextSibling.style.display = 'block'
-                  }}
-                />
-                <p className="text-sm text-red-500 hidden">Failed to load image</p>
+            {/* File Upload Area */}
+            {!editingId && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Image *
+                </label>
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                    isDragging
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
+                >
+                  {imagePreview ? (
+                    <div className="relative">
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="max-w-full max-h-64 mx-auto rounded-lg shadow-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null)
+                          setImagePreview(null)
+                          if (fileInputRef.current) {
+                            fileInputRef.current.value = ''
+                          }
+                        }}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                      {selectedFile && (
+                        <p className="mt-2 text-sm text-gray-600">
+                          {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <Upload className="w-12 h-12 mx-auto text-gray-400 mb-4" />
+                      <p className="text-gray-600 mb-2">
+                        Drag and drop an image here, or click to browse
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                      >
+                        Select File
+                      </button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileInputChange}
+                        className="hidden"
+                      />
+                      <p className="text-xs text-gray-500 mt-2">
+                        Supported: JPG, PNG, GIF (Max 10MB)
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  💡 Tip: For better performance, upload to{' '}
+                  <a
+                    href="https://imgur.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Imgur
+                  </a>{' '}
+                  and paste the direct image URL instead
+                </p>
               </div>
             )}
 
+            {/* Position Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Alt Text
+                Position *
               </label>
-              <input
-                type="text"
-                name="alt_text"
-                value={formData.alt_text}
+              <select
+                name="position"
+                value={formData.position}
                 onChange={handleChange}
+                required
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              >
+                <option value="">Select position...</option>
+                <option value="hero">Hero (Main Couple Photo)</option>
+                <option value="photo1">Photo 1 (RSVP Left)</option>
+                <option value="photo2">Photo 2 (RSVP Left)</option>
+                <option value="photo3">Photo 3 (RSVP Left)</option>
+                <option value="info_top">Info Page Top</option>
+                <option value="edit_rsvp">Edit RSVP</option>
+                <option value="travel">Travel & Accommodation</option>
+                <option value="gifts">Event & Gifts</option>
+              </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
+            {/* Alternative: Direct URL Input (for Imgur URLs) */}
+            {!editingId && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category
+                  Or paste image URL (from Imgur, etc.)
                 </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="gallery">Gallery</option>
-                  <option value="hero">Hero</option>
-                  <option value="info_section">Info Section</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Position
-                </label>
-                <select
-                  name="position"
-                  value={formData.position}
-                  onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">None</option>
-                  <option value="hero">Hero (Main Couple Photo)</option>
-                  <option value="photo1">Photo 1 (RSVP Left)</option>
-                  <option value="photo2">Photo 2 (RSVP Left)</option>
-                  <option value="photo3">Photo 3 (RSVP Left)</option>
-                  <option value="info_top">Info Page Top</option>
-                  <option value="edit_rsvp">Edit RSVP</option>
-                  <option value="travel">Travel & Accommodation</option>
-                  <option value="gifts">Event & Gifts</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Order (for sorting)
-              </label>
-              <input
-                type="number"
-                name="order"
-                value={formData.order}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2">
                 <input
-                  type="checkbox"
-                  name="is_active"
-                  checked={formData.is_active}
-                  onChange={handleChange}
-                  className="w-4 h-4"
+                  type="url"
+                  placeholder="https://i.imgur.com/example.jpg"
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setImagePreview(e.target.value)
+                      setSelectedFile(null)
+                    }
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span className="text-sm text-gray-700">Active</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  name="is_public"
-                  checked={formData.is_public}
-                  onChange={handleChange}
-                  className="w-4 h-4"
-                />
-                <span className="text-sm text-gray-700">Public (visible to guests)</span>
-              </label>
-            </div>
+              </div>
+            )}
 
             <div className="flex gap-2">
               <button
                 type="submit"
                 className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
               >
-                {editingId ? 'Update' : 'Create'}
+                {editingId ? 'Update Position' : 'Add Image'}
               </button>
               <button
                 type="button"
@@ -316,34 +393,12 @@ const ImagesPage = () => {
                     <ImageIcon className="w-12 h-12 text-gray-400" />
                   </div>
                 )}
-                <div className="absolute top-2 right-2 flex gap-2">
-                  {image.is_public ? (
-                    <Eye className="w-5 h-5 text-green-500" />
-                  ) : (
-                    <EyeOff className="w-5 h-5 text-gray-400" />
-                  )}
-                  {!image.is_active && (
-                    <span className="bg-red-500 text-white text-xs px-2 py-1 rounded">
-                      Inactive
-                    </span>
-                  )}
-                </div>
               </div>
               <div className="p-4">
                 <h3 className="font-semibold text-lg mb-1">{image.name}</h3>
                 {image.position && (
-                  <p className="text-sm text-blue-600 mb-1">
+                  <p className="text-sm text-blue-600 mb-2">
                     Position: {image.position}
-                  </p>
-                )}
-                {image.category && (
-                  <p className="text-sm text-gray-600 mb-2">
-                    Category: {image.category}
-                  </p>
-                )}
-                {image.description && (
-                  <p className="text-sm text-gray-500 mb-2 line-clamp-2">
-                    {image.description}
                   </p>
                 )}
                 <div className="flex gap-2 mt-4">
@@ -380,4 +435,3 @@ const ImagesPage = () => {
 }
 
 export default ImagesPage
-
