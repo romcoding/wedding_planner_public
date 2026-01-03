@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { Edit, Plane, Gift, ArrowLeft, Calendar, MapPin, Music } from 'lucide-react'
+import Timeline from '../../components/Timeline'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
@@ -285,6 +286,13 @@ export default function GuestInfo() {
                 <p className="text-white/90">Schedule and registry</p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Timeline Section */}
+        <div className="max-w-4xl mx-auto mt-12">
+          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
+            <Timeline />
           </div>
         </div>
       </div>
