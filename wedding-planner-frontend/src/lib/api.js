@@ -4,9 +4,6 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 })
 
 // Add token to requests if available (admin or guest)
@@ -18,10 +15,19 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
-  // Don't set Content-Type for FormData - let browser set it with boundary
-  if (config.data instanceof FormData) {
-    delete config.headers['Content-Type']
+  
+  // Only set Content-Type for requests with data (POST, PUT, PATCH)
+  // Don't set it for GET requests or FormData
+  if (config.data) {
+    if (config.data instanceof FormData) {
+      // Don't set Content-Type for FormData - let browser set it with boundary
+      delete config.headers['Content-Type']
+    } else if (typeof config.data === 'object') {
+      // Set Content-Type for JSON requests
+      config.headers['Content-Type'] = 'application/json'
+    }
   }
+  
   return config
 })
 
