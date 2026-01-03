@@ -10,6 +10,8 @@ analytics_bp = Blueprint('analytics', __name__)
 def get_overview():
     """Get registration overview statistics"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string (JWT identity is now a string)
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -49,6 +51,8 @@ def get_overview():
 def get_dietary():
     """Get dietary requirements summary"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string (JWT identity is now a string)
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -102,6 +106,8 @@ def get_dietary():
 def get_attendance():
     """Get detailed attendance statistics"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string (JWT identity is now a string)
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -137,6 +143,8 @@ def get_attendance():
 def get_budget():
     """Get budget and cost analytics"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string (JWT identity is now a string)
+    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
     user = User.query.get(user_id)
     
     if not user:

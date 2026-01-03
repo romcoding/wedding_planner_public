@@ -44,7 +44,8 @@ def login():
     if not user or not user.check_password(data['password']):
         return jsonify({'error': 'Invalid credentials'}), 401
     
-    access_token = create_access_token(identity=user.id)
+    # JWT identity must be a string
+    access_token = create_access_token(identity=str(user.id))
     
     return jsonify({
         'access_token': access_token,
@@ -56,6 +57,8 @@ def login():
 def get_profile():
     """Get current user profile"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string (JWT identity is now a string)
+    user_id = int(user_id) if isinstance(user_id, str) else user_id
     user = User.query.get(user_id)
     
     if not user:
@@ -68,6 +71,8 @@ def get_profile():
 def update_profile():
     """Update current user profile"""
     user_id = get_jwt_identity()
+    # Convert to int if it's a string (JWT identity is now a string)
+    user_id = int(user_id) if isinstance(user_id, str) else user_id
     user = User.query.get(user_id)
     
     if not user:
