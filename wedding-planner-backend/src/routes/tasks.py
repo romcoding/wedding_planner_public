@@ -43,9 +43,16 @@ def create_task():
     if not user:
         return jsonify({'error': 'User not found'}), 404
     
-    data = request.get_json()
+    # Handle JSON parsing with error handling
+    try:
+        data = request.get_json(force=True, silent=True)
+    except Exception as e:
+        return jsonify({'error': f'Invalid JSON: {str(e)}'}), 400
     
-    if not data or not data.get('title'):
+    if not data:
+        return jsonify({'error': 'No JSON data provided'}), 400
+    
+    if not data.get('title'):
         return jsonify({'error': 'Title is required'}), 400
     
     due_date = None
@@ -88,7 +95,14 @@ def update_task(task_id):
     if not task:
         return jsonify({'error': 'Task not found'}), 404
     
-    data = request.get_json()
+    # Handle JSON parsing with error handling
+    try:
+        data = request.get_json(force=True, silent=True)
+    except Exception as e:
+        return jsonify({'error': f'Invalid JSON: {str(e)}'}), 400
+    
+    if not data:
+        return jsonify({'error': 'No JSON data provided'}), 400
     
     if 'title' in data:
         task.title = data['title']
