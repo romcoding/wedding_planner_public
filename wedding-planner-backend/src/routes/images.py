@@ -1,11 +1,10 @@
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Image, User
 from sqlalchemy.exc import IntegrityError
 import base64
 from io import BytesIO
 from PIL import Image as PILImage
-import os
 
 images_bp = Blueprint('images', __name__)
 
