@@ -55,10 +55,14 @@ def create_app():
     
     @jwt.invalid_token_loader
     def invalid_token_callback(error):
+        import logging
+        logging.error(f'Invalid JWT token: {str(error)}')
         return jsonify({'error': f'Invalid token: {str(error)}'}), 401
     
     @jwt.unauthorized_loader
     def missing_token_callback(error):
+        import logging
+        logging.error(f'Missing JWT token: {str(error)}')
         return jsonify({'error': 'Authorization token is missing'}), 401
     
     # Register blueprints
