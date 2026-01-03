@@ -70,70 +70,80 @@ def create_image():
     if not user or user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
     
-    # Check if this is a file upload (multipart/form-data) or JSON
+    # Check content type
+    content_type = request.content_type or ''
+    
+    # Check if this is a file upload (multipart/form-data)
+    # Flask's request.files will have the file even if content-type header is slightly different
     if 'file' in request.files:
-        # File upload
         file = request.files['file']
-        position = request.form.get('position', '')
-        
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        if not position:
-            return jsonify({'error': 'Position is required'}), 400
-        
-        # Validate file type
-        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
-        if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
-            return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
-        
-        # Read file
-        file_data = file.read()
-        file_size = len(file_data)
-        
-        # Validate file size (max 10MB)
-        if file_size > 10 * 1024 * 1024:
-            return jsonify({'error': 'File size exceeds 10MB limit'}), 400
-        
-        # Convert to base64
-        image_base64 = base64.b64encode(file_data).decode('utf-8')
-        mime_type = file.content_type or 'image/jpeg'
-        data_url = f'data:{mime_type};base64,{image_base64}'
-        
-        # Get image dimensions
-        try:
-            img = PILImage.open(BytesIO(file_data))
-            width, height = img.size
-        except Exception:
-            width, height = None, None
-        
-        # Create image record
-        image = Image(
-            user_id=user_id,
-            name=file.filename,
-            url=data_url,
-            position=position,
-            category='gallery',
-            is_active=True,
-            is_public=True,
-            file_size=file_size,
-            width=width,
-            height=height
-        )
-        
-        try:
-            db.session.add(image)
-            db.session.commit()
-            return jsonify(image.to_dict()), 201
-        except IntegrityError:
-            db.session.rollback()
-            return jsonify({'error': 'Failed to create image'}), 500
-    else:
-        # JSON request (URL or base64 data URL)
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({'error': 'No data provided'}), 400
+        # Only process if file actually exists and has a filename
+        if file and file.filename:
+            # File upload
+            position = request.form.get('position', '')
+            
+            if not position:
+                return jsonify({'error': 'Position is required'}), 400
+            
+            # Validate file type
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+                return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+            
+            # Read file
+            file_data = file.read()
+            file_size = len(file_data)
+            
+            # Validate file size (max 10MB)
+            if file_size > 10 * 1024 * 1024:
+                return jsonify({'error': 'File size exceeds 10MB limit'}), 400
+            
+            # Convert to base64
+            image_base64 = base64.b64encode(file_data).decode('utf-8')
+            mime_type = file.content_type or 'image/jpeg'
+            data_url = f'data:{mime_type};base64,{image_base64}'
+            
+            # Get image dimensions
+            try:
+                img = PILImage.open(BytesIO(file_data))
+                width, height = img.size
+            except Exception:
+                width, height = None, None
+            
+            # Create image record
+            image = Image(
+                user_id=user_id,
+                name=file.filename,
+                url=data_url,
+                position=position,
+                category='gallery',
+                is_active=True,
+                is_public=True,
+                file_size=file_size,
+                width=width,
+                height=height
+            )
+            
+            try:
+                db.session.add(image)
+                db.session.commit()
+                return jsonify(image.to_dict()), 201
+            except IntegrityError as e:
+                db.session.rollback()
+                return jsonify({'error': f'Failed to create image: {str(e)}'}), 500
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+        else:
+            return jsonify({'error': 'No file provided or empty filename'}), 400
+    
+    # Not a file upload, try JSON
+    try:
+        data = request.get_json(force=True, silent=True)
+    except Exception:
+        data = None
+    
+    if data:
         
         # Support both URL and base64 data URL
         url = data.get('url') or data.get('image_url')
@@ -187,9 +197,17 @@ def create_image():
             db.session.add(image)
             db.session.commit()
             return jsonify(image.to_dict()), 201
-        except IntegrityError:
+        except IntegrityError as e:
             db.session.rollback()
-            return jsonify({'error': 'Failed to create image'}), 500
+            return jsonify({'error': f'Failed to create image: {str(e)}'}), 500
+        except Exception as e:
+            db.session.rollback()
+            return jsonify({'error': f'Unexpected error: {str(e)}'}), 500
+    else:
+        # Neither file nor valid JSON
+        return jsonify({
+            'error': 'Invalid request. Please provide either a file upload (multipart/form-data) or JSON data with url and position.'
+        }), 400
 
 @images_bp.route('/api/images/<int:image_id>', methods=['PUT'])
 @jwt_required()
