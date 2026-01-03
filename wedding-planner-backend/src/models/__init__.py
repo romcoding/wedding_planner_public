@@ -9,6 +9,7 @@ from .cost import Cost
 from .content import Content
 from .image import Image
 from .invitation import Invitation
+from .event import Event
 
-__all__ = ['db', 'User', 'Guest', 'Task', 'Cost', 'Content', 'Image', 'Invitation']
+__all__ = ['db', 'User', 'Guest', 'Task', 'Cost', 'Content', 'Image', 'Invitation', 'Event']
 
