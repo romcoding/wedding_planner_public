@@ -10,6 +10,7 @@ import {
   Heart,
   Image as ImageIcon,
   Mail,
+  Calendar,
   LogOut
 } from 'lucide-react'
 
@@ -21,6 +22,7 @@ export default function AdminLayout() {
     { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { path: '/admin/guests', icon: Users, label: 'RSVP Requests' },
     { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
+    { path: '/admin/events', icon: Calendar, label: 'Timeline' },
     { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
     { path: '/admin/images', icon: ImageIcon, label: 'Images' },
     { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },

@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import api from '../../lib/api'
-import { Heart, Camera, Music } from 'lucide-react'
+import { Heart, Camera, Music, Edit } from 'lucide-react'
 import GlitterAnimation from '../../components/GlitterAnimation'
 
 export default function GuestHome() {
+  const { guest } = useGuestAuth()
+  const navigate = useNavigate()
+  
   const [formData, setFormData] = useState({
     username: '',
     password: '',
@@ -21,11 +25,19 @@ export default function GuestHome() {
     special_requests: '',
     music_wish: '',
   })
+  const [isEditing, setIsEditing] = useState(false)
   const [submitted, setSubmitted] = useState(false)
   const [showGlitter, setShowGlitter] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+
+  // Fetch guest profile if logged in
+  const { data: guestProfile, isLoading: loadingProfile } = useQuery({
+    queryKey: ['guest-profile'],
+    queryFn: () => api.get('/guest-auth/profile').then((res) => res.data),
+    enabled: !!guest,
+    retry: false,
+  })
 
   // Fetch images from API
   const { data: images, isLoading: imagesLoading } = useQuery({
@@ -33,11 +45,66 @@ export default function GuestHome() {
     queryFn: () => api.get('/images').then((res) => res.data),
   })
 
+  // Populate form with guest data if logged in
+  useEffect(() => {
+    if (guestProfile) {
+      setFormData({
+        username: guestProfile.username || '',
+        password: '', // Don't populate password
+        first_name: guestProfile.first_name || '',
+        last_name: guestProfile.last_name || '',
+        email: guestProfile.email || '',
+        phone: guestProfile.phone || '',
+        rsvp_status: guestProfile.rsvp_status || 'pending',
+        attendance_type: guestProfile.attendance_type || '',
+        number_of_guests: guestProfile.number_of_guests || 1,
+        dietary_restrictions: guestProfile.dietary_restrictions || '',
+        allergies: guestProfile.allergies || '',
+        special_requests: guestProfile.special_requests || '',
+        music_wish: guestProfile.music_wish || '',
+      })
+      setIsEditing(true)
+    }
+  }, [guestProfile])
+
   // Get images by position
   const heroImage = images?.find(img => img.position === 'hero' && img.is_active && img.is_public)
   const rsvpImages = images?.filter(img => 
     ['photo1', 'photo2', 'photo3'].includes(img.position) && img.is_active && img.is_public
   ).sort((a, b) => a.order - b.order).slice(0, 3)
+
+  const updateMutation = useMutation({
+    mutationFn: (data) => api.put('/guest-auth/profile', data),
+    onSuccess: () => {
+      setShowGlitter(true)
+      setSubmitted(true)
+      setTimeout(() => {
+        navigate('/info')
+      }, 3000)
+    },
+    onError: (err) => {
+      setError(err.response?.data?.error || 'Update failed. Please try again.')
+      setLoading(false)
+    },
+  })
+
+  const registerMutation = useMutation({
+    mutationFn: (data) => api.post('/guest-auth/register', data),
+    onSuccess: (response) => {
+      const { access_token, guest } = response.data
+      localStorage.setItem('guest_token', access_token)
+      localStorage.setItem('guest', JSON.stringify(guest))
+      setShowGlitter(true)
+      setSubmitted(true)
+      setTimeout(() => {
+        navigate('/info')
+      }, 3000)
+    },
+    onError: (err) => {
+      setError(err.response?.data?.error || 'Registration failed. Please try again.')
+      setLoading(false)
+    },
+  })
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -52,25 +119,33 @@ export default function GuestHome() {
     setError('')
     setLoading(true)
 
-    try {
-      const response = await api.post('/guest-auth/register', formData)
-      const { access_token, guest } = response.data
-      
-      localStorage.setItem('guest_token', access_token)
-      localStorage.setItem('guest', JSON.stringify(guest))
-      
-      // Show glitter animation
-      setShowGlitter(true)
-      setSubmitted(true)
-      
-      // Navigate to info page after animation
-      setTimeout(() => {
-        navigate('/info')
-      }, 3000)
-    } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.')
-      setLoading(false)
+    if (isEditing && guest) {
+      // Update existing RSVP
+      const updateData = {
+        first_name: formData.first_name,
+        last_name: formData.last_name,
+        phone: formData.phone,
+        rsvp_status: formData.rsvp_status,
+        attendance_type: formData.attendance_type,
+        number_of_guests: formData.number_of_guests,
+        dietary_restrictions: formData.dietary_restrictions,
+        allergies: formData.allergies,
+        special_requests: formData.special_requests,
+        music_wish: formData.music_wish,
+      }
+      updateMutation.mutate(updateData)
+    } else {
+      // New registration
+      registerMutation.mutate(formData)
     }
+  }
+
+  if (loadingProfile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
+        <div className="text-lg">Loading...</div>
+      </div>
+    )
   }
 
   return (
@@ -159,10 +234,20 @@ export default function GuestHome() {
             <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 sticky top-8">
               <div className="text-center mb-8">
                 <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">RSVP</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  {isEditing ? 'Update Your RSVP' : 'RSVP'}
+                </h2>
                 <p className="text-gray-600">
-                  Please fill out the form below to confirm your attendance
+                  {isEditing 
+                    ? 'Update your information below' 
+                    : 'Please fill out the form below to confirm your attendance'}
                 </p>
+                {isEditing && (
+                  <div className="mt-4 flex items-center justify-center gap-2 text-sm text-blue-600">
+                    <Edit className="w-4 h-4" />
+                    <span>You can update your RSVP at any time</span>
+                  </div>
+                )}
               </div>
 
               {error && (
@@ -172,40 +257,42 @@ export default function GuestHome() {
               )}
 
               <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Authentication Fields */}
-                <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                        Username *
-                      </label>
-                      <input
-                        type="text"
-                        id="username"
-                        name="username"
-                        required
-                        value={formData.username}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                        Password *
-                      </label>
-                      <input
-                        type="password"
-                        id="password"
-                        name="password"
-                        required
-                        value={formData.password}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                      />
+                {/* Authentication Fields - Only show for new registrations */}
+                {!isEditing && (
+                  <div className="border-b border-gray-200 pb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+                          Username *
+                        </label>
+                        <input
+                          type="text"
+                          id="username"
+                          name="username"
+                          required
+                          value={formData.username}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+                          Password *
+                        </label>
+                        <input
+                          type="password"
+                          id="password"
+                          name="password"
+                          required
+                          value={formData.password}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
                 {/* Personal Information */}
                 <div className="border-b border-gray-200 pb-6">
@@ -241,20 +328,38 @@ export default function GuestHome() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                        Email *
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        name="email"
-                        required
-                        value={formData.email}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                      />
-                    </div>
+                    {!isEditing && (
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                          Email *
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          required
+                          value={formData.email}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                        />
+                      </div>
+                    )}
+                    {isEditing && (
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          disabled
+                          value={formData.email}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                      </div>
+                    )}
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
                         Phone
@@ -306,6 +411,22 @@ export default function GuestHome() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       />
                     </div>
+                  </div>
+                  <div className="mt-4">
+                    <label htmlFor="rsvp_status" className="block text-sm font-medium text-gray-700 mb-2">
+                      RSVP Status
+                    </label>
+                    <select
+                      id="rsvp_status"
+                      name="rsvp_status"
+                      value={formData.rsvp_status}
+                      onChange={handleChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                    >
+                      <option value="pending">Pending</option>
+                      <option value="confirmed">Confirmed</option>
+                      <option value="declined">Declined</option>
+                    </select>
                   </div>
                 </div>
 
@@ -385,7 +506,7 @@ export default function GuestHome() {
                   disabled={loading}
                   className="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:opacity-50 font-medium text-lg transition-all"
                 >
-                  {loading ? 'Submitting...' : 'Submit RSVP'}
+                  {loading ? 'Saving...' : isEditing ? 'Update RSVP' : 'Submit RSVP'}
                 </button>
               </form>
             </div>

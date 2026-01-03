@@ -13,6 +13,7 @@ import AnalyticsPage from './pages/admin/AnalyticsPage'
 import WeddingManagement from './pages/admin/WeddingManagement'
 import ImagesPage from './pages/admin/ImagesPage'
 import InvitationsPage from './pages/admin/InvitationsPage'
+import EventsPage from './pages/admin/EventsPage'
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="wedding" element={<WeddingManagement />} />
         <Route path="images" element={<ImagesPage />} />
         <Route path="invitations" element={<InvitationsPage />} />
+        <Route path="events" element={<EventsPage />} />
       </Route>
 
       <Route

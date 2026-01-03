@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from src.models import db, Guest
 from datetime import datetime
 
@@ -98,4 +98,73 @@ def guest_register():
         'access_token': access_token,
         'guest': guest.to_dict(include_sensitive=False)
     }), 201
+
+@guest_auth_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def get_guest_profile():
+    """Get guest profile (guest only)"""
+    identity = get_jwt_identity()
+    
+    # Extract guest ID from identity (format: "guest_{id}")
+    if not identity.startswith('guest_'):
+        return jsonify({'error': 'Invalid token'}), 401
+    
+    guest_id = int(identity.split('_')[1])
+    guest = Guest.query.get(guest_id)
+    
+    if not guest:
+        return jsonify({'error': 'Guest not found'}), 404
+    
+    return jsonify(guest.to_dict(include_sensitive=False)), 200
+
+@guest_auth_bp.route('/profile', methods=['PUT'])
+@jwt_required()
+def update_guest_profile():
+    """Update guest profile and RSVP (guest only)"""
+    identity = get_jwt_identity()
+    
+    if not identity.startswith('guest_'):
+        return jsonify({'error': 'Invalid token'}), 401
+    
+    guest_id = int(identity.split('_')[1])
+    guest = Guest.query.get(guest_id)
+    
+    if not guest:
+        return jsonify({'error': 'Guest not found'}), 404
+    
+    data = request.get_json()
+    
+    # Update allowed fields
+    if 'first_name' in data:
+        guest.first_name = data['first_name']
+    if 'last_name' in data:
+        guest.last_name = data['last_name']
+    if 'phone' in data:
+        guest.phone = data['phone']
+    if 'rsvp_status' in data:
+        guest.rsvp_status = data['rsvp_status']
+    if 'attendance_type' in data:
+        guest.attendance_type = data['attendance_type']
+    if 'number_of_guests' in data:
+        guest.number_of_guests = data['number_of_guests']
+    if 'dietary_restrictions' in data:
+        guest.dietary_restrictions = data['dietary_restrictions']
+    if 'allergies' in data:
+        guest.allergies = data['allergies']
+    if 'special_requests' in data:
+        guest.special_requests = data['special_requests']
+    if 'music_wish' in data:
+        guest.music_wish = data['music_wish']
+    if 'address' in data:
+        guest.address = data['address']
+    
+    guest.updated_at = datetime.utcnow()
+    guest.last_accessed = datetime.utcnow()
+    
+    db.session.commit()
+    
+    return jsonify({
+        'message': 'Profile updated successfully',
+        'guest': guest.to_dict(include_sensitive=False)
+    }), 200
 
