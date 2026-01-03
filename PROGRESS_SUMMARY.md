@@ -50,14 +50,22 @@
   - Position-based image organization
   - Image preview
 
+### 5. Guest Portal Enhancements ✓
+- ✅ **Backend:**
+  - Message model for guest communications
+  - GiftRegistry model (external links, cash funds, experiences)
+  - GuestPhoto model with admin approval
+  - Message, gift registry, and photo endpoints
+  
+- ✅ **Frontend:**
+  - Photo Gallery component (upload, view, delete)
+  - Gift Registry display component
+  - Contact form component
+  - Integrated into Info page navigation
+
 ## 🚧 In Progress / Next Priority
 
-### 5. Guest Portal Enhancements (Next)
-- [ ] Photo Gallery (guest uploads)
-- [ ] Gift Registry (external links, cash funds)
-- [ ] Enhanced Travel & Accommodation section
-- [ ] FAQ section (from content management)
-- [ ] Contact form with messaging
+### 6. Advanced Analytics (Next)
 
 ### 6. Advanced Analytics
 - [ ] Demographics analysis
@@ -65,7 +73,7 @@
 - [ ] Export functionality (CSV/Excel)
 - [ ] Charts using recharts
 
-### 7. Guest Management Enhancements
+### 8. Task & Cost Management Upgrades
 - [ ] Bulk import/export (CSV)
 - [ ] Guest groups
 - [ ] Seating chart with drag-and-drop
@@ -78,24 +86,18 @@ Run these in Render Shell:
 ```bash
 cd wedding-planner-backend
 
-# Create invitations table
+# Create all new tables
 python -c "
 from src.main import create_app
-from src.models import db, Invitation
+from src.models import db, Invitation, Event, Message, GiftRegistry, GuestPhoto
 app = create_app()
 with app.app_context():
     Invitation.__table__.create(db.engine, checkfirst=True)
-    print('Invitations table created')
-"
-
-# Create events table
-python -c "
-from src.main import create_app
-from src.models import db, Event
-app = create_app()
-with app.app_context():
     Event.__table__.create(db.engine, checkfirst=True)
-    print('Events table created')
+    Message.__table__.create(db.engine, checkfirst=True)
+    GiftRegistry.__table__.create(db.engine, checkfirst=True)
+    GuestPhoto.__table__.create(db.engine, checkfirst=True)
+    print('All tables created')
 "
 ```
 
@@ -121,7 +123,12 @@ SMTP_FROM_EMAIL=noreply@yourdomain.com
 
 ## 🎯 Implementation Status
 
-- **Completed**: ~25% of requested features
-- **Core Foundation**: Invitation system, timeline, RSVP editing
-- **Next Focus**: Guest portal enhancements, analytics, guest management
+- **Completed**: ~40% of requested features
+- **Core Foundation**: 
+  - ✅ Invitation system with email sending
+  - ✅ Wedding timeline management
+  - ✅ RSVP editing for guests
+  - ✅ Guest portal (photo gallery, gift registry, contact)
+  - ✅ Image management
+- **Next Focus**: Advanced analytics, guest management enhancements, task/cost upgrades
 
