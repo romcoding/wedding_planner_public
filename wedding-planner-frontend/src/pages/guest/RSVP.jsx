@@ -9,7 +9,7 @@ import GlitterAnimation from '../../components/GlitterAnimation'
 export default function RSVP() {
   const { token } = useParams()
   const navigate = useNavigate()
-  const { guest, login: guestLogin } = useGuestAuth()
+  const { guest, loginWithToken } = useGuestAuth()
   const [showGlitter, setShowGlitter] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -27,9 +27,7 @@ export default function RSVP() {
     mutationFn: () => api.post(`/guests/token/${token}/auth`),
     onSuccess: (response) => {
       const { access_token, guest: guestInfo } = response.data
-      localStorage.setItem('guest_token', access_token)
-      localStorage.setItem('guest', JSON.stringify(guestInfo))
-      guestLogin(access_token, guestInfo)
+      loginWithToken(access_token, guestInfo)
       setLoading(false)
     },
     onError: (err) => {
