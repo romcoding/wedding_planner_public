@@ -27,6 +27,7 @@ def register_guest():
         existing_guest.dietary_restrictions = data.get('dietary_restrictions', existing_guest.dietary_restrictions)
         existing_guest.allergies = data.get('allergies', existing_guest.allergies)
         existing_guest.special_requests = data.get('special_requests', existing_guest.special_requests)
+        existing_guest.music_wish = data.get('music_wish', existing_guest.music_wish)
         existing_guest.address = data.get('address', existing_guest.address)
         existing_guest.notes = data.get('notes', existing_guest.notes)
         existing_guest.updated_at = datetime.utcnow()
@@ -50,6 +51,7 @@ def register_guest():
         dietary_restrictions=data.get('dietary_restrictions'),
         allergies=data.get('allergies'),
         special_requests=data.get('special_requests'),
+        music_wish=data.get('music_wish'),
         address=data.get('address'),
         notes=data.get('notes')
     )
@@ -142,6 +144,8 @@ def update_guest(guest_id):
         guest.allergies = data['allergies']
     if 'special_requests' in data:
         guest.special_requests = data['special_requests']
+    if 'music_wish' in data:
+        guest.music_wish = data['music_wish']
     if 'address' in data:
         guest.address = data['address']
     if 'notes' in data:

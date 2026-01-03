@@ -26,6 +26,7 @@ class Guest(db.Model):
     dietary_restrictions = db.Column(db.Text)  # JSON string or comma-separated
     allergies = db.Column(db.Text)
     special_requests = db.Column(db.Text)
+    music_wish = db.Column(db.Text)  # Music requests for the wedding
     
     # Additional information
     address = db.Column(db.Text)

@@ -11,6 +11,7 @@ from src.routes.tasks import tasks_bp
 from src.routes.costs import costs_bp
 from src.routes.content import content_bp
 from src.routes.analytics import analytics_bp
+from src.routes.images import images_bp
 
 load_dotenv()
 
@@ -50,6 +51,7 @@ def create_app():
     app.register_blueprint(costs_bp, url_prefix='/api/costs')
     app.register_blueprint(content_bp, url_prefix='/api/content')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(images_bp, url_prefix='')
     
     # Create tables
     with app.app_context():

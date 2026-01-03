@@ -82,6 +82,7 @@ def guest_register():
         dietary_restrictions=data.get('dietary_restrictions'),
         allergies=data.get('allergies'),
         special_requests=data.get('special_requests'),
+        music_wish=data.get('music_wish'),
         address=data.get('address'),
         notes=data.get('notes')
     )
