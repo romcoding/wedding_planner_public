@@ -11,6 +11,7 @@ const ImagesPage = () => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
     position: '',
   })
@@ -21,19 +22,10 @@ const ImagesPage = () => {
   })
 
   const createImage = useMutation({
-    mutationFn: async (payload) => {
-      // If we have a file, we need to upload it first
-      // For now, we'll convert to base64 and use data URL, or guide user to upload to Imgur
-      if (selectedFile) {
-        // Convert file to base64 for preview/storage
-        const base64 = await fileToBase64(selectedFile)
-        // For production, you'd upload to a service like Imgur API
-        // For now, we'll use the base64 data URL (not ideal for large images)
-        // Or we can guide the user to upload manually
-        payload.url = base64
-        payload.name = selectedFile.name
-      }
-      return api.post('/images', payload)
+    mutationFn: async (formDataToSend) => {
+      // Upload file directly to backend
+      // Don't set Content-Type header - axios will set it automatically with boundary
+      return api.post('/images', formDataToSend)
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['images'])
@@ -42,7 +34,8 @@ const ImagesPage = () => {
     },
     onError: (error) => {
       console.error('Error creating image:', error)
-      alert(error.response?.data?.error || 'Failed to create image. Please upload to Imgur first and paste the URL.')
+      alert(error.response?.data?.error || 'Failed to upload image. Please try again.')
+      setUploading(false)
     },
   })
 
@@ -60,16 +53,7 @@ const ImagesPage = () => {
     onSuccess: () => queryClient.invalidateQueries(['images']),
   })
 
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.readAsDataURL(file)
-      reader.onload = () => resolve(reader.result)
-      reader.onerror = (error) => reject(error)
-    })
-  }
-
-  const handleFileSelect = async (file) => {
+  const handleFileSelect = (file) => {
     if (!file) return
     
     // Validate file type
@@ -87,8 +71,11 @@ const ImagesPage = () => {
     setSelectedFile(file)
     
     // Create preview
-    const base64 = await fileToBase64(file)
-    setImagePreview(base64)
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setImagePreview(e.target.result)
+    }
+    reader.readAsDataURL(file)
   }
 
   const handleDragOver = (e) => {
@@ -121,6 +108,7 @@ const ImagesPage = () => {
     setSelectedFile(null)
     setImagePreview(null)
     setEditingId(null)
+    setUploading(false)
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
@@ -140,7 +128,7 @@ const ImagesPage = () => {
     e.preventDefault()
     
     if (editingId) {
-      // For editing, we need to keep existing image data
+      // For editing, we only update position
       const image = images.find(img => img.id === editingId)
       updateImage.mutate({
         id: editingId,
@@ -150,8 +138,8 @@ const ImagesPage = () => {
         },
       })
     } else {
-      // For new images, we need a URL
-      if (!selectedFile && !imagePreview) {
+      // For new images, upload the file
+      if (!selectedFile) {
         alert('Please select an image file')
         return
       }
@@ -161,30 +149,14 @@ const ImagesPage = () => {
         return
       }
 
-      // If user selected a file, use it
-      // Otherwise, if they have a preview URL, use that
-      const payload = {
-        name: selectedFile ? selectedFile.name : `Image ${Date.now()}`,
-        url: imagePreview || '',
-        position: formData.position,
-        category: 'gallery',
-        is_active: true,
-        is_public: true,
-      }
+      setUploading(true)
 
-      // If using base64, warn user it's better to upload to Imgur
-      if (imagePreview && imagePreview.startsWith('data:')) {
-        const useBase64 = window.confirm(
-          'Using base64 images can be slow. For better performance, upload to Imgur (imgur.com) and paste the direct image URL instead. Continue with base64?'
-        )
-        if (!useBase64) {
-          // Show instructions
-          alert('1. Go to imgur.com\n2. Upload your image\n3. Right-click the image → Copy image address\n4. Paste the URL in the form')
-          return
-        }
-      }
+      // Create FormData for file upload
+      const formDataToSend = new FormData()
+      formDataToSend.append('file', selectedFile)
+      formDataToSend.append('position', formData.position)
 
-      createImage.mutate(payload)
+      createImage.mutate(formDataToSend)
     }
   }
 
@@ -194,6 +166,41 @@ const ImagesPage = () => {
       ...prev,
       [name]: value,
     }))
+  }
+
+  // Handle URL input (alternative method)
+  const handleUrlSubmit = async (url) => {
+    if (!url || !url.trim()) {
+      alert('Please enter an image URL')
+      return
+    }
+
+    if (!formData.position) {
+      alert('Please select a position for the image')
+      return
+    }
+
+    setUploading(true)
+
+    try {
+      const response = await api.post('/images', {
+        name: `Image ${Date.now()}`,
+        url: url.trim(),
+        position: formData.position,
+        category: 'gallery',
+        is_active: true,
+        is_public: true,
+      })
+
+      queryClient.invalidateQueries(['images'])
+      resetForm()
+      setShowForm(false)
+    } catch (error) {
+      console.error('Error creating image:', error)
+      alert(error.response?.data?.error || 'Failed to upload image. Please try again.')
+    } finally {
+      setUploading(false)
+    }
   }
 
   if (isLoading) {
@@ -285,23 +292,39 @@ const ImagesPage = () => {
                         className="hidden"
                       />
                       <p className="text-xs text-gray-500 mt-2">
-                        Supported: JPG, PNG, GIF (Max 10MB)
+                        Supported: JPG, PNG, GIF, WEBP (Max 10MB)
                       </p>
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  💡 Tip: For better performance, upload to{' '}
-                  <a
-                    href="https://imgur.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:underline"
-                  >
-                    Imgur
-                  </a>{' '}
-                  and paste the direct image URL instead
-                </p>
+                
+                {/* Alternative: URL Input */}
+                <div className="mt-4 pt-4 border-t">
+                  <p className="text-sm text-gray-600 mb-2">Or paste image URL:</p>
+                  <div className="flex gap-2">
+                    <input
+                      type="url"
+                      placeholder="https://example.com/image.jpg"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleUrlSubmit(e.target.value)
+                        }
+                      }}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        const input = e.target.previousElementSibling
+                        handleUrlSubmit(input.value)
+                      }}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+                    >
+                      Use URL
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -329,32 +352,13 @@ const ImagesPage = () => {
               </select>
             </div>
 
-            {/* Alternative: Direct URL Input (for Imgur URLs) */}
-            {!editingId && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Or paste image URL (from Imgur, etc.)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://i.imgur.com/example.jpg"
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setImagePreview(e.target.value)
-                      setSelectedFile(null)
-                    }
-                  }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                disabled={uploading}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {editingId ? 'Update Position' : 'Add Image'}
+                {uploading ? 'Uploading...' : editingId ? 'Update Position' : 'Upload Image'}
               </button>
               <button
                 type="button"

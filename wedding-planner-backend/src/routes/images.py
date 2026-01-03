@@ -1,7 +1,11 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Image, User
 from sqlalchemy.exc import IntegrityError
+import base64
+from io import BytesIO
+from PIL import Image as PILImage
+import os
 
 images_bp = Blueprint('images', __name__)
 
@@ -60,43 +64,133 @@ def get_image(image_id):
 @images_bp.route('/api/images', methods=['POST'])
 @jwt_required()
 def create_image():
-    """Create a new image (admin only)"""
+    """Create a new image (admin only) - accepts file upload or URL"""
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
     if not user or user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
     
-    data = request.get_json()
-    
-    required_fields = ['name', 'url']
-    for field in required_fields:
-        if field not in data:
-            return jsonify({'error': f'Missing required field: {field}'}), 400
-    
-    image = Image(
-        user_id=user_id,
-        name=data['name'],
-        url=data['url'],
-        alt_text=data.get('alt_text', ''),
-        description=data.get('description', ''),
-        category=data.get('category', 'gallery'),
-        position=data.get('position', ''),
-        order=data.get('order', 0),
-        is_active=data.get('is_active', True),
-        is_public=data.get('is_public', True),
-        file_size=data.get('file_size'),
-        width=data.get('width'),
-        height=data.get('height')
-    )
-    
-    try:
-        db.session.add(image)
-        db.session.commit()
-        return jsonify(image.to_dict()), 201
-    except IntegrityError:
-        db.session.rollback()
-        return jsonify({'error': 'Failed to create image'}), 500
+    # Check if this is a file upload (multipart/form-data) or JSON
+    if 'file' in request.files:
+        # File upload
+        file = request.files['file']
+        position = request.form.get('position', '')
+        
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        if not position:
+            return jsonify({'error': 'Position is required'}), 400
+        
+        # Validate file type
+        allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+        if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+            return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+        
+        # Read file
+        file_data = file.read()
+        file_size = len(file_data)
+        
+        # Validate file size (max 10MB)
+        if file_size > 10 * 1024 * 1024:
+            return jsonify({'error': 'File size exceeds 10MB limit'}), 400
+        
+        # Convert to base64
+        image_base64 = base64.b64encode(file_data).decode('utf-8')
+        mime_type = file.content_type or 'image/jpeg'
+        data_url = f'data:{mime_type};base64,{image_base64}'
+        
+        # Get image dimensions
+        try:
+            img = PILImage.open(BytesIO(file_data))
+            width, height = img.size
+        except Exception:
+            width, height = None, None
+        
+        # Create image record
+        image = Image(
+            user_id=user_id,
+            name=file.filename,
+            url=data_url,
+            position=position,
+            category='gallery',
+            is_active=True,
+            is_public=True,
+            file_size=file_size,
+            width=width,
+            height=height
+        )
+        
+        try:
+            db.session.add(image)
+            db.session.commit()
+            return jsonify(image.to_dict()), 201
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Failed to create image'}), 500
+    else:
+        # JSON request (URL or base64 data URL)
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+        
+        # Support both URL and base64 data URL
+        url = data.get('url') or data.get('image_url')
+        if not url:
+            return jsonify({'error': 'URL or file is required'}), 400
+        
+        name = data.get('name', 'Image')
+        position = data.get('position', '')
+        
+        if not position:
+            return jsonify({'error': 'Position is required'}), 400
+        
+        # Get file size if it's a data URL
+        file_size = None
+        width = None
+        height = None
+        
+        if url.startswith('data:'):
+            # Extract base64 data
+            try:
+                header, encoded = url.split(',', 1)
+                file_size = len(encoded) * 3 / 4  # Approximate size
+                
+                # Try to get dimensions
+                try:
+                    image_data = base64.b64decode(encoded)
+                    img = PILImage.open(BytesIO(image_data))
+                    width, height = img.size
+                except Exception:
+                    pass
+            except Exception:
+                pass
+        
+        image = Image(
+            user_id=user_id,
+            name=name,
+            url=url,
+            alt_text=data.get('alt_text', ''),
+            description=data.get('description', ''),
+            category=data.get('category', 'gallery'),
+            position=position,
+            order=data.get('order', 0),
+            is_active=data.get('is_active', True),
+            is_public=data.get('is_public', True),
+            file_size=file_size,
+            width=width,
+            height=height
+        )
+        
+        try:
+            db.session.add(image)
+            db.session.commit()
+            return jsonify(image.to_dict()), 201
+        except IntegrityError:
+            db.session.rollback()
+            return jsonify({'error': 'Failed to create image'}), 500
 
 @images_bp.route('/api/images/<int:image_id>', methods=['PUT'])
 @jwt_required()
