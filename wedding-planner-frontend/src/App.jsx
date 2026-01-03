@@ -12,9 +12,11 @@ import ContentPage from './pages/admin/ContentPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
 import WeddingManagement from './pages/admin/WeddingManagement'
 import ImagesPage from './pages/admin/ImagesPage'
+import InvitationsPage from './pages/admin/InvitationsPage'
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
+import GuestRegister from './pages/guest/Register'
 
 function GuestRoutes() {
   const { guest, loading } = useGuestAuth()
@@ -30,6 +32,7 @@ function GuestRoutes() {
   return (
     <Routes>
       <Route path="/login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
+      <Route path="/register" element={<GuestRegister />} />
       <Route path="/" element={<GuestLayout />}>
         <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
         <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
@@ -68,6 +71,7 @@ function AppRoutes() {
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="wedding" element={<WeddingManagement />} />
         <Route path="images" element={<ImagesPage />} />
+        <Route path="invitations" element={<InvitationsPage />} />
       </Route>
 
       <Route

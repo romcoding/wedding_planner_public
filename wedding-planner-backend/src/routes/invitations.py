@@ -1,0 +1,246 @@
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from src.models import db, Invitation, User, Guest
+from src.services.email_service import EmailService
+from datetime import datetime
+import os
+
+invitations_bp = Blueprint('invitations', __name__)
+
+@invitations_bp.route('', methods=['GET'])
+@jwt_required()
+def get_invitations():
+    """Get all invitations (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    # Filtering options
+    status = request.args.get('status')
+    email = request.args.get('email')
+    
+    query = Invitation.query
+    
+    if status:
+        query = query.filter_by(status=status)
+    if email:
+        query = query.filter(Invitation.email.ilike(f'%{email}%'))
+    
+    invitations = query.order_by(Invitation.created_at.desc()).all()
+    
+    return jsonify([inv.to_dict() for inv in invitations]), 200
+
+@invitations_bp.route('', methods=['POST'])
+@jwt_required()
+def create_invitation():
+    """Create and send invitation (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    
+    if not data or not data.get('email'):
+        return jsonify({'error': 'Email is required'}), 400
+    
+    email = data['email'].strip().lower()
+    guest_name = data.get('guest_name')
+    plus_one_allowed = data.get('plus_one_allowed', False)
+    plus_one_count = data.get('plus_one_count', 0)
+    expires_days = data.get('expires_days', 30)
+    send_email = data.get('send_email', True)
+    
+    # Check if invitation already exists for this email
+    existing = Invitation.query.filter_by(email=email).filter(
+        Invitation.status.in_(['pending', 'sent'])
+    ).first()
+    
+    if existing and existing.is_valid():
+        return jsonify({'error': 'An active invitation already exists for this email'}), 400
+    
+    # Create invitation
+    invitation = Invitation.create_invitation(
+        user_id=user_id,
+        email=email,
+        guest_name=guest_name,
+        plus_one_allowed=plus_one_allowed,
+        plus_one_count=plus_one_count,
+        expires_days=expires_days
+    )
+    
+    db.session.add(invitation)
+    db.session.commit()
+    
+    # Send email if requested
+    if send_email:
+        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+        email_sent = EmailService.send_invitation_email(
+            email=email,
+            invitation_token=invitation.token,
+            guest_name=guest_name,
+            frontend_url=frontend_url
+        )
+        
+        if email_sent:
+            invitation.mark_as_sent()
+            db.session.commit()
+    
+    return jsonify({
+        'message': 'Invitation created successfully',
+        'invitation': invitation.to_dict()
+    }), 201
+
+@invitations_bp.route('/<int:invitation_id>', methods=['GET'])
+@jwt_required()
+def get_invitation(invitation_id):
+    """Get specific invitation (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    invitation = Invitation.query.get_or_404(invitation_id)
+    return jsonify(invitation.to_dict()), 200
+
+@invitations_bp.route('/<int:invitation_id>/resend', methods=['POST'])
+@jwt_required()
+def resend_invitation(invitation_id):
+    """Resend invitation email (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    invitation = Invitation.query.get_or_404(invitation_id)
+    
+    if invitation.status == 'accepted':
+        return jsonify({'error': 'Cannot resend accepted invitation'}), 400
+    
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    email_sent = EmailService.send_invitation_email(
+        email=invitation.email,
+        invitation_token=invitation.token,
+        guest_name=invitation.guest_name,
+        frontend_url=frontend_url
+    )
+    
+    if email_sent:
+        invitation.mark_as_sent()
+        db.session.commit()
+        return jsonify({'message': 'Invitation resent successfully'}), 200
+    else:
+        return jsonify({'error': 'Failed to send email. Check SMTP configuration.'}), 500
+
+@invitations_bp.route('/<int:invitation_id>/revoke', methods=['POST'])
+@jwt_required()
+def revoke_invitation(invitation_id):
+    """Revoke invitation (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    invitation = Invitation.query.get_or_404(invitation_id)
+    
+    if invitation.status == 'accepted':
+        return jsonify({'error': 'Cannot revoke accepted invitation'}), 400
+    
+    invitation.revoke()
+    db.session.commit()
+    
+    return jsonify({'message': 'Invitation revoked successfully'}), 200
+
+@invitations_bp.route('/validate/<token>', methods=['GET'])
+def validate_invitation_token(token):
+    """Validate invitation token (public endpoint)"""
+    invitation = Invitation.query.filter_by(token=token).first()
+    
+    if not invitation:
+        return jsonify({'error': 'Invalid invitation token'}), 404
+    
+    if not invitation.is_valid():
+        return jsonify({
+            'error': 'Invitation has expired or been revoked',
+            'status': invitation.status
+        }), 400
+    
+    return jsonify({
+        'valid': True,
+        'email': invitation.email,
+        'guest_name': invitation.guest_name,
+        'plus_one_allowed': invitation.plus_one_allowed,
+        'plus_one_count': invitation.plus_one_count,
+        'expires_at': invitation.expires_at.isoformat() if invitation.expires_at else None
+    }), 200
+
+@invitations_bp.route('/register', methods=['POST'])
+def register_with_invitation():
+    """Register guest using invitation token"""
+    data = request.get_json()
+    
+    if not data or not data.get('token'):
+        return jsonify({'error': 'Invitation token is required'}), 400
+    
+    token = data['token']
+    invitation = Invitation.query.filter_by(token=token).first()
+    
+    if not invitation:
+        return jsonify({'error': 'Invalid invitation token'}), 404
+    
+    if not invitation.is_valid():
+        return jsonify({
+            'error': 'Invitation has expired or been revoked',
+            'status': invitation.status
+        }), 400
+    
+    # Check if guest already exists
+    existing_guest = Guest.query.filter_by(email=invitation.email).first()
+    
+    if existing_guest:
+        return jsonify({'error': 'A guest with this email already exists'}), 400
+    
+    # Validate required fields
+    if not data.get('username') or not data.get('password'):
+        return jsonify({'error': 'Username and password are required'}), 400
+    
+    if not data.get('first_name') or not data.get('last_name'):
+        return jsonify({'error': 'First name and last name are required'}), 400
+    
+    # Create guest account
+    from flask_jwt_extended import create_access_token
+    
+    guest = Guest(
+        email=invitation.email,
+        first_name=data['first_name'],
+        last_name=data['last_name'],
+        phone=data.get('phone'),
+        username=data['username'],
+        rsvp_status='pending',
+        number_of_guests=1 + (invitation.plus_one_count if invitation.plus_one_allowed else 0)
+    )
+    guest.set_password(data['password'])
+    
+    db.session.add(guest)
+    
+    # Mark invitation as accepted
+    invitation.mark_as_accepted(guest.id)
+    
+    db.session.commit()
+    
+    # Generate JWT token
+    access_token = create_access_token(identity=f"guest_{guest.id}")
+    
+    return jsonify({
+        'message': 'Registration successful',
+        'access_token': access_token,
+        'guest': guest.to_dict(include_sensitive=False),
+        'invitation': invitation.to_dict()
+    }), 201
+
