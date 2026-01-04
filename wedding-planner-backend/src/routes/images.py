@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Image, User
+from src.utils.jwt_helpers import get_admin_id
 from sqlalchemy.exc import IntegrityError
 import base64
 from io import BytesIO
@@ -20,9 +21,16 @@ def get_images():
             from flask_jwt_extended import decode_token
             token = auth_header.split(' ')[1]
             decoded = decode_token(token)
-            user_id = decoded.get('sub')
-            user = User.query.get(user_id)
-            is_admin = user and user.role == 'admin'
+            identity = decoded.get('sub')
+            # Check if it's an admin (integer ID) or guest (guest_X format)
+            if identity and not isinstance(identity, str) or (isinstance(identity, str) and not identity.startswith('guest_')):
+                # Try to get admin ID
+                try:
+                    admin_id = int(identity) if isinstance(identity, str) else identity
+                    user = User.query.get(admin_id)
+                    is_admin = user and user.role == 'admin'
+                except (ValueError, TypeError):
+                    pass
         except:
             pass
     
@@ -49,9 +57,16 @@ def get_image(image_id):
             from flask_jwt_extended import decode_token
             token = auth_header.split(' ')[1]
             decoded = decode_token(token)
-            user_id = decoded.get('sub')
-            user = User.query.get(user_id)
-            is_admin = user and user.role == 'admin'
+            identity = decoded.get('sub')
+            # Check if it's an admin (integer ID) or guest (guest_X format)
+            if identity and not isinstance(identity, str) or (isinstance(identity, str) and not identity.startswith('guest_')):
+                # Try to get admin ID
+                try:
+                    admin_id = int(identity) if isinstance(identity, str) else identity
+                    user = User.query.get(admin_id)
+                    is_admin = user and user.role == 'admin'
+                except (ValueError, TypeError):
+                    pass
         except:
             pass
     
@@ -64,7 +79,11 @@ def get_image(image_id):
 @jwt_required()
 def create_image():
     """Create a new image (admin only) - accepts file upload or URL"""
-    user_id = get_jwt_identity()
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
     user = User.query.get(user_id)
     
     if not user or user.role != 'admin':
@@ -213,7 +232,11 @@ def create_image():
 @jwt_required()
 def update_image(image_id):
     """Update an image (admin only)"""
-    user_id = get_jwt_identity()
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
     user = User.query.get(user_id)
     
     if not user or user.role != 'admin':
@@ -259,7 +282,11 @@ def update_image(image_id):
 @jwt_required()
 def delete_image(image_id):
     """Delete an image (admin only)"""
-    user_id = get_jwt_identity()
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
     user = User.query.get(user_id)
     
     if not user or user.role != 'admin':
