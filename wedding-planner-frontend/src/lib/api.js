@@ -8,10 +8,22 @@ const api = axios.create({
 
 // Add token to requests if available (admin or guest)
 api.interceptors.request.use((config) => {
-  // Try admin token first, then guest token
-  const adminToken = localStorage.getItem('access_token')
-  const guestToken = localStorage.getItem('guest_token')
-  const token = adminToken || guestToken
+  // Determine which token to use based on the endpoint
+  const url = config.url || ''
+  const isGuestEndpoint = url.includes('/guests/update-rsvp') || 
+                         url.includes('/guests/token/') ||
+                         url.includes('/guest-auth/') ||
+                         url.includes('/guest-photos')
+  
+  let token = null
+  if (isGuestEndpoint) {
+    // For guest endpoints, prioritize guest token
+    token = localStorage.getItem('guest_token') || localStorage.getItem('access_token')
+  } else {
+    // For admin endpoints, prioritize admin token
+    token = localStorage.getItem('access_token') || localStorage.getItem('guest_token')
+  }
+  
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
