@@ -23,15 +23,20 @@ def get_images():
             decoded = decode_token(token)
             identity = decoded.get('sub')
             # Check if it's an admin (integer ID) or guest (guest_X format)
-            if identity and not isinstance(identity, str) or (isinstance(identity, str) and not identity.startswith('guest_')):
-                # Try to get admin ID
-                try:
-                    admin_id = int(identity) if isinstance(identity, str) else identity
-                    user = User.query.get(admin_id)
-                    is_admin = user and user.role == 'admin'
-                except (ValueError, TypeError):
-                    pass
-        except:
+            if identity:
+                # If it's a string starting with 'guest_', it's a guest token
+                if isinstance(identity, str) and identity.startswith('guest_'):
+                    is_admin = False
+                else:
+                    # Try to get admin ID
+                    try:
+                        admin_id = int(identity) if isinstance(identity, str) else identity
+                        user = User.query.get(admin_id)
+                        is_admin = user and user.role == 'admin'
+                    except (ValueError, TypeError):
+                        pass
+        except Exception as e:
+            # If token decode fails, treat as guest
             pass
     
     if is_admin:
@@ -59,15 +64,20 @@ def get_image(image_id):
             decoded = decode_token(token)
             identity = decoded.get('sub')
             # Check if it's an admin (integer ID) or guest (guest_X format)
-            if identity and not isinstance(identity, str) or (isinstance(identity, str) and not identity.startswith('guest_')):
-                # Try to get admin ID
-                try:
-                    admin_id = int(identity) if isinstance(identity, str) else identity
-                    user = User.query.get(admin_id)
-                    is_admin = user and user.role == 'admin'
-                except (ValueError, TypeError):
-                    pass
-        except:
+            if identity:
+                # If it's a string starting with 'guest_', it's a guest token
+                if isinstance(identity, str) and identity.startswith('guest_'):
+                    is_admin = False
+                else:
+                    # Try to get admin ID
+                    try:
+                        admin_id = int(identity) if isinstance(identity, str) else identity
+                        user = User.query.get(admin_id)
+                        is_admin = user and user.role == 'admin'
+                    except (ValueError, TypeError):
+                        pass
+        except Exception as e:
+            # If token decode fails, treat as guest
             pass
     
     if not is_admin and (not image.is_public or not image.is_active):
