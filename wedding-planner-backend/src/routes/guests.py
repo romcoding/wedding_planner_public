@@ -11,13 +11,29 @@ def update_rsvp():
     """Update RSVP information (guest authenticated via token)"""
     identity = get_jwt_identity()
     
-    if not str(identity).startswith('guest_'):
-        return jsonify({'error': 'Unauthorized'}), 403
+    # Log for debugging
+    import logging
+    logging.info(f"Update RSVP - Identity: {identity}, Type: {type(identity)}")
     
-    guest_id = int(identity.split('_')[1])
+    if not identity:
+        logging.error("Update RSVP - No identity found")
+        return jsonify({'error': 'Unauthorized - No token provided'}), 403
+    
+    identity_str = str(identity)
+    if not identity_str.startswith('guest_'):
+        logging.error(f"Update RSVP - Identity does not start with 'guest_': {identity_str}")
+        return jsonify({'error': 'Unauthorized - Guest token required'}), 403
+    
+    try:
+        guest_id = int(identity_str.split('_')[1])
+    except (ValueError, IndexError) as e:
+        logging.error(f"Update RSVP - Invalid token format: {identity_str}, Error: {e}")
+        return jsonify({'error': 'Invalid token format'}), 403
+    
     guest = Guest.query.get(guest_id)
     
     if not guest:
+        logging.error(f"Update RSVP - Guest not found with ID: {guest_id}")
         return jsonify({'error': 'Guest not found'}), 404
     
     data = request.get_json()

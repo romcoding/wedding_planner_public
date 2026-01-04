@@ -89,7 +89,21 @@ export default function RSVP() {
   })
 
   const updateRSVPMutation = useMutation({
-    mutationFn: (data) => api.put('/guests/update-rsvp', data),
+    mutationFn: async (data) => {
+      // Ensure we have a token before making the request
+      const guestToken = localStorage.getItem('guest_token')
+      if (!guestToken) {
+        // Try to re-authenticate if token is missing
+        if (token) {
+          const authResponse = await api.post(`/guests/token/${token}/auth`)
+          const { access_token } = authResponse.data
+          localStorage.setItem('guest_token', access_token)
+        } else {
+          throw new Error('No authentication token available')
+        }
+      }
+      return api.put('/guests/update-rsvp', data)
+    },
     onSuccess: () => {
       setShowGlitter(true)
       setTimeout(() => {
@@ -97,7 +111,8 @@ export default function RSVP() {
       }, 3000)
     },
     onError: (err) => {
-      setError(err.response?.data?.error || 'Failed to update RSVP')
+      console.error('RSVP update error:', err)
+      setError(err.response?.data?.error || err.message || 'Failed to update RSVP')
     },
   })
 
