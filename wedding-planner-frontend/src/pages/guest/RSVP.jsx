@@ -51,7 +51,7 @@ export default function RSVP() {
   // RSVP form data
   const [formData, setFormData] = useState({
     rsvp_status: 'pending',
-    attendance_type: '',
+    overnight_stay: false,
     number_of_guests: 1,
     dietary_restrictions: '',
     allergies: '',
@@ -66,7 +66,7 @@ export default function RSVP() {
     if (guestData) {
       setFormData({
         rsvp_status: guestData.rsvp_status || 'pending',
-        attendance_type: guestData.attendance_type || '',
+        overnight_stay: guestData.overnight_stay || false,
         number_of_guests: guestData.number_of_guests || 1,
         dietary_restrictions: guestData.dietary_restrictions || '',
         allergies: guestData.allergies || '',
@@ -102,10 +102,10 @@ export default function RSVP() {
   })
 
   const handleChange = (e) => {
-    const { name, value } = e.target
+    const { name, value, type, checked } = e.target
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'number_of_guests' ? parseInt(value) || 1 : value,
+      [name]: type === 'checkbox' ? checked : (name === 'number_of_guests' ? parseInt(value) || 1 : value),
     }))
   }
 
@@ -259,23 +259,6 @@ export default function RSVP() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('rsvpDetails')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="attendance_type" className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('attendance')}
-                      </label>
-                      <select
-                        id="attendance_type"
-                        name="attendance_type"
-                        value={formData.attendance_type}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                      >
-                        <option value="">{t('select')}</option>
-                        <option value="ceremony">{t('ceremonyOnly')}</option>
-                        <option value="reception">{t('receptionOnly')}</option>
-                        <option value="both">{t('bothEvents')}</option>
-                      </select>
-                    </div>
-                    <div>
                       <label htmlFor="number_of_guests" className="block text-sm font-medium text-gray-700 mb-2">
                         {t('numberOfGuests')}
                       </label>
@@ -289,22 +272,51 @@ export default function RSVP() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       />
                     </div>
+                    <div>
+                      <label htmlFor="rsvp_status" className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('rsvpStatus')}
+                      </label>
+                      <select
+                        id="rsvp_status"
+                        name="rsvp_status"
+                        value={formData.rsvp_status}
+                        onChange={handleChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                      >
+                        <option value="pending">{t('pending')}</option>
+                        <option value="confirmed">{t('confirmed')}</option>
+                        <option value="declined">{t('declined')}</option>
+                      </select>
+                    </div>
                   </div>
                   <div className="mt-4">
-                    <label htmlFor="rsvp_status" className="block text-sm font-medium text-gray-700 mb-2">
-                      {t('rsvpStatus')}
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {t('overnightStayQuestion')}
                     </label>
-                    <select
-                      id="rsvp_status"
-                      name="rsvp_status"
-                      value={formData.rsvp_status}
-                      onChange={handleChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                    >
-                      <option value="pending">{t('pending')}</option>
-                      <option value="confirmed">{t('confirmed')}</option>
-                      <option value="declined">{t('declined')}</option>
-                    </select>
+                    <div className="flex gap-6">
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="overnight_stay"
+                          value="true"
+                          checked={formData.overnight_stay === true}
+                          onChange={(e) => setFormData({ ...formData, overnight_stay: true })}
+                          className="mr-2"
+                        />
+                        {t('overnightStayYes')}
+                      </label>
+                      <label className="flex items-center">
+                        <input
+                          type="radio"
+                          name="overnight_stay"
+                          value="false"
+                          checked={formData.overnight_stay === false}
+                          onChange={(e) => setFormData({ ...formData, overnight_stay: false })}
+                          className="mr-2"
+                        />
+                        {t('overnightStayNo')}
+                      </label>
+                    </div>
                   </div>
                 </div>
 

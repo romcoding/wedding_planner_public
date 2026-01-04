@@ -25,8 +25,8 @@ def update_rsvp():
     # Update RSVP fields
     if 'rsvp_status' in data:
         guest.rsvp_status = data['rsvp_status']
-    if 'attendance_type' in data:
-        guest.attendance_type = data['attendance_type']
+    if 'overnight_stay' in data:
+        guest.overnight_stay = bool(data['overnight_stay'])
     if 'number_of_guests' in data:
         guest.number_of_guests = data['number_of_guests']
     if 'dietary_restrictions' in data:
@@ -87,7 +87,7 @@ def create_guest():
         phone=data.get('phone'),
         unique_token=unique_token,
         rsvp_status=data.get('rsvp_status', 'pending'),
-        attendance_type=data.get('attendance_type'),
+        overnight_stay=data.get('overnight_stay', False),
         number_of_guests=data.get('number_of_guests', 1),
         dietary_restrictions=data.get('dietary_restrictions'),
         allergies=data.get('allergies'),
@@ -133,14 +133,14 @@ def get_guests():
     
     # Filtering options
     rsvp_status = request.args.get('rsvp_status')
-    attendance_type = request.args.get('attendance_type')
+    overnight_stay = request.args.get('overnight_stay')
     
     query = Guest.query
     
     if rsvp_status:
         query = query.filter_by(rsvp_status=rsvp_status)
-    if attendance_type:
-        query = query.filter_by(attendance_type=attendance_type)
+    if overnight_stay is not None:
+        query = query.filter_by(overnight_stay=overnight_stay.lower() == 'true')
     
     guests = query.order_by(Guest.registered_at.desc()).all()
     
@@ -259,8 +259,8 @@ def update_guest(guest_id):
         guest.phone = data['phone']
     if 'rsvp_status' in data:
         guest.rsvp_status = data['rsvp_status']
-    if 'attendance_type' in data:
-        guest.attendance_type = data['attendance_type']
+    if 'overnight_stay' in data:
+        guest.overnight_stay = bool(data['overnight_stay'])
     if 'number_of_guests' in data:
         guest.number_of_guests = data['number_of_guests']
     if 'dietary_restrictions' in data:

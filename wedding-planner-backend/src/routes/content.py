@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Content, User
+from src.utils.jwt_helpers import get_admin_id
 
 content_bp = Blueprint('content', __name__)
 
@@ -15,11 +16,16 @@ def get_content():
     else:
         # Check if user is authenticated for admin access
         try:
-            from flask_jwt_extended import get_jwt_identity
-            user_id = get_jwt_identity()
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request()
+            user_id = get_admin_id()
+            
+            if not user_id:
+                return jsonify({'error': 'Unauthorized - Admin access required'}), 401
+            
             user = User.query.get(user_id)
             
-            if not user:
+            if not user or user.role != 'admin':
                 return jsonify({'error': 'Unauthorized'}), 401
             
             # Return all content for admin
@@ -40,11 +46,16 @@ def get_content_by_key(key):
     # Check if content is public or user is admin
     if not content.is_public:
         try:
-            from flask_jwt_extended import get_jwt_identity
-            user_id = get_jwt_identity()
+            from flask_jwt_extended import verify_jwt_in_request
+            verify_jwt_in_request()
+            user_id = get_admin_id()
+            
+            if not user_id:
+                return jsonify({'error': 'Unauthorized - Admin access required'}), 401
+            
             user = User.query.get(user_id)
             
-            if not user:
+            if not user or user.role != 'admin':
                 return jsonify({'error': 'Unauthorized'}), 401
         except:
             return jsonify({'error': 'Unauthorized'}), 401
@@ -55,7 +66,11 @@ def get_content_by_key(key):
 @jwt_required()
 def create_content():
     """Create new content (admin only)"""
-    user_id = get_jwt_identity()
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
     user = User.query.get(user_id)
     
     if not user:
@@ -87,7 +102,11 @@ def create_content():
 @jwt_required()
 def update_content(content_id):
     """Update content (admin only)"""
-    user_id = get_jwt_identity()
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
     user = User.query.get(user_id)
     
     if not user:
@@ -127,7 +146,11 @@ def update_content(content_id):
 @jwt_required()
 def delete_content(content_id):
     """Delete content (admin only)"""
-    user_id = get_jwt_identity()
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
     user = User.query.get(user_id)
     
     if not user:

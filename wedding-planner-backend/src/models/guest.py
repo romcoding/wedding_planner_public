@@ -21,7 +21,7 @@ class Guest(db.Model):
     
     # RSVP information
     rsvp_status = db.Column(db.String(20), default='pending')  # pending, confirmed, declined
-    attendance_type = db.Column(db.String(20))  # ceremony, reception, both
+    overnight_stay = db.Column(db.Boolean, default=False)  # Whether guest wants to stay overnight
     number_of_guests = db.Column(db.Integer, default=1)  # Including plus-ones
     
     # Dietary and special requirements
@@ -64,7 +64,7 @@ class Guest(db.Model):
             'unique_token': self.unique_token if include_sensitive else None,
             'username': self.username if include_sensitive else None,
             'rsvp_status': self.rsvp_status,
-            'attendance_type': self.attendance_type,
+            'overnight_stay': self.overnight_stay,
             'number_of_guests': self.number_of_guests,
             'dietary_restrictions': self.dietary_restrictions,
             'allergies': self.allergies,
