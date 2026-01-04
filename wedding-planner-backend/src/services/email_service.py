@@ -23,11 +23,12 @@ class EmailService:
                 print(f"SMTP not configured. Would send invitation to {email} with token {invitation_token}")
                 return False
             
-            # Create message
+            # Create message with proper content type
             msg = MIMEMultipart('alternative')
             msg['Subject'] = "You're Invited to Our Wedding!"
             msg['From'] = from_email
             msg['To'] = email
+            msg['Content-Type'] = 'text/html; charset=utf-8'
             
             # Create invitation link (direct to RSVP page for passwordless system)
             invitation_link = f"{frontend_url}/rsvp/{invitation_token}"
@@ -117,9 +118,12 @@ class EmailService:
             The Happy Couple
             """
             
-            # Attach both versions
-            msg.attach(MIMEText(text_body, 'plain'))
-            msg.attach(MIMEText(html_body, 'html'))
+            # Attach both versions (plain text first, then HTML)
+            # Some email clients prefer HTML if both are present
+            msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+            html_part = MIMEText(html_body, 'html', 'utf-8')
+            html_part.set_charset('utf-8')
+            msg.attach(html_part)
             
             # Send email
             with smtplib.SMTP(smtp_host, smtp_port) as server:

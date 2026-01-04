@@ -108,7 +108,9 @@ export default function RSVP() {
       // Only show glitter if RSVP status is confirmed
       if (variables.rsvp_status === 'confirmed') {
         setShowGlitter(true)
+        // Keep glitter visible for 3 seconds, then navigate
         setTimeout(() => {
+          setShowGlitter(false)
           navigate('/info')
         }, 3000)
       } else {
@@ -358,6 +360,9 @@ export default function RSVP() {
                       <option value="false">{t('overnightStayNo')}</option>
                       <option value="true">{t('overnightStayYes')}</option>
                     </select>
+                    <p className="mt-2 text-xs text-gray-500 italic">
+                      {t('overnightStayNote')}
+                    </p>
                   </div>
                 </div>
 
