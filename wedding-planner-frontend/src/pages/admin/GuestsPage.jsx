@@ -47,7 +47,12 @@ export default function GuestsPage() {
       })
       // Show the QR code for the newly created guest
       if (data.guest) {
-        setSelectedGuest(data.guest)
+        // Add rsvp_link to guest object if it's in the response
+        const guestWithLink = {
+          ...data.guest,
+          rsvp_link: data.rsvp_link || data.guest.rsvp_link
+        }
+        setSelectedGuest(guestWithLink)
         setShowQRCode(data.guest.id)
       }
     },
@@ -269,7 +274,7 @@ export default function GuestsPage() {
                 <input
                   type="text"
                   readOnly
-                  value={selectedGuest.rsvp_link}
+                  value={selectedGuest.rsvp_link || 'Generating link...'}
                   className="flex-1 px-3 py-2 border border-gray-300 rounded text-sm"
                 />
                 <button
@@ -281,11 +286,13 @@ export default function GuestsPage() {
                 </button>
               </div>
             </div>
-            <div className="flex justify-center mb-4">
-              <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
-                <QRCodeSVG value={selectedGuest.rsvp_link} size={200} />
+            {selectedGuest.rsvp_link && (
+              <div className="flex justify-center mb-4">
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                  <QRCodeSVG value={selectedGuest.rsvp_link} size={200} />
+                </div>
               </div>
-            </div>
+            )}
             <p className="text-sm text-gray-500 text-center mb-4">
               Scan this QR code or share the link above
             </p>
@@ -423,9 +430,16 @@ export default function GuestsPage() {
                           <QrCode className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => copyToClipboard(guest.rsvp_link)}
-                          className="p-1 text-gray-600 hover:text-gray-800"
+                          onClick={() => {
+                            if (guest.rsvp_link) {
+                              copyToClipboard(guest.rsvp_link)
+                            } else {
+                              alert('RSVP link is not available. Please refresh the page.')
+                            }
+                          }}
+                          className="p-1 text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           title="Copy Link"
+                          disabled={!guest.rsvp_link}
                         >
                           <Copy className="w-4 h-4" />
                         </button>

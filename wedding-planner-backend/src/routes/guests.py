@@ -100,14 +100,21 @@ def create_guest():
     db.session.add(guest)
     db.session.commit()
     
+    # Refresh to get the guest with all fields
+    db.session.refresh(guest)
+    
     # Get frontend URL for the unique link
     import os
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    rsvp_link = f"{frontend_url}/rsvp/{unique_token}"
+    rsvp_link = f"{frontend_url}/rsvp/{guest.unique_token}"
+    
+    # Build guest dict with rsvp_link included
+    guest_dict = guest.to_dict(include_sensitive=True)
+    guest_dict['rsvp_link'] = rsvp_link
     
     return jsonify({
         'message': 'Guest created successfully',
-        'guest': guest.to_dict(include_sensitive=True),
+        'guest': guest_dict,
         'rsvp_link': rsvp_link
     }), 201
 
@@ -142,7 +149,14 @@ def get_guests():
     guests_data = []
     for guest in guests:
         guest_dict = guest.to_dict(include_sensitive=True)
-        guest_dict['rsvp_link'] = f"{frontend_url}/rsvp/{guest.unique_token}"
+        # Generate token if missing (for backward compatibility)
+        if not guest.unique_token:
+            guest.unique_token = Guest.generate_unique_token()
+            # Ensure uniqueness
+            while Guest.query.filter_by(unique_token=guest.unique_token).filter(Guest.id != guest.id).first():
+                guest.unique_token = Guest.generate_unique_token()
+            db.session.commit()
+        guest_dict['rsvp_link'] = f"{frontend_url}/rsvp/{guest.unique_token}" if guest.unique_token else None
         guests_data.append(guest_dict)
     
     return jsonify(guests_data), 200
@@ -203,7 +217,14 @@ def get_guest(guest_id):
     import os
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
     guest_dict = guest.to_dict(include_sensitive=True)
-    guest_dict['rsvp_link'] = f"{frontend_url}/rsvp/{guest.unique_token}"
+    # Generate token if missing
+    if not guest.unique_token:
+        guest.unique_token = Guest.generate_unique_token()
+        # Ensure uniqueness
+        while Guest.query.filter_by(unique_token=guest.unique_token).filter(Guest.id != guest.id).first():
+            guest.unique_token = Guest.generate_unique_token()
+        db.session.commit()
+    guest_dict['rsvp_link'] = f"{frontend_url}/rsvp/{guest.unique_token}" if guest.unique_token else None
     
     return jsonify(guest_dict), 200
 
