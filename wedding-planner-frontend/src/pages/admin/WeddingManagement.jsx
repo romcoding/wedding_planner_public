@@ -118,29 +118,23 @@ export default function WeddingManagement() {
           </div>
         </div>
 
-        {/* Attendance Breakdown */}
+        {/* Overnight Stay Breakdown */}
         <div className="bg-white rounded-lg shadow p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Attendance Breakdown
+            Overnight Stay
           </h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center pb-3 border-b">
-              <span className="text-gray-600">Ceremony Only</span>
-              <span className="font-semibold">
-                {overview?.guests?.attendance_breakdown?.ceremony_only || 0}
-              </span>
-            </div>
-            <div className="flex justify-between items-center pb-3 border-b">
-              <span className="text-gray-600">Reception Only</span>
-              <span className="font-semibold">
-                {overview?.guests?.attendance_breakdown?.reception_only || 0}
+              <span className="text-gray-600">Staying Overnight</span>
+              <span className="font-semibold text-green-600">
+                {overview?.guests?.attendance_breakdown?.overnight_stay || 0}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Both Events</span>
+              <span className="text-gray-600">Not Staying Overnight</span>
               <span className="font-semibold">
-                {overview?.guests?.attendance_breakdown?.both_events || 0}
+                {overview?.guests?.attendance_breakdown?.no_overnight_stay || 0}
               </span>
             </div>
           </div>

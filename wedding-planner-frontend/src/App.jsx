@@ -68,8 +68,7 @@ function AppRoutes() {
         path="/admin"
         element={user ? <AdminLayout /> : <Navigate to="/admin/login" replace />}
       >
-        <Route index element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route index element={<Navigate to="/admin/wedding" replace />} />
         <Route path="guests" element={<GuestsPage />} />
         <Route path="tasks" element={<TasksPage />} />
         <Route path="costs" element={<CostsPage />} />

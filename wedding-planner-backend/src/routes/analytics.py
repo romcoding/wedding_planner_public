@@ -26,10 +26,9 @@ def get_overview():
     # Total attendance count (including plus-ones)
     total_attendance = db.session.query(func.sum(Guest.number_of_guests)).filter_by(rsvp_status='confirmed').scalar() or 0
     
-    # Attendance type breakdown
-    ceremony_only = Guest.query.filter_by(attendance_type='ceremony', rsvp_status='confirmed').count()
-    reception_only = Guest.query.filter_by(attendance_type='reception', rsvp_status='confirmed').count()
-    both_events = Guest.query.filter_by(attendance_type='both', rsvp_status='confirmed').count()
+    # Overnight stay breakdown
+    overnight_stay_count = Guest.query.filter_by(overnight_stay=True, rsvp_status='confirmed').count()
+    no_overnight_stay_count = Guest.query.filter_by(overnight_stay=False, rsvp_status='confirmed').count()
     
     return jsonify({
         'guests': {
@@ -39,9 +38,8 @@ def get_overview():
             'declined': declined_guests,
             'total_attendance': int(total_attendance),
             'attendance_breakdown': {
-                'ceremony_only': ceremony_only,
-                'reception_only': reception_only,
-                'both_events': both_events
+                'overnight_stay': overnight_stay_count,
+                'no_overnight_stay': no_overnight_stay_count
             }
         }
     }), 200
@@ -119,11 +117,11 @@ def get_attendance():
         func.count(Guest.id).label('count')
     ).group_by(Guest.rsvp_status).all()
     
-    # Attendance type breakdown
-    attendance_breakdown = db.session.query(
-        Guest.attendance_type,
+    # Overnight stay breakdown
+    overnight_breakdown = db.session.query(
+        Guest.overnight_stay,
         func.count(Guest.id).label('count')
-    ).filter_by(rsvp_status='confirmed').group_by(Guest.attendance_type).all()
+    ).filter_by(rsvp_status='confirmed').group_by(Guest.overnight_stay).all()
     
     # Recent registrations (last 7 days)
     from datetime import datetime, timedelta
@@ -134,7 +132,7 @@ def get_attendance():
     
     return jsonify({
         'rsvp_breakdown': {status: count for status, count in rsvp_breakdown},
-        'attendance_breakdown': {atype: count for atype, count in attendance_breakdown},
+        'overnight_breakdown': {str(overnight): count for overnight, count in overnight_breakdown},
         'recent_registrations': recent_registrations
     }), 200
 

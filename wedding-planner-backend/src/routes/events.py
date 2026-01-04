@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Event, User
+from src.utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 
@@ -18,11 +19,19 @@ def get_events():
             from flask_jwt_extended import decode_token
             token = auth_header.split(' ')[1]
             decoded = decode_token(token)
-            user_id = decoded.get('sub')
+            identity = decoded.get('sub')
+            
             # Check if it's an admin token (not guest)
-            if not str(user_id).startswith('guest_'):
-                user = User.query.get(user_id)
-                is_admin = user and user.role == 'admin'
+            if identity:
+                identity_str = str(identity)
+                if not identity_str.startswith('guest_'):
+                    # Try to get admin ID
+                    try:
+                        admin_id = int(identity_str) if isinstance(identity_str, str) else identity
+                        user = User.query.get(admin_id)
+                        is_admin = user and user.role == 'admin'
+                    except (ValueError, TypeError):
+                        pass
         except:
             pass
     
@@ -30,7 +39,7 @@ def get_events():
         # Admins see all events
         events = Event.query.filter_by(is_active=True).order_by(Event.order, Event.start_time).all()
     else:
-        # Guests see only public, active events
+        # Guests see only public, active events (always filter by is_public=True)
         events = Event.query.filter_by(is_public=True, is_active=True).order_by(Event.order, Event.start_time).all()
     
     return jsonify([event.to_dict() for event in events]), 200

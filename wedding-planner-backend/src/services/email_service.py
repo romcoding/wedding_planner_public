@@ -32,30 +32,70 @@ class EmailService:
             # Create invitation link
             invitation_link = f"{frontend_url}/register?token={invitation_token}"
             
-            # Create HTML email
+            # Create rich HTML email template
             html_body = f"""
+            <!DOCTYPE html>
             <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  <h1 style="color: #d63384;">You're Invited!</h1>
-                  <p>Dear {guest_name or 'Guest'},</p>
-                  <p>We're thrilled to invite you to celebrate our special day with us!</p>
-                  <p>Please click the link below to register and RSVP:</p>
-                  <p style="text-align: center; margin: 30px 0;">
-                    <a href="{invitation_link}" 
-                       style="background-color: #d63384; color: white; padding: 15px 30px; 
-                              text-decoration: none; border-radius: 5px; display: inline-block;">
-                      Register & RSVP
-                    </a>
-                  </p>
-                  <p>Or copy and paste this link into your browser:</p>
-                  <p style="word-break: break-all; color: #666;">{invitation_link}</p>
-                  <p>We can't wait to celebrate with you!</p>
-                  <p style="margin-top: 40px; color: #666; font-size: 14px;">
-                    With love,<br>
-                    The Happy Couple
-                  </p>
-                </div>
+              <head>
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <style>
+                  @media only screen and (max-width: 600px) {{
+                    .container {{ width: 100% !important; padding: 10px !important; }}
+                    .button {{ padding: 12px 24px !important; font-size: 16px !important; }}
+                    h1 {{ font-size: 32px !important; }}
+                  }}
+                </style>
+              </head>
+              <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5; line-height: 1.6;">
+                <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f5; padding: 20px 0;">
+                  <tr>
+                    <td align="center" style="padding: 20px 0;">
+                      <table role="presentation" class="container" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 0 auto;">
+                        <tr>
+                          <td style="padding: 40px 30px; text-align: center;">
+                            <h1 style="margin: 0; color: #d63384; font-size: 42px; font-weight: bold; letter-spacing: -0.5px;">You're Invited!</h1>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 0 30px 30px;">
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px;">Dear {guest_name or 'Guest'},</p>
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px;">We're thrilled to invite you to celebrate our special day with us!</p>
+                            <p style="margin: 0 0 30px; color: #333333; font-size: 16px;">Please click the link below to register and RSVP:</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td align="center" style="padding: 0 30px 30px;">
+                            <a href="{invitation_link}" 
+                               class="button"
+                               style="background-color: #d63384; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 18px; letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(214, 51, 132, 0.3);">
+                              Register & RSVP
+                            </a>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 0 30px 30px;">
+                            <p style="margin: 0 0 10px; color: #666666; font-size: 14px;">Or copy and paste this link into your browser:</p>
+                            <p style="margin: 0; word-break: break-all; color: #0066cc; font-size: 14px; line-height: 1.8;">{invitation_link}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 0 30px 40px;">
+                            <p style="margin: 0; color: #333333; font-size: 16px;">We can't wait to celebrate with you!</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style="padding: 30px; border-top: 1px solid #eeeeee; text-align: center;">
+                            <p style="margin: 0; color: #666666; font-size: 14px;">
+                              With love,<br>
+                              <span style="font-weight: 600; color: #333333; margin-top: 5px; display: inline-block;">The Happy Couple</span>
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
               </body>
             </html>
             """

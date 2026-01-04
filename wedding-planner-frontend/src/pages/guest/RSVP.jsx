@@ -211,8 +211,8 @@ export default function RSVP() {
       </div>
 
       {/* Main Content: Images Left, Form Right */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left Side: Images */}
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('ourStory')}</h2>
@@ -248,7 +248,7 @@ export default function RSVP() {
 
           {/* Right Side: RSVP Form */}
           <div>
-            <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 sticky top-8">
+            <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8 md:p-12 lg:sticky lg:top-8">
               <div className="text-center mb-8">
                 <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4" />
                 <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('rsvp')}</h2>
@@ -277,15 +277,33 @@ export default function RSVP() {
                       <label htmlFor="number_of_guests" className="block text-sm font-medium text-gray-700 mb-2">
                         {t('numberOfGuests')}
                       </label>
-                      <input
-                        type="number"
-                        id="number_of_guests"
-                        name="number_of_guests"
-                        min="1"
-                        value={formData.number_of_guests}
-                        onChange={handleChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, number_of_guests: Math.max(1, formData.number_of_guests - 1) })}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold text-lg transition-colors touch-manipulation"
+                          aria-label="Decrease number of guests"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          id="number_of_guests"
+                          name="number_of_guests"
+                          min="1"
+                          value={formData.number_of_guests}
+                          onChange={handleChange}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-center text-lg font-semibold"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, number_of_guests: formData.number_of_guests + 1 })}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold text-lg transition-colors touch-manipulation"
+                          aria-label="Increase number of guests"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                     <div>
                       <label htmlFor="rsvp_status" className="block text-sm font-medium text-gray-700 mb-2">

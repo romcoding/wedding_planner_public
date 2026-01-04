@@ -19,16 +19,15 @@ export default function AdminLayout() {
   const location = useLocation()
 
   const navItems = [
-    { path: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
     { path: '/admin/guests', icon: Users, label: 'RSVP Requests' },
     { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
     { path: '/admin/events', icon: Calendar, label: 'Timeline' },
-    { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
     { path: '/admin/images', icon: ImageIcon, label: 'Images' },
     { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
     { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
     { path: '/admin/content', icon: FileText, label: 'Content' },
-    { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
+    { path: '/admin/analytics', icon: BarChart3, label: 'Technical Analytics' },
   ]
 
   return (
