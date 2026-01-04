@@ -2,14 +2,17 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
+import { useLanguage } from '../../contexts/LanguageContext'
 import api from '../../lib/api'
 import { Heart, Camera, Music, Loader } from 'lucide-react'
 import GlitterAnimation from '../../components/GlitterAnimation'
+import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function RSVP() {
   const { token } = useParams()
   const navigate = useNavigate()
   const { guest, loginWithToken } = useGuestAuth()
+  const { t, setLanguage } = useLanguage()
   const [showGlitter, setShowGlitter] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
@@ -72,8 +75,12 @@ export default function RSVP() {
         phone: guestData.phone || '',
         address: guestData.address || '',
       })
+      // Set language from guest data if available
+      if (guestData.language) {
+        setLanguage(guestData.language)
+      }
     }
-  }, [guestData])
+  }, [guestData, setLanguage])
 
   // Fetch images
   const { data: images } = useQuery({
@@ -119,7 +126,7 @@ export default function RSVP() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
         <div className="text-center">
           <Loader className="w-12 h-12 text-pink-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading your RSVP...</p>
+          <p className="text-gray-600">{t('loadingRSVP')}</p>
         </div>
       </div>
     )
@@ -131,9 +138,9 @@ export default function RSVP() {
         <div className="max-w-md w-full mx-4">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <Heart className="w-16 h-16 text-red-500 mx-auto mb-4" />
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Invalid RSVP Link</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('invalidLink')}</h2>
             <p className="text-gray-600 mb-6">
-              {error || 'This RSVP link is not valid. Please check the link and try again.'}
+              {error || t('invalidLinkMessage')}
             </p>
           </div>
         </div>
@@ -144,6 +151,11 @@ export default function RSVP() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
       <GlitterAnimation show={showGlitter} onComplete={() => setShowGlitter(false)} />
+      
+      {/* Language Switcher */}
+      <div className="absolute top-4 right-4 z-10">
+        <LanguageSwitcher />
+      </div>
       
       {/* Hero Section */}
       <div className="relative overflow-hidden">
@@ -158,10 +170,10 @@ export default function RSVP() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="max-w-4xl mx-auto text-center px-4">
                 <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                  Welcome, {guestData.first_name}!
+                  {t('welcome')}, {guestData.first_name}!
                 </h1>
                 <p className="text-xl text-white/90 mb-8 drop-shadow-md">
-                  Please confirm your attendance
+                  {t('confirmAttendance')}
                 </p>
               </div>
             </div>
@@ -172,10 +184,10 @@ export default function RSVP() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="max-w-4xl mx-auto text-center px-4">
                 <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                  Welcome, {guestData.first_name}!
+                  {t('welcome')}, {guestData.first_name}!
                 </h1>
                 <p className="text-xl text-white/90 mb-8 drop-shadow-md">
-                  Please confirm your attendance
+                  {t('confirmAttendance')}
                 </p>
               </div>
             </div>
@@ -188,11 +200,11 @@ export default function RSVP() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Side: Images */}
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Our Story</h2>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('ourStory')}</h2>
             <div className="space-y-4">
               {rsvpImages && rsvpImages.length > 0 ? (
                 rsvpImages.map((image, index) => (
-                  <div key={image.id} className="relative h-64 rounded-2xl overflow-hidden shadow-lg">
+                  <div key={image.id} className="relative rounded-2xl overflow-hidden shadow-lg" style={{ aspectRatio: '21/29' }}>
                     <img
                       src={image.url}
                       alt={image.alt_text || `Wedding Photo ${index + 1}`}
@@ -205,7 +217,8 @@ export default function RSVP() {
                   {[1, 2, 3].map((num) => (
                     <div
                       key={num}
-                      className="relative h-64 bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center"
+                      className="relative bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center"
+                      style={{ aspectRatio: '21/29' }}
                     >
                       <div className="text-center">
                         <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
@@ -223,10 +236,15 @@ export default function RSVP() {
             <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12 sticky top-8">
               <div className="text-center mb-8">
                 <Heart className="w-12 h-12 text-pink-500 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-gray-900 mb-2">RSVP</h2>
-                <p className="text-gray-600">
-                  Hi {guestData.first_name}! Please fill out the form below
+                <h2 className="text-3xl font-bold text-gray-900 mb-2">{t('rsvp')}</h2>
+                <p className="text-gray-600 mb-4">
+                  {t('hi')} {guestData.first_name}! {t('fillForm')}
                 </p>
+                <div className="bg-pink-50 border-l-4 border-pink-500 p-4 rounded-r-lg text-left">
+                  <p className="text-gray-700 leading-relaxed">
+                    {t('introduction')}
+                  </p>
+                </div>
               </div>
 
               {error && (
@@ -238,11 +256,11 @@ export default function RSVP() {
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* RSVP Details */}
                 <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">RSVP Details</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('rsvpDetails')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="attendance_type" className="block text-sm font-medium text-gray-700 mb-2">
-                        Attendance
+                        {t('attendance')}
                       </label>
                       <select
                         id="attendance_type"
@@ -251,15 +269,15 @@ export default function RSVP() {
                         onChange={handleChange}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       >
-                        <option value="">Select...</option>
-                        <option value="ceremony">Ceremony Only</option>
-                        <option value="reception">Reception Only</option>
-                        <option value="both">Both Events</option>
+                        <option value="">{t('select')}</option>
+                        <option value="ceremony">{t('ceremonyOnly')}</option>
+                        <option value="reception">{t('receptionOnly')}</option>
+                        <option value="both">{t('bothEvents')}</option>
                       </select>
                     </div>
                     <div>
                       <label htmlFor="number_of_guests" className="block text-sm font-medium text-gray-700 mb-2">
-                        Number of Guests
+                        {t('numberOfGuests')}
                       </label>
                       <input
                         type="number"
@@ -274,7 +292,7 @@ export default function RSVP() {
                   </div>
                   <div className="mt-4">
                     <label htmlFor="rsvp_status" className="block text-sm font-medium text-gray-700 mb-2">
-                      RSVP Status
+                      {t('rsvpStatus')}
                     </label>
                     <select
                       id="rsvp_status"
@@ -283,20 +301,20 @@ export default function RSVP() {
                       onChange={handleChange}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                     >
-                      <option value="pending">Pending</option>
-                      <option value="confirmed">Confirmed</option>
-                      <option value="declined">Declined</option>
+                      <option value="pending">{t('pending')}</option>
+                      <option value="confirmed">{t('confirmed')}</option>
+                      <option value="declined">{t('declined')}</option>
                     </select>
                   </div>
                 </div>
 
                 {/* Contact Info */}
                 <div className="border-b border-gray-200 pb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Contact Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('contactInfo')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                        Phone
+                        {t('phone')}
                       </label>
                       <input
                         type="tel"
@@ -309,7 +327,7 @@ export default function RSVP() {
                     </div>
                     <div>
                       <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
-                        Address
+                        {t('address')}
                       </label>
                       <input
                         type="text"
@@ -327,11 +345,11 @@ export default function RSVP() {
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                     <Music className="w-5 h-5 text-pink-500" />
-                    Music Wish
+                    {t('musicWish')}
                   </h3>
                   <div>
                     <label htmlFor="music_wish" className="block text-sm font-medium text-gray-700 mb-2">
-                      Song Requests
+                      {t('songRequests')}
                     </label>
                     <textarea
                       id="music_wish"
@@ -339,7 +357,7 @@ export default function RSVP() {
                       rows="3"
                       value={formData.music_wish}
                       onChange={handleChange}
-                      placeholder="What songs would you like to hear at the wedding?"
+                      placeholder={t('musicPlaceholder')}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                     />
                   </div>
@@ -347,11 +365,11 @@ export default function RSVP() {
 
                 {/* Dietary Information */}
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Dietary Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dietaryInfo')}</h3>
                   <div className="space-y-4">
                     <div>
                       <label htmlFor="dietary_restrictions" className="block text-sm font-medium text-gray-700 mb-2">
-                        Dietary Restrictions
+                        {t('dietaryRestrictions')}
                       </label>
                       <textarea
                         id="dietary_restrictions"
@@ -359,13 +377,13 @@ export default function RSVP() {
                         rows="3"
                         value={formData.dietary_restrictions}
                         onChange={handleChange}
-                        placeholder="e.g., Vegetarian, Vegan, Gluten-free"
+                        placeholder={t('dietaryPlaceholder')}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       />
                     </div>
                     <div>
                       <label htmlFor="allergies" className="block text-sm font-medium text-gray-700 mb-2">
-                        Allergies
+                        {t('allergies')}
                       </label>
                       <textarea
                         id="allergies"
@@ -373,13 +391,13 @@ export default function RSVP() {
                         rows="3"
                         value={formData.allergies}
                         onChange={handleChange}
-                        placeholder="Please list any food allergies"
+                        placeholder={t('allergiesPlaceholder')}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       />
                     </div>
                     <div>
                       <label htmlFor="special_requests" className="block text-sm font-medium text-gray-700 mb-2">
-                        Special Requests
+                        {t('specialRequests')}
                       </label>
                       <textarea
                         id="special_requests"
@@ -387,7 +405,7 @@ export default function RSVP() {
                         rows="3"
                         value={formData.special_requests}
                         onChange={handleChange}
-                        placeholder="Any special requests or additional information"
+                        placeholder={t('specialPlaceholder')}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       />
                     </div>
@@ -399,7 +417,7 @@ export default function RSVP() {
                   disabled={updateRSVPMutation.isPending}
                   className="w-full py-4 px-6 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:opacity-50 font-medium text-lg transition-all"
                 >
-                  {updateRSVPMutation.isPending ? 'Saving...' : 'Submit RSVP'}
+                  {updateRSVPMutation.isPending ? t('saving') : t('submitRSVP')}
                 </button>
               </form>
             </div>

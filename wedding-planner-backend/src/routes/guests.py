@@ -94,7 +94,8 @@ def create_guest():
         special_requests=data.get('special_requests'),
         music_wish=data.get('music_wish'),
         address=data.get('address'),
-        notes=data.get('notes')
+        notes=data.get('notes'),
+        language=data.get('language', 'en')
     )
     
     db.session.add(guest)

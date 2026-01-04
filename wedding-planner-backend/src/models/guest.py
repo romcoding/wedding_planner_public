@@ -33,6 +33,7 @@ class Guest(db.Model):
     # Additional information
     address = db.Column(db.Text)
     notes = db.Column(db.Text)
+    language = db.Column(db.String(10), default='en')  # Language preference: en, de, fr
     
     # Metadata
     registered_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -71,6 +72,7 @@ class Guest(db.Model):
             'music_wish': self.music_wish,
             'address': self.address,
             'notes': self.notes,
+            'language': self.language,
             'registered_at': self.registered_at.isoformat() if self.registered_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'last_accessed': self.last_accessed.isoformat() if self.last_accessed else None

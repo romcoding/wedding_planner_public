@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { GuestAuthProvider, useGuestAuth } from './contexts/GuestAuthContext'
+import { LanguageProvider } from './contexts/LanguageContext'
 import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
 import LoginPage from './pages/admin/LoginPage'
@@ -32,15 +33,17 @@ function GuestRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
-      <Route path="/register" element={<GuestRegister />} />
-      <Route path="/rsvp/:token" element={<RSVP />} />
-      <Route path="/" element={<GuestLayout />}>
-        <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
-        <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
-      </Route>
-    </Routes>
+    <LanguageProvider initialLanguage={guest?.language || 'en'}>
+      <Routes>
+        <Route path="/login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
+        <Route path="/register" element={<GuestRegister />} />
+        <Route path="/rsvp/:token" element={<RSVP />} />
+        <Route path="/" element={<GuestLayout />}>
+          <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
+          <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
+        </Route>
+      </Routes>
+    </LanguageProvider>
   )
 }
 

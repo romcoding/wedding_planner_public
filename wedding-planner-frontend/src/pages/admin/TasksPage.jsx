@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash } from 'lucide-react'
+import { PlusCircle, Trash, Edit } from 'lucide-react'
 
 const TasksPage = () => {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [editingTaskId, setEditingTaskId] = useState(null)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -28,6 +29,7 @@ const TasksPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['tasks'])
       setShowForm(false)
+      setEditingTaskId(null)
       setFormData({
         title: '',
         description: '',
@@ -46,6 +48,30 @@ const TasksPage = () => {
     },
   })
 
+  const editTask = useMutation({
+    mutationFn: ({ id, payload }) => api.put(`/tasks/${id}`, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['tasks'])
+      setShowForm(false)
+      setEditingTaskId(null)
+      setFormData({
+        title: '',
+        description: '',
+        priority: 'medium',
+        status: 'todo',
+        due_date: '',
+        category: '',
+        assigned_to: '',
+        estimated_cost: '',
+        actual_cost: '',
+      })
+    },
+    onError: (error) => {
+      console.error('Error updating task:', error)
+      alert(error.response?.data?.error || 'Failed to update task. Please try again.')
+    },
+  })
+
   const updateTask = useMutation({
     mutationFn: ({ id, data }) => api.put(`/tasks/${id}`, data),
     onSuccess: () => queryClient.invalidateQueries(['tasks']),
@@ -55,6 +81,22 @@ const TasksPage = () => {
     mutationFn: (id) => api.delete(`/tasks/${id}`),
     onSuccess: () => queryClient.invalidateQueries(['tasks']),
   })
+
+  const handleEdit = (task) => {
+    setEditingTaskId(task.id)
+    setFormData({
+      title: task.title || '',
+      description: task.description || '',
+      priority: task.priority || 'medium',
+      status: task.status || 'todo',
+      due_date: task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : '',
+      category: task.category || '',
+      assigned_to: task.assigned_to || '',
+      estimated_cost: task.estimated_cost || '',
+      actual_cost: task.actual_cost || '',
+    })
+    setShowForm(true)
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -72,7 +114,11 @@ const TasksPage = () => {
       actual_cost: formData.actual_cost ? parseFloat(formData.actual_cost) : null,
       due_date: formData.due_date || null,
     }
-    createTask.mutate(payload)
+    if (editingTaskId) {
+      editTask.mutate({ id: editingTaskId, payload })
+    } else {
+      createTask.mutate(payload)
+    }
   }
 
   const handleUpdate = (id, field, value) => {
@@ -90,7 +136,23 @@ const TasksPage = () => {
           <p className="text-gray-600 mt-1">Manage your wedding planning tasks</p>
         </div>
         <button
-          onClick={() => setShowForm((prev) => !prev)}
+          onClick={() => {
+            setShowForm((prev) => !prev)
+            if (showForm) {
+              setEditingTaskId(null)
+              setFormData({
+                title: '',
+                description: '',
+                priority: 'medium',
+                status: 'todo',
+                due_date: '',
+                category: '',
+                assigned_to: '',
+                estimated_cost: '',
+                actual_cost: '',
+              })
+            }
+          }}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <PlusCircle className="h-5 w-5" />
@@ -100,6 +162,9 @@ const TasksPage = () => {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">
+            {editingTaskId ? 'Edit Task' : 'Create New Task'}
+          </h2>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">Title *</label>
@@ -224,7 +289,21 @@ const TasksPage = () => {
           <div className="flex justify-end mt-4 gap-2">
             <button
               type="button"
-              onClick={() => setShowForm(false)}
+              onClick={() => {
+                setShowForm(false)
+                setEditingTaskId(null)
+                setFormData({
+                  title: '',
+                  description: '',
+                  priority: 'medium',
+                  status: 'todo',
+                  due_date: '',
+                  category: '',
+                  assigned_to: '',
+                  estimated_cost: '',
+                  actual_cost: '',
+                })
+              }}
               className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
             >
               Cancel
@@ -232,8 +311,9 @@ const TasksPage = () => {
             <button
               type="submit"
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              disabled={createTask.isPending || editTask.isPending}
             >
-              Create Task
+              {editingTaskId ? 'Update Task' : 'Create Task'}
             </button>
           </div>
         </form>
@@ -320,12 +400,26 @@ const TasksPage = () => {
                         {task.actual_cost ? `$${parseFloat(task.actual_cost).toFixed(2)}` : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => deleteTask.mutate(task.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(task)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit task"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this task?')) {
+                                deleteTask.mutate(task.id)
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete task"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

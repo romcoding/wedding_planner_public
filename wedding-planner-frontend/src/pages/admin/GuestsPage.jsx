@@ -19,6 +19,7 @@ export default function GuestsPage() {
     phone: '',
     number_of_guests: 1,
     rsvp_status: 'pending',
+    language: 'en',
   })
 
   const { data: guests, isLoading } = useQuery({
@@ -44,6 +45,7 @@ export default function GuestsPage() {
         phone: '',
         number_of_guests: 1,
         rsvp_status: 'pending',
+        language: 'en',
       })
       // Show the QR code for the newly created guest
       if (data.guest) {
@@ -228,6 +230,20 @@ export default function GuestsPage() {
                 </select>
               </div>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Preferred Language
+              </label>
+              <select
+                value={formData.language}
+                onChange={(e) => setFormData({ ...formData, language: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="en">English</option>
+                <option value="de">Deutsch (German)</option>
+                <option value="fr">Français (French)</option>
+              </select>
+            </div>
             <div className="flex gap-2">
               <button
                 type="submit"
@@ -246,6 +262,7 @@ export default function GuestsPage() {
                     phone: '',
                     number_of_guests: 1,
                     rsvp_status: 'pending',
+                    language: 'en',
                   })
                 }}
                 className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
