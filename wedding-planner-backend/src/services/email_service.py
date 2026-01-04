@@ -29,8 +29,8 @@ class EmailService:
             msg['From'] = from_email
             msg['To'] = email
             
-            # Create invitation link
-            invitation_link = f"{frontend_url}/register?token={invitation_token}"
+            # Create invitation link (direct to RSVP page for passwordless system)
+            invitation_link = f"{frontend_url}/rsvp/{invitation_token}"
             
             # Create rich HTML email template
             html_body = f"""
@@ -53,13 +53,13 @@ class EmailService:
                     <td align="center" style="padding: 20px 0;">
                       <table role="presentation" class="container" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin: 0 auto;">
                         <tr>
-                          <td style="padding: 40px 30px; text-align: center;">
+                          <td style="padding: 40px 30px; text-align: center; background: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 100%); border-radius: 8px 8px 0 0;">
                             <h1 style="margin: 0; color: #d63384; font-size: 42px; font-weight: bold; letter-spacing: -0.5px;">You're Invited!</h1>
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 0 30px 30px;">
-                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px;">Dear {guest_name or 'Guest'},</p>
+                          <td style="padding: 30px 30px 20px;">
+                            <p style="margin: 0 0 20px; color: #333333; font-size: 16px; font-weight: 500;">Dear {guest_name or 'Guest'},</p>
                             <p style="margin: 0 0 20px; color: #333333; font-size: 16px;">We're thrilled to invite you to celebrate our special day with us!</p>
                             <p style="margin: 0 0 30px; color: #333333; font-size: 16px;">Please click the link below to register and RSVP:</p>
                           </td>
@@ -68,7 +68,7 @@ class EmailService:
                           <td align="center" style="padding: 0 30px 30px;">
                             <a href="{invitation_link}" 
                                class="button"
-                               style="background-color: #d63384; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 18px; letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(214, 51, 132, 0.3);">
+                               style="background-color: #d63384; color: #ffffff; padding: 15px 40px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-size: 18px; letter-spacing: 0.5px; box-shadow: 0 4px 6px rgba(214, 51, 132, 0.3); transition: all 0.3s ease;">
                               Register & RSVP
                             </a>
                           </td>
@@ -85,7 +85,7 @@ class EmailService:
                           </td>
                         </tr>
                         <tr>
-                          <td style="padding: 30px; border-top: 1px solid #eeeeee; text-align: center;">
+                          <td style="padding: 30px; border-top: 1px solid #eeeeee; text-align: center; background-color: #fafafa;">
                             <p style="margin: 0; color: #666666; font-size: 14px;">
                               With love,<br>
                               <span style="font-weight: 600; color: #333333; margin-top: 5px; display: inline-block;">The Happy Couple</span>

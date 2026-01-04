@@ -130,22 +130,39 @@ export default function GuestRegister() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="text-center mb-8">
-          <Heart className="w-16 h-16 text-pink-500 mx-auto mb-4" />
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">You're Invited!</h1>
-          <p className="text-xl text-gray-600">
-            {invitationData?.guest_name ? `Welcome, ${invitationData.guest_name}!` : 'Create your account to RSVP'}
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      {/* Hero Section */}
+      <div className="relative bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 py-16 px-4">
+        <div className="max-w-4xl mx-auto text-center">
+          <Heart className="w-20 h-20 text-white mx-auto mb-6 drop-shadow-lg" />
+          <h1 className="text-5xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
+            You're Invited!
+          </h1>
+          <p className="text-2xl md:text-3xl text-white/95 mb-2 drop-shadow-md">
+            {invitationData?.guest_name ? `Dear ${invitationData.guest_name},` : 'Dear Guest,'}
           </p>
-          {invitationData?.plus_one_allowed && (
-            <p className="text-sm text-gray-500 mt-2">
-              You can bring {invitationData.plus_one_count || 1} guest{invitationData.plus_one_count !== 1 ? 's' : ''}
-            </p>
-          )}
+          <p className="text-lg md:text-xl text-white/90 drop-shadow-md">
+            We're thrilled to invite you to celebrate our special day with us!
+          </p>
         </div>
+      </div>
 
+      {/* Registration Form */}
+      <div className="max-w-2xl mx-auto py-12 px-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">Complete Your Registration</h2>
+            <p className="text-gray-600 mb-4">
+              Please fill out the form below to create your account and RSVP
+            </p>
+            {invitationData?.plus_one_allowed && (
+              <div className="inline-block bg-pink-50 border border-pink-200 rounded-lg px-4 py-2 mb-4">
+                <p className="text-sm text-pink-700">
+                  <span className="font-semibold">Plus One:</span> You can bring {invitationData.plus_one_count || 1} guest{invitationData.plus_one_count !== 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
+          </div>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
               {error}

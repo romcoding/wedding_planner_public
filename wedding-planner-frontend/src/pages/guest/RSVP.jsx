@@ -104,11 +104,17 @@ export default function RSVP() {
       }
       return api.put('/guests/update-rsvp', data)
     },
-    onSuccess: () => {
-      setShowGlitter(true)
-      setTimeout(() => {
+    onSuccess: (response, variables) => {
+      // Only show glitter if RSVP status is confirmed
+      if (variables.rsvp_status === 'confirmed') {
+        setShowGlitter(true)
+        setTimeout(() => {
+          navigate('/info')
+        }, 3000)
+      } else {
+        // Navigate immediately if not confirmed
         navigate('/info')
-      }, 3000)
+      }
     },
     onError: (err) => {
       console.error('RSVP update error:', err)
@@ -272,39 +278,8 @@ export default function RSVP() {
                 {/* RSVP Details */}
                 <div className="border-b border-gray-200 pb-6">
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('rsvpDetails')}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label htmlFor="number_of_guests" className="block text-sm font-medium text-gray-700 mb-2">
-                        {t('numberOfGuests')}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, number_of_guests: Math.max(1, formData.number_of_guests - 1) })}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold text-lg transition-colors touch-manipulation"
-                          aria-label="Decrease number of guests"
-                        >
-                          −
-                        </button>
-                        <input
-                          type="number"
-                          id="number_of_guests"
-                          name="number_of_guests"
-                          min="1"
-                          value={formData.number_of_guests}
-                          onChange={handleChange}
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-center text-lg font-semibold"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setFormData({ ...formData, number_of_guests: formData.number_of_guests + 1 })}
-                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold text-lg transition-colors touch-manipulation"
-                          aria-label="Increase number of guests"
-                        >
-                          +
-                        </button>
-                      </div>
-                    </div>
+                  <div className="space-y-4">
+                    {/* RSVP Status - Full Width */}
                     <div>
                       <label htmlFor="rsvp_status" className="block text-sm font-medium text-gray-700 mb-2">
                         {t('rsvpStatus')}
@@ -320,6 +295,53 @@ export default function RSVP() {
                         <option value="confirmed">{t('confirmed')}</option>
                         <option value="declined">{t('declined')}</option>
                       </select>
+                    </div>
+                    
+                    {/* Number of Guests - Full Width on Mobile, with buttons on Desktop */}
+                    <div>
+                      <label htmlFor="number_of_guests" className="block text-sm font-medium text-gray-700 mb-2">
+                        {t('numberOfGuests')}
+                      </label>
+                      {/* Mobile: Simple number input */}
+                      <div className="md:hidden">
+                        <input
+                          type="number"
+                          id="number_of_guests"
+                          name="number_of_guests"
+                          min="1"
+                          value={formData.number_of_guests}
+                          onChange={handleChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-center text-lg font-semibold"
+                        />
+                      </div>
+                      {/* Desktop: With +/- buttons */}
+                      <div className="hidden md:flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, number_of_guests: Math.max(1, formData.number_of_guests - 1) })}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold text-lg transition-colors"
+                          aria-label="Decrease number of guests"
+                        >
+                          −
+                        </button>
+                        <input
+                          type="number"
+                          id="number_of_guests_desktop"
+                          name="number_of_guests"
+                          min="1"
+                          value={formData.number_of_guests}
+                          onChange={handleChange}
+                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-center text-lg font-semibold"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, number_of_guests: formData.number_of_guests + 1 })}
+                          className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg text-gray-700 font-semibold text-lg transition-colors"
+                          aria-label="Increase number of guests"
+                        >
+                          +
+                        </button>
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4">
