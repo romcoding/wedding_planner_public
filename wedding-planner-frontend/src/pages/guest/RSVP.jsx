@@ -290,33 +290,19 @@ export default function RSVP() {
                     </div>
                   </div>
                   <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label htmlFor="overnight_stay" className="block text-sm font-medium text-gray-700 mb-2">
                       {t('overnightStayQuestion')}
                     </label>
-                    <div className="flex gap-6">
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="overnight_stay"
-                          value="true"
-                          checked={formData.overnight_stay === true}
-                          onChange={(e) => setFormData({ ...formData, overnight_stay: true })}
-                          className="mr-2"
-                        />
-                        {t('overnightStayYes')}
-                      </label>
-                      <label className="flex items-center">
-                        <input
-                          type="radio"
-                          name="overnight_stay"
-                          value="false"
-                          checked={formData.overnight_stay === false}
-                          onChange={(e) => setFormData({ ...formData, overnight_stay: false })}
-                          className="mr-2"
-                        />
-                        {t('overnightStayNo')}
-                      </label>
-                    </div>
+                    <select
+                      id="overnight_stay"
+                      name="overnight_stay"
+                      value={formData.overnight_stay ? 'true' : 'false'}
+                      onChange={(e) => setFormData({ ...formData, overnight_stay: e.target.value === 'true' })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
+                    >
+                      <option value="false">{t('overnightStayNo')}</option>
+                      <option value="true">{t('overnightStayYes')}</option>
+                    </select>
                   </div>
                 </div>
 
