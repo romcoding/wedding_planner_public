@@ -32,12 +32,21 @@ export default function GlitterAnimation({ show, onComplete }) {
     return () => clearTimeout(timer)
   }, [show, onComplete])
 
-  if (!show) return null
-
-  if (!show) return null
+  if (!show || particles.length === 0) return null
 
   return (
-    <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div 
+      className="fixed inset-0 pointer-events-none overflow-hidden" 
+      style={{ 
+        position: 'fixed', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0,
+        zIndex: 9999,
+        pointerEvents: 'none'
+      }}
+    >
       {particles.map((particle) => (
         <div
           key={particle.id}
