@@ -1,4 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import api from '../lib/api'
 
 const LanguageContext = createContext()
 
@@ -129,11 +131,27 @@ export function LanguageProvider({ children, initialLanguage = 'en' }) {
     return saved || initialLanguage
   })
 
+  // Fetch content from database
+  const { data: contentItems } = useQuery({
+    queryKey: ['content', 'public', language],
+    queryFn: () => api.get(`/content?lang=${language}`).then((res) => res.data),
+    enabled: true, // Always fetch
+  })
+
   useEffect(() => {
     localStorage.setItem('guest_language', language)
   }, [language])
 
   const t = (key) => {
+    // First try to get from database content
+    if (contentItems) {
+      const contentItem = contentItems.find(item => item.key === key)
+      if (contentItem && contentItem.content) {
+        return contentItem.content
+      }
+    }
+    
+    // Fallback to hardcoded translations
     return translations[language]?.[key] || translations.en[key] || key
   }
 
