@@ -9,19 +9,23 @@ export default function GlitterAnimation({ show, onComplete }) {
       return
     }
 
-    // Create more sparkles for extra glittery effect
+    // Create more sparkles for extra glittery effect with multiple colors
     const newParticles = []
-    const particleCount = 150 // Increased from 50 to 150
+    const particleCount = 150
+    const colors = ['gold', 'roseGold', 'silver'] // Three color themes
+    
     for (let i = 0; i < particleCount; i++) {
+      const colorTheme = colors[Math.floor(Math.random() * colors.length)]
       newParticles.push({
         id: i,
         x: Math.random() * 100,
         y: Math.random() * 100,
-        delay: Math.random() * 1.0, // Longer delay range
-        duration: 1.5 + Math.random() * 2.5, // Longer duration
-        size: 3 + Math.random() * 10, // Larger size range
+        delay: Math.random() * 1.0,
+        duration: 1.5 + Math.random() * 2.5,
+        size: 8 + Math.random() * 18, // Bigger: 8-26px (was 3-13px)
         rotation: Math.random() * 360,
-        sparkleType: Math.random() > 0.5 ? 'star' : 'circle', // Mix of stars and circles
+        sparkleType: Math.random() > 0.5 ? 'star' : 'circle',
+        colorTheme: colorTheme,
       })
     }
     setParticles(newParticles)
@@ -49,51 +53,111 @@ export default function GlitterAnimation({ show, onComplete }) {
         pointerEvents: 'none'
       }}
     >
-      {particles.map((particle) => (
-        <div
-          key={particle.id}
-          className="absolute"
-          style={{
-            left: `${particle.x}%`,
-            top: `${particle.y}%`,
-            animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards`,
-            transform: `rotate(${particle.rotation}deg)`,
-            width: `${particle.size}px`,
-            height: `${particle.size}px`,
-            zIndex: 9999,
-          }}
-        >
-          {particle.sparkleType === 'star' ? (
-            <div 
-              className="w-full h-full"
-              style={{
-                background: `radial-gradient(circle, 
-                  rgba(255, 255, 255, 0.9) 0%, 
-                  rgba(255, 215, 0, 0.8) 30%, 
-                  rgba(255, 192, 203, 0.6) 60%, 
-                  transparent 100%)`,
-                clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
-                animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards, twinkle ${particle.duration * 0.3}s ease-in-out ${particle.delay}s infinite`,
-                filter: 'drop-shadow(0 0 4px rgba(255, 215, 0, 0.8))',
-              }}
-            />
-          ) : (
-            <div 
-              className="w-full h-full rounded-full"
-              style={{
-                background: `radial-gradient(circle, 
-                  rgba(255, 255, 255, 1) 0%, 
-                  rgba(255, 215, 0, 0.9) 20%, 
-                  rgba(255, 192, 203, 0.7) 50%, 
-                  rgba(186, 85, 211, 0.5) 80%, 
-                  transparent 100%)`,
-                animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards, twinkle ${particle.duration * 0.3}s ease-in-out ${particle.delay}s infinite`,
-                boxShadow: '0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 192, 203, 0.6), 0 0 30px rgba(186, 85, 211, 0.4)',
-              }}
-            />
-          )}
-        </div>
-      ))}
+      {particles.map((particle) => {
+        // Define color schemes for each theme
+        const colorSchemes = {
+          gold: {
+            star: {
+              background: `radial-gradient(circle, 
+                rgba(255, 255, 255, 0.95) 0%, 
+                rgba(255, 215, 0, 0.9) 25%, 
+                rgba(255, 200, 0, 0.7) 50%, 
+                rgba(255, 180, 0, 0.5) 75%, 
+                transparent 100%)`,
+              filter: 'drop-shadow(0 0 6px rgba(255, 215, 0, 1)) drop-shadow(0 0 12px rgba(255, 200, 0, 0.8))',
+            },
+            circle: {
+              background: `radial-gradient(circle, 
+                rgba(255, 255, 255, 1) 0%, 
+                rgba(255, 215, 0, 0.95) 20%, 
+                rgba(255, 200, 0, 0.8) 50%, 
+                rgba(255, 180, 0, 0.6) 80%, 
+                transparent 100%)`,
+              boxShadow: '0 0 15px rgba(255, 215, 0, 1), 0 0 25px rgba(255, 200, 0, 0.8), 0 0 35px rgba(255, 180, 0, 0.6)',
+            },
+          },
+          roseGold: {
+            star: {
+              background: `radial-gradient(circle, 
+                rgba(255, 255, 255, 0.95) 0%, 
+                rgba(255, 192, 203, 0.9) 25%, 
+                rgba(255, 160, 180, 0.7) 50%, 
+                rgba(255, 140, 160, 0.5) 75%, 
+                transparent 100%)`,
+              filter: 'drop-shadow(0 0 6px rgba(255, 192, 203, 1)) drop-shadow(0 0 12px rgba(255, 160, 180, 0.8))',
+            },
+            circle: {
+              background: `radial-gradient(circle, 
+                rgba(255, 255, 255, 1) 0%, 
+                rgba(255, 192, 203, 0.95) 20%, 
+                rgba(255, 160, 180, 0.8) 50%, 
+                rgba(255, 140, 160, 0.6) 80%, 
+                transparent 100%)`,
+              boxShadow: '0 0 15px rgba(255, 192, 203, 1), 0 0 25px rgba(255, 160, 180, 0.8), 0 0 35px rgba(255, 140, 160, 0.6)',
+            },
+          },
+          silver: {
+            star: {
+              background: `radial-gradient(circle, 
+                rgba(255, 255, 255, 0.95) 0%, 
+                rgba(192, 192, 192, 0.9) 25%, 
+                rgba(169, 169, 169, 0.7) 50%, 
+                rgba(128, 128, 128, 0.5) 75%, 
+                transparent 100%)`,
+              filter: 'drop-shadow(0 0 6px rgba(192, 192, 192, 1)) drop-shadow(0 0 12px rgba(169, 169, 169, 0.8))',
+            },
+            circle: {
+              background: `radial-gradient(circle, 
+                rgba(255, 255, 255, 1) 0%, 
+                rgba(192, 192, 192, 0.95) 20%, 
+                rgba(169, 169, 169, 0.8) 50%, 
+                rgba(128, 128, 128, 0.6) 80%, 
+                transparent 100%)`,
+              boxShadow: '0 0 15px rgba(192, 192, 192, 1), 0 0 25px rgba(169, 169, 169, 0.8), 0 0 35px rgba(128, 128, 128, 0.6)',
+            },
+          },
+        }
+        
+        const colors = colorSchemes[particle.colorTheme]
+        const style = particle.sparkleType === 'star' ? colors.star : colors.circle
+        
+        return (
+          <div
+            key={particle.id}
+            className="absolute"
+            style={{
+              left: `${particle.x}%`,
+              top: `${particle.y}%`,
+              animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards`,
+              transform: `rotate(${particle.rotation}deg)`,
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              zIndex: 9999,
+            }}
+          >
+            {particle.sparkleType === 'star' ? (
+              <div 
+                className="w-full h-full"
+                style={{
+                  background: style.background,
+                  clipPath: 'polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)',
+                  animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards, twinkle ${particle.duration * 0.3}s ease-in-out ${particle.delay}s infinite`,
+                  filter: style.filter,
+                }}
+              />
+            ) : (
+              <div 
+                className="w-full h-full rounded-full"
+                style={{
+                  background: style.background,
+                  animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards, twinkle ${particle.duration * 0.3}s ease-in-out ${particle.delay}s infinite`,
+                  boxShadow: style.boxShadow,
+                }}
+              />
+            )}
+          </div>
+        )
+      })}
       <style>{`
         @keyframes sparkle {
           0% {

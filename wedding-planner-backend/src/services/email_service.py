@@ -24,11 +24,12 @@ class EmailService:
                 return False
             
             # Create message with proper content type
+            # Use 'alternative' to let email client choose best format
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = "You're Invited to Our Wedding!"
+            msg['Subject'] = "You're Invited to Our Wedding! 💍✨"
             msg['From'] = from_email
             msg['To'] = email
-            msg['Content-Type'] = 'text/html; charset=utf-8'
+            # Don't set Content-Type on multipart - let it be set automatically
             
             # Create invitation link (direct to RSVP page for passwordless system)
             invitation_link = f"{frontend_url}/rsvp/{invitation_token}"
@@ -75,12 +76,28 @@ class EmailService:
                             </style>
                           </td>
                         </tr>
+                        <!-- Decorative divider -->
+                        <tr>
+                          <td style="padding: 0 30px;">
+                            <div style="text-align: center; font-size: 24px; color: #d63384; opacity: 0.3; letter-spacing: 10px;">✦ ✧ ✦ ✧ ✦</div>
+                          </td>
+                        </tr>
                         <!-- Main content -->
                         <tr>
                           <td style="padding: 40px 30px;">
                             <p style="margin: 0 0 20px; color: #333333; font-size: 18px; font-weight: 600;">Dear {guest_name or 'Guest'},</p>
                             <p style="margin: 0 0 20px; color: #555555; font-size: 16px; line-height: 1.8;">We're absolutely <span style="color: #d63384; font-weight: 600;">thrilled</span> to invite you to celebrate our special day with us! 🎉</p>
-                            <p style="margin: 0 0 30px; color: #555555; font-size: 16px; line-height: 1.8;">Your presence would make our celebration even more meaningful. Please click the button below to register and RSVP:</p>
+                            <p style="margin: 0 0 20px; color: #555555; font-size: 16px; line-height: 1.8;">Your presence would make our celebration even more meaningful and joyful.</p>
+                            <div style="background: linear-gradient(135deg, #fff5f5 0%, #fef5ff 100%); padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #d63384;">
+                              <p style="margin: 0 0 10px; color: #333333; font-size: 16px; font-weight: 600;">📅 What to expect:</p>
+                              <ul style="margin: 0; padding-left: 20px; color: #555555; font-size: 15px; line-height: 1.8;">
+                                <li>A beautiful ceremony filled with love and joy</li>
+                                <li>Delicious food and drinks to celebrate together</li>
+                                <li>Dancing and music to make memories</li>
+                                <li>An unforgettable evening with friends and family</li>
+                              </ul>
+                            </div>
+                            <p style="margin: 20px 0 30px; color: #555555; font-size: 16px; line-height: 1.8;">Please click the button below to register and RSVP:</p>
                           </td>
                         </tr>
                         <!-- CTA Button -->
@@ -102,11 +119,29 @@ class EmailService:
                             </div>
                           </td>
                         </tr>
+                        <!-- Info boxes -->
+                        <tr>
+                          <td style="padding: 0 30px 30px;">
+                            <div style="display: table; width: 100%; border-collapse: separate; border-spacing: 15px;">
+                              <div style="display: table-cell; width: 50%; background: linear-gradient(135deg, #fff5f5 0%, #fef5ff 100%); padding: 20px; border-radius: 12px; vertical-align: top; border: 2px solid #fce7f3;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">💐</div>
+                                <p style="margin: 0 0 5px; color: #333333; font-size: 14px; font-weight: 600;">Dress Code</p>
+                                <p style="margin: 0; color: #666666; font-size: 13px;">Elegant & festive</p>
+                              </div>
+                              <div style="display: table-cell; width: 50%; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); padding: 20px; border-radius: 12px; vertical-align: top; border: 2px solid #e0e7ff;">
+                                <div style="font-size: 32px; margin-bottom: 10px;">🎁</div>
+                                <p style="margin: 0 0 5px; color: #333333; font-size: 14px; font-weight: 600;">Gifts</p>
+                                <p style="margin: 0; color: #666666; font-size: 13px;">Your presence is the best gift</p>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
                         <!-- Closing message -->
                         <tr>
                           <td style="padding: 0 30px 40px; text-align: center;">
                             <p style="margin: 0 0 15px; color: #333333; font-size: 18px; font-weight: 600;">We can't wait to celebrate with you! 🎊</p>
                             <p style="margin: 0; color: #666666; font-size: 16px;">Looking forward to sharing this beautiful moment together.</p>
+                            <div style="margin-top: 20px; font-size: 20px; color: #d63384;">💕 ✨ 💕</div>
                           </td>
                         </tr>
                         <!-- Footer -->
@@ -143,10 +178,16 @@ class EmailService:
             """
             
             # Attach both versions (plain text first, then HTML)
-            # Some email clients prefer HTML if both are present
-            msg.attach(MIMEText(text_body, 'plain', 'utf-8'))
+            # Email clients will prefer HTML if both are present
+            # Order matters: plain text first, then HTML
+            text_part = MIMEText(text_body, 'plain', 'utf-8')
+            text_part.set_charset('utf-8')
+            msg.attach(text_part)
+            
             html_part = MIMEText(html_body, 'html', 'utf-8')
             html_part.set_charset('utf-8')
+            # Set Content-Type explicitly for HTML part
+            html_part.replace_header('Content-Type', 'text/html; charset=utf-8')
             msg.attach(html_part)
             
             # Send email
