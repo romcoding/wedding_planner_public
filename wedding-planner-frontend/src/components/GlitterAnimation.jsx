@@ -34,8 +34,10 @@ export default function GlitterAnimation({ show, onComplete }) {
 
   if (!show) return null
 
+  if (!show) return null
+
   return (
-    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+    <div className="fixed inset-0 pointer-events-none z-[9999] overflow-hidden" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0 }}>
       {particles.map((particle) => (
         <div
           key={particle.id}
@@ -47,9 +49,15 @@ export default function GlitterAnimation({ show, onComplete }) {
             transform: `rotate(${particle.rotation}deg)`,
             width: `${particle.size}px`,
             height: `${particle.size}px`,
+            zIndex: 9999,
           }}
         >
-          <div className="w-full h-full bg-gradient-to-br from-yellow-300 via-pink-300 to-purple-300 rounded-full opacity-0 shadow-lg" />
+          <div 
+            className="w-full h-full bg-gradient-to-br from-yellow-300 via-pink-300 to-purple-300 rounded-full shadow-lg"
+            style={{
+              animation: `sparkle ${particle.duration}s ease-out ${particle.delay}s forwards`,
+            }}
+          />
         </div>
       ))}
       <style>{`

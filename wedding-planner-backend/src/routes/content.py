@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Content, User
 from src.utils.jwt_helpers import get_admin_id
+from src.services.translation_service import TranslationService
 
 content_bp = Blueprint('content', __name__)
 
@@ -9,6 +10,7 @@ content_bp = Blueprint('content', __name__)
 def get_content():
     """Get public content (no auth required) or all content (admin)"""
     is_public_only = not request.args.get('admin', '').lower() == 'true'
+    language = request.args.get('lang', 'en')  # Get language parameter
     
     if is_public_only:
         # Public endpoint - only return public content
@@ -28,12 +30,16 @@ def get_content():
             if not user or user.role != 'admin':
                 return jsonify({'error': 'Unauthorized'}), 401
             
-            # Return all content for admin
+            # Return all content for admin (with all languages)
             contents = Content.query.order_by(Content.order.asc()).all()
         except:
             return jsonify({'error': 'Unauthorized'}), 401
     
-    return jsonify([content.to_dict() for content in contents]), 200
+    # For public, return content in requested language; for admin, return all languages
+    if is_public_only:
+        return jsonify([content.to_dict(language=language) for content in contents]), 200
+    else:
+        return jsonify([content.to_dict() for content in contents]), 200
 
 @content_bp.route('/<string:key>', methods=['GET'])
 def get_content_by_key(key):
@@ -60,7 +66,8 @@ def get_content_by_key(key):
         except:
             return jsonify({'error': 'Unauthorized'}), 401
     
-    return jsonify(content.to_dict()), 200
+    language = request.args.get('lang', 'en')
+    return jsonify(content.to_dict(language=language)), 200
 
 @content_bp.route('', methods=['POST'])
 @jwt_required()
@@ -78,16 +85,47 @@ def create_content():
     
     data = request.get_json()
     
-    if not data or not data.get('key') or not data.get('content'):
-        return jsonify({'error': 'Key and content are required'}), 400
+    # Accept either content (legacy) or content_en for new multilingual system
+    if not data or not data.get('key') or (not data.get('content') and not data.get('content_en')):
+        return jsonify({'error': 'Key and content (or content_en) are required'}), 400
     
     if Content.query.filter_by(key=data['key']).first():
         return jsonify({'error': 'Content with this key already exists'}), 400
     
+    # Auto-translate if source language is provided
+    source_lang = data.get('source_language', 'en')
+    source_content = data.get('content_en') or data.get('content_de') or data.get('content_fr') or data.get('content', '')
+    
+    # Determine which language was provided
+    if data.get('content_de') and not data.get('content_en') and not data.get('content_fr'):
+        source_lang = 'de'
+        source_content = data.get('content_de')
+    elif data.get('content_fr') and not data.get('content_en') and not data.get('content_de'):
+        source_lang = 'fr'
+        source_content = data.get('content_fr')
+    elif data.get('content_en'):
+        source_lang = 'en'
+        source_content = data.get('content_en')
+    
+    # Auto-translate to other languages if auto_translate is enabled
+    auto_translate = data.get('auto_translate', False)
+    if auto_translate and source_content:
+        translations = TranslationService.auto_translate_all(source_content, source_lang)
+        content_en = translations.get('en', '')
+        content_de = translations.get('de', '')
+        content_fr = translations.get('fr', '')
+    else:
+        content_en = data.get('content_en', data.get('content', ''))
+        content_de = data.get('content_de', '')
+        content_fr = data.get('content_fr', '')
+    
     content = Content(
         key=data['key'],
         title=data.get('title'),
-        content=data['content'],
+        content=content_en or source_content,  # Legacy field
+        content_en=content_en,
+        content_de=content_de,
+        content_fr=content_fr,
         content_type=data.get('content_type', 'text'),
         is_public=data.get('is_public', True),
         order=data.get('order', 0)
@@ -128,7 +166,13 @@ def update_content(content_id):
     if 'title' in data:
         content.title = data['title']
     if 'content' in data:
-        content.content = data['content']
+        content.content = data['content']  # Legacy field
+    if 'content_en' in data:
+        content.content_en = data['content_en']
+    if 'content_de' in data:
+        content.content_de = data['content_de']
+    if 'content_fr' in data:
+        content.content_fr = data['content_fr']
     if 'content_type' in data:
         content.content_type = data['content_type']
     if 'is_public' in data:

@@ -18,7 +18,7 @@ export default function GuestHome() {
     email: '',
     phone: '',
     rsvp_status: 'pending',
-    attendance_type: '',
+    overnight_stay: false,
     number_of_guests: 1,
     dietary_restrictions: '',
     allergies: '',
@@ -56,7 +56,7 @@ export default function GuestHome() {
         email: guestProfile.email || '',
         phone: guestProfile.phone || '',
         rsvp_status: guestProfile.rsvp_status || 'pending',
-        attendance_type: guestProfile.attendance_type || '',
+        overnight_stay: guestProfile.overnight_stay || false,
         number_of_guests: guestProfile.number_of_guests || 1,
         dietary_restrictions: guestProfile.dietary_restrictions || '',
         allergies: guestProfile.allergies || '',
@@ -126,7 +126,7 @@ export default function GuestHome() {
         last_name: formData.last_name,
         phone: formData.phone,
         rsvp_status: formData.rsvp_status,
-        attendance_type: formData.attendance_type,
+        overnight_stay: formData.overnight_stay,
         number_of_guests: formData.number_of_guests,
         dietary_restrictions: formData.dietary_restrictions,
         allergies: formData.allergies,
@@ -381,21 +381,22 @@ export default function GuestHome() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-4">RSVP Details</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label htmlFor="attendance_type" className="block text-sm font-medium text-gray-700 mb-2">
-                        Attendance
+                      <label htmlFor="overnight_stay" className="block text-sm font-medium text-gray-700 mb-2">
+                        Overnight Stay
                       </label>
                       <select
-                        id="attendance_type"
-                        name="attendance_type"
-                        value={formData.attendance_type}
-                        onChange={handleChange}
+                        id="overnight_stay"
+                        name="overnight_stay"
+                        value={formData.overnight_stay ? 'true' : 'false'}
+                        onChange={(e) => setFormData({ ...formData, overnight_stay: e.target.value === 'true' })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
                       >
-                        <option value="">Select...</option>
-                        <option value="ceremony">Ceremony Only</option>
-                        <option value="reception">Reception Only</option>
-                        <option value="both">Both Events</option>
+                        <option value="false">No, I would not like to stay overnight</option>
+                        <option value="true">Yes, I would like to stay overnight</option>
                       </select>
+                      <p className="mt-2 text-xs text-gray-500 italic">
+                        You need to arrange accommodation yourselves.
+                      </p>
                     </div>
                     <div>
                       <label htmlFor="number_of_guests" className="block text-sm font-medium text-gray-700 mb-2">
