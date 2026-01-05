@@ -3,7 +3,7 @@ Translation service for multilingual content.
 Uses a simple approach - can be extended with Google Translate API or other services.
 """
 import os
-import requests
+# import requests  # Uncomment when implementing actual translation API
 
 class TranslationService:
     """Service for translating text between languages"""
@@ -36,7 +36,9 @@ class TranslationService:
         try:
             # Example: Using LibreTranslate (free, open-source)
             # Uncomment and configure if you want to use it
+            # Requires: pip install requests
             """
+            import requests
             api_url = os.getenv('TRANSLATE_API_URL', 'https://libretranslate.de/translate')
             response = requests.post(api_url, json={
                 'q': text,
@@ -50,7 +52,8 @@ class TranslationService:
             
             # Placeholder: Return text with note that translation is needed
             # Admin can manually edit translations
-            return f"[Translation needed: {text[:50]}...]"
+            # For now, just return the original text so admin can translate manually
+            return text
         except Exception as e:
             print(f"Translation error: {e}")
             return text
