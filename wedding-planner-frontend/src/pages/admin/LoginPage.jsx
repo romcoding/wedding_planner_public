@@ -18,7 +18,7 @@ export default function LoginPage() {
     const result = await login(email, password)
     
     if (result.success) {
-      navigate('/admin/dashboard')
+      navigate('/admin/wedding')
     } else {
       setError(result.error)
     }

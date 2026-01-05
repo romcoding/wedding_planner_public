@@ -82,7 +82,7 @@ function AppRoutes() {
 
       <Route
         path="/admin/login"
-        element={user ? <Navigate to="/admin/dashboard" replace /> : <LoginPage />}
+        element={user ? <Navigate to="/admin/wedding" replace /> : <LoginPage />}
       />
     </Routes>
   )
