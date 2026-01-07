@@ -879,6 +879,13 @@ function VenueDetailModal({ venueId, onClose }) {
     },
     enabled: !!venueId,
   })
+    queryKey: ['venue', venueId],
+    queryFn: async () => {
+      const response = await api.get(`/venues/${venueId}`)
+      return response.data
+    },
+    enabled: !!venueId,
+  })
 
   if (isLoading) {
     return (
