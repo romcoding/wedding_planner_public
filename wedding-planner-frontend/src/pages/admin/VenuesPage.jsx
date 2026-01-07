@@ -16,7 +16,7 @@ import {
   Link as LinkIcon,
   Download,
   Upload,
-  Compare,
+  GitCompare,
   X,
   Loader
 } from 'lucide-react'
@@ -322,7 +322,7 @@ export default function VenuesPage() {
               onClick={handleCompare}
               className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
             >
-              <Compare className="h-5 w-5" />
+              <GitCompare className="h-5 w-5" />
               Compare ({selectedVenues.length})
             </button>
           )}
