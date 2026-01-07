@@ -338,16 +338,6 @@ export default function VenuesPage() {
               className="hidden"
             />
           </label>
-          <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
-            <Upload className="h-5 w-5" />
-            Import CSV
-            <input
-              type="file"
-              accept=".csv"
-              onChange={handleImportCSV}
-              className="hidden"
-            />
-          </label>
           <button
             onClick={exportToCSV}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -872,13 +862,6 @@ function CompareVenuesModal({ venueIds, venues, onClose }) {
 // Venue Detail Component
 function VenueDetailModal({ venueId, onClose }) {
   const { data: venue, isLoading } = useQuery({
-    queryKey: ['venue', venueId],
-    queryFn: async () => {
-      const response = await api.get(`/venues/${venueId}`)
-      return response.data
-    },
-    enabled: !!venueId,
-  })
     queryKey: ['venue', venueId],
     queryFn: async () => {
       const response = await api.get(`/venues/${venueId}`)
