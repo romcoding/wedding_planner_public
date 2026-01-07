@@ -11,7 +11,8 @@ import {
   Image as ImageIcon,
   Mail,
   Calendar,
-  LogOut
+  LogOut,
+  MapPin
 } from 'lucide-react'
 
 export default function AdminLayout() {
@@ -23,6 +24,7 @@ export default function AdminLayout() {
     { path: '/admin/guests', icon: Users, label: 'RSVP Requests' },
     { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
     { path: '/admin/events', icon: Calendar, label: 'Timeline' },
+    { path: '/admin/venues', icon: MapPin, label: 'Venues' },
     { path: '/admin/images', icon: ImageIcon, label: 'Images' },
     { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
     { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
