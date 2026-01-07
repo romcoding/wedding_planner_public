@@ -80,20 +80,20 @@ export default function GlitterAnimation({ show, onComplete }) {
             star: {
               background: `radial-gradient(circle, 
                 rgba(255, 255, 255, 0.95) 0%, 
-                rgba(255, 192, 203, 0.9) 25%, 
-                rgba(255, 160, 180, 0.7) 50%, 
-                rgba(255, 140, 160, 0.5) 75%, 
+                rgba(229, 194, 152, 0.9) 25%, 
+                rgba(184, 115, 51, 0.7) 50%, 
+                rgba(205, 127, 50, 0.5) 75%, 
                 transparent 100%)`,
-              filter: 'drop-shadow(0 0 6px rgba(255, 192, 203, 1)) drop-shadow(0 0 12px rgba(255, 160, 180, 0.8))',
+              filter: 'drop-shadow(0 0 6px rgba(229, 194, 152, 1)) drop-shadow(0 0 12px rgba(184, 115, 51, 0.8))',
             },
             circle: {
               background: `radial-gradient(circle, 
                 rgba(255, 255, 255, 1) 0%, 
-                rgba(255, 192, 203, 0.95) 20%, 
-                rgba(255, 160, 180, 0.8) 50%, 
-                rgba(255, 140, 160, 0.6) 80%, 
+                rgba(229, 194, 152, 0.95) 20%, 
+                rgba(184, 115, 51, 0.8) 50%, 
+                rgba(205, 127, 50, 0.6) 80%, 
                 transparent 100%)`,
-              boxShadow: '0 0 15px rgba(255, 192, 203, 1), 0 0 25px rgba(255, 160, 180, 0.8), 0 0 35px rgba(255, 140, 160, 0.6)',
+              boxShadow: '0 0 15px rgba(229, 194, 152, 1), 0 0 25px rgba(184, 115, 51, 0.8), 0 0 35px rgba(205, 127, 50, 0.6)',
             },
           },
           silver: {
@@ -164,21 +164,37 @@ export default function GlitterAnimation({ show, onComplete }) {
             opacity: 0;
             transform: translateY(0) scale(0) rotate(0deg);
           }
+          10% {
+            opacity: 0.3;
+            transform: translateY(-5px) scale(0.4) rotate(45deg);
+          }
           20% {
-            opacity: 0.8;
+            opacity: 0.7;
             transform: translateY(-10px) scale(0.8) rotate(90deg);
+          }
+          30% {
+            opacity: 0.9;
+            transform: translateY(-20px) scale(1) rotate(135deg);
           }
           50% {
             opacity: 1;
             transform: translateY(-40px) scale(1.2) rotate(180deg);
           }
-          80% {
-            opacity: 0.9;
-            transform: translateY(-80px) scale(1) rotate(270deg);
+          70% {
+            opacity: 0.95;
+            transform: translateY(-60px) scale(1.1) rotate(225deg);
+          }
+          85% {
+            opacity: 0.7;
+            transform: translateY(-100px) scale(0.8) rotate(270deg);
+          }
+          95% {
+            opacity: 0.3;
+            transform: translateY(-130px) scale(0.5) rotate(315deg);
           }
           100% {
             opacity: 0;
-            transform: translateY(-150px) scale(0.3) rotate(360deg);
+            transform: translateY(-150px) scale(0.2) rotate(360deg);
           }
         }
         @keyframes twinkle {
