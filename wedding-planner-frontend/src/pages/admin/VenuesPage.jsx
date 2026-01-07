@@ -889,22 +889,6 @@ function VenueDetailModal({ venueId, onClose }) {
   }
 
   if (!venue) return null
-    queryKey: ['venue', venueId],
-    queryFn: async () => {
-      const response = await api.get(`/venues/${venueId}`)
-      return response.data
-    },
-  })
-
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg p-6">Loading...</div>
-      </div>
-    )
-  }
-
-  if (!venue) return null
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
