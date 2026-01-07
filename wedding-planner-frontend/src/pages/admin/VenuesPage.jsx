@@ -236,6 +236,77 @@ export default function VenuesPage() {
     window.URL.revokeObjectURL(url)
   }
 
+  const handleImportCSV = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const text = e.target.result
+      const lines = text.split('\n')
+      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
+      
+      // Map headers to venue fields
+      const headerMap = {
+        'Name': 'name',
+        'Location': 'location',
+        'Capacity': 'capacity',
+        'Price Range': 'price_range',
+        'Style': 'style',
+        'Rating': 'rating',
+        'Contact Email': 'contact_email',
+        'Website': 'website',
+      }
+
+      const venuesToImport = []
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue
+        
+        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''))
+        const venue = { amenities: [] }
+        
+        headers.forEach((header, index) => {
+          const field = headerMap[header]
+          if (field && values[index]) {
+            if (field === 'capacity') {
+              venue[field] = parseInt(values[index]) || null
+            } else if (field === 'rating') {
+              venue[field] = parseFloat(values[index]) || null
+            } else {
+              venue[field] = values[index]
+            }
+          }
+        })
+        
+        if (venue.name) {
+          venuesToImport.push(venue)
+        }
+      }
+
+      // Import venues one by one
+      let successCount = 0
+      let errorCount = 0
+      
+      for (const venue of venuesToImport) {
+        try {
+          await createVenue.mutateAsync(venue)
+          successCount++
+        } catch (error) {
+          console.error('Error importing venue:', error)
+          errorCount++
+        }
+      }
+
+      alert(`Import complete: ${successCount} venues imported, ${errorCount} errors`)
+      queryClient.invalidateQueries(['venues'])
+      
+      // Reset file input
+      event.target.value = ''
+    }
+    
+    reader.readAsText(file)
+  }
+
   if (isLoading) {
     return <div className="text-center py-12">Loading venues...</div>
   }
@@ -257,6 +328,26 @@ export default function VenuesPage() {
               Compare ({selectedVenues.length})
             </button>
           )}
+          <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
+            <Upload className="h-5 w-5" />
+            Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              className="hidden"
+            />
+          </label>
+          <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
+            <Upload className="h-5 w-5" />
+            Import CSV
+            <input
+              type="file"
+              accept=".csv"
+              onChange={handleImportCSV}
+              className="hidden"
+            />
+          </label>
           <button
             onClick={exportToCSV}
             className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
@@ -781,6 +872,23 @@ function CompareVenuesModal({ venueIds, venues, onClose }) {
 // Venue Detail Component
 function VenueDetailModal({ venueId, onClose }) {
   const { data: venue, isLoading } = useQuery({
+    queryKey: ['venue', venueId],
+    queryFn: async () => {
+      const response = await api.get(`/venues/${venueId}`)
+      return response.data
+    },
+    enabled: !!venueId,
+  })
+
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg p-6">Loading...</div>
+      </div>
+    )
+  }
+
+  if (!venue) return null
     queryKey: ['venue', venueId],
     queryFn: async () => {
       const response = await api.get(`/venues/${venueId}`)
