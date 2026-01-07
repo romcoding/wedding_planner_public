@@ -6,7 +6,6 @@ import {
   Trash, 
   Edit, 
   Search, 
-  Filter, 
   MapPin, 
   Users, 
   DollarSign,
@@ -19,7 +18,6 @@ import {
   Upload,
   Compare,
   X,
-  CheckCircle,
   Loader
 } from 'lucide-react'
 
