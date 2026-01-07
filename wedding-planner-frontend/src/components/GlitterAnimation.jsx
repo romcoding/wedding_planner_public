@@ -50,7 +50,10 @@ export default function GlitterAnimation({ show, onComplete }) {
         right: 0, 
         bottom: 0,
         zIndex: 9999,
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        animation: 'fadeIn 0.5s ease-in',
+        opacity: show ? 1 : 0,
+        transition: 'opacity 0.3s ease-out'
       }}
     >
       {particles.map((particle) => {
@@ -159,42 +162,78 @@ export default function GlitterAnimation({ show, onComplete }) {
         )
       })}
       <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
         @keyframes sparkle {
           0% {
             opacity: 0;
             transform: translateY(0) scale(0) rotate(0deg);
           }
+          5% {
+            opacity: 0.1;
+            transform: translateY(-2px) scale(0.2) rotate(22.5deg);
+          }
           10% {
-            opacity: 0.3;
-            transform: translateY(-5px) scale(0.4) rotate(45deg);
+            opacity: 0.4;
+            transform: translateY(-5px) scale(0.5) rotate(45deg);
+          }
+          15% {
+            opacity: 0.6;
+            transform: translateY(-8px) scale(0.7) rotate(67.5deg);
           }
           20% {
-            opacity: 0.7;
-            transform: translateY(-10px) scale(0.8) rotate(90deg);
+            opacity: 0.8;
+            transform: translateY(-10px) scale(0.9) rotate(90deg);
+          }
+          25% {
+            opacity: 0.9;
+            transform: translateY(-15px) scale(1) rotate(112.5deg);
           }
           30% {
-            opacity: 0.9;
-            transform: translateY(-20px) scale(1) rotate(135deg);
+            opacity: 0.95;
+            transform: translateY(-20px) scale(1.05) rotate(135deg);
+          }
+          40% {
+            opacity: 1;
+            transform: translateY(-30px) scale(1.1) rotate(162deg);
           }
           50% {
             opacity: 1;
             transform: translateY(-40px) scale(1.2) rotate(180deg);
           }
+          60% {
+            opacity: 1;
+            transform: translateY(-50px) scale(1.15) rotate(198deg);
+          }
           70% {
             opacity: 0.95;
             transform: translateY(-60px) scale(1.1) rotate(225deg);
           }
+          80% {
+            opacity: 0.8;
+            transform: translateY(-80px) scale(0.95) rotate(252deg);
+          }
           85% {
-            opacity: 0.7;
+            opacity: 0.6;
             transform: translateY(-100px) scale(0.8) rotate(270deg);
           }
+          90% {
+            opacity: 0.4;
+            transform: translateY(-115px) scale(0.6) rotate(292.5deg);
+          }
           95% {
-            opacity: 0.3;
-            transform: translateY(-130px) scale(0.5) rotate(315deg);
+            opacity: 0.2;
+            transform: translateY(-130px) scale(0.4) rotate(315deg);
           }
           100% {
             opacity: 0;
-            transform: translateY(-150px) scale(0.2) rotate(360deg);
+            transform: translateY(-150px) scale(0.1) rotate(360deg);
           }
         }
         @keyframes twinkle {
@@ -203,8 +242,8 @@ export default function GlitterAnimation({ show, onComplete }) {
             transform: scale(1);
           }
           50% {
-            opacity: 0.6;
-            transform: scale(1.3);
+            opacity: 0.5;
+            transform: scale(1.4);
           }
         }
       `}</style>
