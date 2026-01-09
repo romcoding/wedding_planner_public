@@ -14,8 +14,13 @@ class Cost(db.Model):
     amount = db.Column(db.Numeric(10, 2), nullable=False)
     status = db.Column(db.String(20), default='planned')  # planned, paid, pending
     payment_date = db.Column(db.Date)
-    vendor = db.Column(db.String(200))
+    vendor_name = db.Column(db.String(200))  # Renamed from vendor for clarity
+    vendor_contact = db.Column(db.String(500))  # Email, phone, address
+    receipt_url = db.Column(db.String(500))  # URL to receipt image/PDF
     notes = db.Column(db.Text)
+    
+    # Keep vendor for backward compatibility
+    vendor = db.Column(db.String(200))  # Deprecated, use vendor_name
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -33,7 +38,10 @@ class Cost(db.Model):
             'amount': float(self.amount),
             'status': self.status,
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,
-            'vendor': self.vendor,
+            'vendor_name': self.vendor_name or self.vendor,  # Fallback to vendor for backward compatibility
+            'vendor_contact': self.vendor_contact,
+            'receipt_url': self.receipt_url,
+            'vendor': self.vendor,  # Keep for backward compatibility
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

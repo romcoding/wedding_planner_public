@@ -60,7 +60,10 @@ def create_cost():
         amount=data['amount'],
         status=data.get('status', 'planned'),
         payment_date=payment_date,
-        vendor=data.get('vendor'),
+        vendor_name=data.get('vendor_name') or data.get('vendor'),  # Support both
+        vendor_contact=data.get('vendor_contact'),
+        receipt_url=data.get('receipt_url'),
+        vendor=data.get('vendor'),  # Keep for backward compatibility
         notes=data.get('notes')
     )
     
@@ -106,6 +109,12 @@ def update_cost(cost_id):
             cost.payment_date = None
     if 'vendor' in data:
         cost.vendor = data['vendor']
+    if 'vendor_name' in data:
+        cost.vendor_name = data['vendor_name']
+    if 'vendor_contact' in data:
+        cost.vendor_contact = data['vendor_contact']
+    if 'receipt_url' in data:
+        cost.receipt_url = data['receipt_url']
     if 'notes' in data:
         cost.notes = data['notes']
     

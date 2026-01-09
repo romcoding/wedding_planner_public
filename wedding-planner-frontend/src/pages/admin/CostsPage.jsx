@@ -1,11 +1,29 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash } from 'lucide-react'
+import { PlusCircle, Trash, Edit, AlertTriangle, Upload, FileText } from 'lucide-react'
+import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+const CATEGORIES = [
+  'Venue',
+  'Catering',
+  'Dress',
+  'Photography',
+  'Music',
+  'Décor',
+  'Flowers',
+  'Transportation',
+  'Hair & Makeup',
+  'Invitations',
+  'Other'
+]
+
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0', '#FFB347']
 
 const CostsPage = () => {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -13,7 +31,9 @@ const CostsPage = () => {
     category: '',
     status: 'planned',
     payment_date: '',
-    vendor: '',
+    vendor_name: '',
+    vendor_contact: '',
+    receipt_url: '',
     notes: '',
   })
 
@@ -22,38 +42,83 @@ const CostsPage = () => {
     queryFn: () => api.get('/costs').then((res) => res.data),
   })
 
+  const { data: analytics } = useQuery({
+    queryKey: ['cost-analytics'],
+    queryFn: () => api.get('/costs/analytics').then((res) => res.data),
+  })
+
   const createCost = useMutation({
     mutationFn: (payload) => api.post('/costs', payload),
     onSuccess: () => {
       queryClient.invalidateQueries(['costs'])
+      queryClient.invalidateQueries(['cost-analytics'])
+      resetForm()
       setShowForm(false)
-      setFormData({
-        name: '',
-        description: '',
-        amount: '',
-        category: '',
-        status: 'planned',
-        payment_date: '',
-        vendor: '',
-        notes: '',
-      })
     },
   })
 
   const updateCost = useMutation({
     mutationFn: ({ id, data }) => api.put(`/costs/${id}`, data),
-    onSuccess: () => queryClient.invalidateQueries(['costs']),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['costs'])
+      queryClient.invalidateQueries(['cost-analytics'])
+    },
   })
 
   const deleteCost = useMutation({
     mutationFn: (id) => api.delete(`/costs/${id}`),
-    onSuccess: () => queryClient.invalidateQueries(['costs']),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['costs'])
+      queryClient.invalidateQueries(['cost-analytics'])
+    },
   })
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      amount: '',
+      category: '',
+      status: 'planned',
+      payment_date: '',
+      vendor_name: '',
+      vendor_contact: '',
+      receipt_url: '',
+      notes: '',
+    })
+    setEditingId(null)
+  }
+
+  const handleEdit = (cost) => {
+    setEditingId(cost.id)
+    setFormData({
+      name: cost.name || '',
+      description: cost.description || '',
+      amount: cost.amount || '',
+      category: cost.category || '',
+      status: cost.status || 'planned',
+      payment_date: cost.payment_date ? new Date(cost.payment_date).toISOString().split('T')[0] : '',
+      vendor_name: cost.vendor_name || cost.vendor || '',
+      vendor_contact: cost.vendor_contact || '',
+      receipt_url: cost.receipt_url || '',
+      notes: cost.notes || '',
+    })
+    setShowForm(true)
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    const payload = { ...formData, amount: parseFloat(formData.amount || 0) }
-    createCost.mutate(payload)
+    const payload = {
+      ...formData,
+      amount: parseFloat(formData.amount || 0),
+      vendor: formData.vendor_name,  // For backward compatibility
+    }
+    
+    if (editingId) {
+      updateCost.mutate({ id: editingId, data: payload })
+    } else {
+      createCost.mutate(payload)
+    }
   }
 
   const handleUpdate = (id, field, value) => {
@@ -65,15 +130,33 @@ const CostsPage = () => {
   const pending = costs?.filter((c) => c.status === 'pending').reduce((s, c) => s + (c.amount || 0), 0) || 0
   const paid = costs?.filter((c) => c.status === 'paid').reduce((s, c) => s + (c.amount || 0), 0) || 0
 
+  // Prepare chart data
+  const categoryData = analytics?.by_category ? Object.entries(analytics.by_category).map(([category, totals]) => ({
+    name: category,
+    planned: totals.planned,
+    paid: totals.paid,
+    pending: totals.pending,
+    total: totals.total
+  })) : []
+
+  const pieData = categoryData.map((item, index) => ({
+    name: item.name,
+    value: item.total,
+    color: COLORS[index % COLORS.length]
+  }))
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Costs</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Budget & Costs</h1>
           <p className="text-gray-600 mt-1">Track your wedding budget and expenses</p>
         </div>
         <button
-          onClick={() => setShowForm((prev) => !prev)}
+          onClick={() => {
+            resetForm()
+            setShowForm(true)
+          }}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <PlusCircle className="h-5 w-5" />
@@ -81,7 +164,7 @@ const CostsPage = () => {
         </button>
       </div>
 
-      {/* Budget Summary */}
+      {/* Budget Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 mb-1">Total Planned</p>
@@ -97,104 +180,207 @@ const CostsPage = () => {
         </div>
       </div>
 
-      {showForm && (
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Name *</label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Amount *</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Category</label>
-              <input
-                type="text"
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                placeholder="e.g., Venue, Catering"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Status</label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="planned">Planned</option>
-                <option value="pending">Pending</option>
-                <option value="paid">Paid</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Payment Date</label>
-              <input
-                type="date"
-                value={formData.payment_date}
-                onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1 text-gray-700">Vendor</label>
-              <input
-                type="text"
-                value={formData.vendor}
-                onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1 text-gray-700">Description</label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-sm font-medium mb-1 text-gray-700">Notes</label>
-              <textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                rows="2"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+      {/* Budget Alerts */}
+      {analytics?.alerts && analytics.alerts.length > 0 && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6 rounded">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle className="h-5 w-5 text-yellow-600" />
+            <h3 className="font-semibold text-yellow-800">Budget Alerts</h3>
           </div>
-          <div className="flex justify-end mt-4 gap-2">
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">
-              Create Cost
-            </button>
+          <div className="space-y-2">
+            {analytics.alerts.map((alert, index) => (
+              <div key={index} className="text-sm text-yellow-700">
+                <strong>{alert.category}:</strong> {alert.percentage}% of planned budget spent ({alert.spent.toFixed(2)} / {alert.planned.toFixed(2)})
+              </div>
+            ))}
           </div>
-        </form>
+        </div>
       )}
 
+      {/* Analytics Charts */}
+      {categoryData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">Spending by Category</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <h3 className="text-lg font-semibold mb-4">Category Breakdown</h3>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="planned" fill="#8884d8" name="Planned" />
+                <Bar dataKey="paid" fill="#82ca9d" name="Paid" />
+                <Bar dataKey="pending" fill="#ffc658" name="Pending" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
+
+      {/* Form Modal */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <h2 className="text-xl font-semibold mb-4">
+                {editingId ? 'Edit Cost' : 'Add New Cost'}
+              </h2>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Name *</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Amount *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={formData.amount}
+                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Category</label>
+                    <select
+                      value={formData.category}
+                      onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    >
+                      <option value="">Select category...</option>
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    >
+                      <option value="planned">Planned</option>
+                      <option value="pending">Pending</option>
+                      <option value="paid">Paid</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Payment Date</label>
+                    <input
+                      type="date"
+                      value={formData.payment_date}
+                      onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Vendor Name</label>
+                    <input
+                      type="text"
+                      value={formData.vendor_name}
+                      onChange={(e) => setFormData({ ...formData, vendor_name: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Vendor Contact</label>
+                    <input
+                      type="text"
+                      value={formData.vendor_contact}
+                      onChange={(e) => setFormData({ ...formData, vendor_contact: e.target.value })}
+                      placeholder="Email, phone, or address"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Receipt URL
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.receipt_url}
+                      onChange={(e) => setFormData({ ...formData, receipt_url: e.target.value })}
+                      placeholder="URL to receipt image/PDF"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows="3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-gray-700">Notes</label>
+                  <textarea
+                    value={formData.notes}
+                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    rows="2"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      resetForm()
+                      setShowForm(false)
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    {editingId ? 'Update' : 'Create'} Cost
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Costs Table */}
       {isLoading ? (
         <div className="text-center py-12">
           <p className="text-gray-600">Loading costs...</p>
@@ -205,13 +391,13 @@ const CostsPage = () => {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Vendor</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -224,7 +410,7 @@ const CostsPage = () => {
                 ) : (
                   costs?.map((cost) => (
                     <tr key={cost.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-6 py-4">
                         <div className="text-sm font-medium text-gray-900">{cost.name}</div>
                         {cost.description && (
                           <div className="text-xs text-gray-500 mt-1">{cost.description}</div>
@@ -240,7 +426,7 @@ const CostsPage = () => {
                         <select
                           value={cost.status}
                           onChange={(e) => handleUpdate(cost.id, 'status', e.target.value)}
-                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500"
+                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                         >
                           <option value="planned">Planned</option>
                           <option value="pending">Pending</option>
@@ -248,18 +434,44 @@ const CostsPage = () => {
                         </select>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {cost.payment_date ? new Date(cost.payment_date).toLocaleDateString() : '-'}
+                        {cost.vendor_name || cost.vendor || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {cost.vendor || '-'}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {cost.receipt_url ? (
+                          <a
+                            href={cost.receipt_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          >
+                            <FileText className="h-4 w-4" />
+                            View
+                          </a>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => deleteCost.mutate(cost.id)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleEdit(cost)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Edit cost"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm('Are you sure you want to delete this cost?')) {
+                                deleteCost.mutate(cost.id)
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete cost"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
