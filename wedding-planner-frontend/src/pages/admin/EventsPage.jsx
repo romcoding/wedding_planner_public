@@ -470,7 +470,8 @@ const EventsPage = () => {
                   </div>
                 </div>
               </div>
-            ))
+              )
+            })
           ) : (
             <div className="text-center py-12 text-gray-500 bg-white rounded-lg">
               No events yet. Click "Add Event" to create your wedding timeline.
