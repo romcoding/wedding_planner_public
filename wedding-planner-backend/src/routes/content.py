@@ -35,9 +35,19 @@ def get_content():
         except:
             return jsonify({'error': 'Unauthorized'}), 401
     
-    # For public, return content in requested language; for admin, return all languages
+    # Filter by scheduling for public content
     if is_public_only:
-        return jsonify([content.to_dict(language=language) for content in contents]), 200
+        from datetime import datetime
+        now = datetime.utcnow()
+        filtered_contents = []
+        for content in contents:
+            # Check if content should be visible based on scheduling
+            if content.scheduled_publish_at and content.scheduled_publish_at > now:
+                continue  # Not published yet
+            if content.scheduled_unpublish_at and content.scheduled_unpublish_at <= now:
+                continue  # Already unpublished
+            filtered_contents.append(content)
+        return jsonify([content.to_dict(language=language) for content in filtered_contents]), 200
     else:
         return jsonify([content.to_dict() for content in contents]), 200
 
@@ -119,6 +129,36 @@ def create_content():
         content_de = data.get('content_de', '')
         content_fr = data.get('content_fr', '')
     
+    from datetime import datetime
+    
+    scheduled_publish_at = None
+    if data.get('scheduled_publish_at'):
+        try:
+            scheduled_publish_at = datetime.fromisoformat(data['scheduled_publish_at'].replace('Z', '+00:00'))
+        except ValueError:
+            return jsonify({'error': 'Invalid scheduled_publish_at format'}), 400
+    
+    scheduled_unpublish_at = None
+    if data.get('scheduled_unpublish_at'):
+        try:
+            scheduled_unpublish_at = datetime.fromisoformat(data['scheduled_unpublish_at'].replace('Z', '+00:00'))
+        except ValueError:
+            return jsonify({'error': 'Invalid scheduled_unpublish_at format'}), 400
+    
+    # Determine if content should be published immediately
+    now = datetime.utcnow()
+    published_at = None
+    is_public = data.get('is_public', True)
+    
+    if scheduled_publish_at:
+        if scheduled_publish_at <= now:
+            published_at = now
+            is_public = True
+        else:
+            is_public = False  # Not published yet if scheduled for future
+    elif is_public:
+        published_at = now
+    
     content = Content(
         key=data['key'],
         title=data.get('title'),
@@ -126,9 +166,12 @@ def create_content():
         content_en=content_en,
         content_de=content_de,
         content_fr=content_fr,
-        content_type=data.get('content_type', 'text'),
-        is_public=data.get('is_public', True),
-        order=data.get('order', 0)
+        content_type=data.get('content_type', 'html'),
+        is_public=is_public,
+        order=data.get('order', 0),
+        published_at=published_at,
+        scheduled_publish_at=scheduled_publish_at,
+        scheduled_unpublish_at=scheduled_unpublish_at
     )
     
     db.session.add(content)
@@ -179,8 +222,36 @@ def update_content(content_id):
         content.is_public = data['is_public']
     if 'order' in data:
         content.order = data['order']
+    if 'scheduled_publish_at' in data:
+        if data['scheduled_publish_at']:
+            try:
+                from datetime import datetime
+                content.scheduled_publish_at = datetime.fromisoformat(data['scheduled_publish_at'].replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({'error': 'Invalid scheduled_publish_at format'}), 400
+        else:
+            content.scheduled_publish_at = None
+    if 'scheduled_unpublish_at' in data:
+        if data['scheduled_unpublish_at']:
+            try:
+                from datetime import datetime
+                content.scheduled_unpublish_at = datetime.fromisoformat(data['scheduled_unpublish_at'].replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({'error': 'Invalid scheduled_unpublish_at format'}), 400
+        else:
+            content.scheduled_unpublish_at = None
     
+    # Auto-publish if scheduled time has passed
     from datetime import datetime
+    now = datetime.utcnow()
+    if content.scheduled_publish_at and content.scheduled_publish_at <= now and not content.published_at:
+        content.published_at = now
+        content.is_public = True
+    
+    # Auto-unpublish if scheduled time has passed
+    if content.scheduled_unpublish_at and content.scheduled_unpublish_at <= now:
+        content.is_public = False
+    
     content.updated_at = datetime.utcnow()
     db.session.commit()
     

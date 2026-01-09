@@ -17,6 +17,11 @@ class Content(db.Model):
     is_public = db.Column(db.Boolean, default=True)  # Visible to guests
     order = db.Column(db.Integer, default=0)  # For ordering on public page
     
+    # Scheduling
+    published_at = db.Column(db.DateTime)  # When content was published
+    scheduled_publish_at = db.Column(db.DateTime)  # Schedule content to be published at this time
+    scheduled_unpublish_at = db.Column(db.DateTime)  # Schedule content to be unpublished at this time
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -46,6 +51,9 @@ class Content(db.Model):
             'content_type': self.content_type,
             'is_public': self.is_public,
             'order': self.order,
+            'published_at': self.published_at.isoformat() if self.published_at else None,
+            'scheduled_publish_at': self.scheduled_publish_at.isoformat() if self.scheduled_publish_at else None,
+            'scheduled_unpublish_at': self.scheduled_unpublish_at.isoformat() if self.scheduled_unpublish_at else None,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
