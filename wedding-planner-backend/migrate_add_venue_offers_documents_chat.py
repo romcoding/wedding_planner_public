@@ -9,11 +9,12 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.main import app
+from src.main import create_app
 from src.models import db
 from sqlalchemy import text
 
 def run_migration():
+    app = create_app()
     with app.app_context():
         try:
             # Check if tables exist
