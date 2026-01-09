@@ -516,14 +516,14 @@ const TasksPage = () => {
                   })
                   
                   return filteredTasks.length === 0 ? (
-                    <tr>
+                    <tr key="empty">
                       <td colSpan="10" className="px-6 py-12 text-center text-gray-500">
                         {tasks?.length === 0 ? 'No tasks yet. Create your first task!' : 'No tasks match the current filters.'}
                       </td>
                     </tr>
                   ) : (
                     filteredTasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50">
+                      <tr key={task.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{task.title}</div>
                         {task.description && (
@@ -598,9 +598,10 @@ const TasksPage = () => {
                           </button>
                         </div>
                       </td>
-                    </tr>
-                  ))
-                )}
+                      </tr>
+                    ))
+                  )
+                })()}
               </tbody>
             </table>
           </div>
