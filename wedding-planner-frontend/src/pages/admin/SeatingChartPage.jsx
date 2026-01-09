@@ -8,9 +8,9 @@ import {
   PointerSensor, 
   useSensor, 
   useSensors,
+  useDraggable,
   useDroppable
 } from '@dnd-kit/core'
-import { useDraggable, useDroppable as useDroppableSeat } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Users, X, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
@@ -262,7 +262,7 @@ const SeatingChartPage = () => {
         window.removeEventListener('mouseup', handleMouseUp)
       }
     }
-  }, [isPanning, panStart])
+  }, [isPanning, panStart, pan])
 
   if (tablesLoading) {
     return <div className="p-6">Loading seating chart...</div>
@@ -637,7 +637,7 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
 
 // Seat Component (Drop Target)
 function SeatComponent({ assignment, tableId }) {
-  const { setNodeRef, isOver } = useDroppableSeat({
+  const { setNodeRef, isOver } = useDroppable({
     id: `seat-${tableId}-${assignment.seat_number}`,
     data: {
       type: 'seat',
