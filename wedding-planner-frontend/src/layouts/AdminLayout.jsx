@@ -1,4 +1,5 @@
 import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { 
   LayoutDashboard, 
@@ -14,12 +15,16 @@ import {
   LogOut,
   MapPin,
   Grid3x3,
-  Bell
+  Bell,
+  Shield,
+  Menu,
+  X
 } from 'lucide-react'
 
 export default function AdminLayout() {
   const { user, logout } = useAuth()
   const location = useLocation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const navItems = [
     { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
@@ -34,19 +39,33 @@ export default function AdminLayout() {
     { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
     { path: '/admin/content', icon: FileText, label: 'Content' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Technical Analytics' },
+    { path: '/admin/users', icon: Shield, label: 'User Management' },
   ]
 
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Mobile menu button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md text-gray-700 hover:bg-gray-100"
+        aria-label="Toggle menu"
+      >
+        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+      </button>
+
       {/* Sidebar */}
-      <div className="fixed inset-y-0 left-0 w-64 bg-white shadow-lg">
+      <div className={`
+        fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40
+        lg:translate-x-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b">
             <h1 className="text-2xl font-bold text-gray-800">Wedding Planner</h1>
             <p className="text-sm text-gray-500 mt-1">Admin Dashboard</p>
           </div>
           
-          <nav className="flex-1 p-4 space-y-2">
+          <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path
@@ -54,14 +73,15 @@ export default function AdminLayout() {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onClick={() => setSidebarOpen(false)}
                   className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-blue-50 text-blue-600'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span>{item.label}</span>
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="truncate">{item.label}</span>
                 </Link>
               )
             })}
@@ -69,8 +89,8 @@ export default function AdminLayout() {
 
           <div className="p-4 border-t">
             <div className="mb-4 px-4 py-2">
-              <p className="text-sm font-medium text-gray-800">{user?.name}</p>
-              <p className="text-xs text-gray-500">{user?.email}</p>
+              <p className="text-sm font-medium text-gray-800 truncate">{user?.name}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
             </div>
             <button
               onClick={logout}
@@ -83,9 +103,17 @@ export default function AdminLayout() {
         </div>
       </div>
 
+      {/* Overlay for mobile */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Main Content */}
-      <div className="ml-64">
-        <div className="p-8">
+      <div className="lg:ml-64">
+        <div className="p-4 lg:p-8">
           <Outlet />
         </div>
       </div>

@@ -181,3 +181,200 @@ def get_budget():
         }
     }), 200
 
+@analytics_bp.route('/site-stats', methods=['GET'])
+@jwt_required()
+def get_site_stats():
+    """Get real site statistics (admin only)"""
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
+    # Time range (default: last 30 days)
+    days = int(request.args.get('days', 30))
+    start_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Total visits
+    total_visits = Visit.query.filter(Visit.started_at >= start_date).count()
+    
+    # Unique visitors (by IP or session)
+    unique_visitors = db.session.query(func.count(func.distinct(Visit.ip_address))).filter(
+        Visit.started_at >= start_date
+    ).scalar() or 0
+    
+    # Total page views
+    total_page_views = PageView.query.filter(PageView.viewed_at >= start_date).count()
+    
+    # Average session duration
+    completed_visits = Visit.query.filter(
+        Visit.started_at >= start_date,
+        Visit.ended_at.isnot(None),
+        Visit.duration_seconds.isnot(None)
+    ).all()
+    
+    avg_duration = 0
+    if completed_visits:
+        total_duration = sum(v.duration_seconds or 0 for v in completed_visits)
+        avg_duration = total_duration / len(completed_visits)
+    
+    # Bounce rate (sessions with only 1 page view)
+    single_page_visits = Visit.query.filter(
+        Visit.started_at >= start_date,
+        Visit.page_count == 1
+    ).count()
+    bounce_rate = (single_page_visits / total_visits * 100) if total_visits > 0 else 0
+    
+    # Page views by path
+    page_views_by_path = db.session.query(
+        PageView.page_path,
+        func.count(PageView.id).label('count')
+    ).filter(
+        PageView.viewed_at >= start_date
+    ).group_by(PageView.page_path).order_by(func.count(PageView.id).desc()).limit(10).all()
+    
+    # Visits over time (daily)
+    daily_visits = db.session.query(
+        func.date(Visit.started_at).label('date'),
+        func.count(Visit.id).label('count')
+    ).filter(
+        Visit.started_at >= start_date
+    ).group_by(func.date(Visit.started_at)).order_by(func.date(Visit.started_at)).all()
+    
+    return jsonify({
+        'total_visits': total_visits,
+        'unique_visitors': unique_visitors,
+        'page_views': total_page_views,
+        'avg_session_duration': int(avg_duration),
+        'bounce_rate': round(bounce_rate, 2),
+        'top_pages': [{'path': path, 'views': count} for path, count in page_views_by_path],
+        'daily_visits': [{'date': date.isoformat() if hasattr(date, 'isoformat') else str(date), 'count': count} for date, count in daily_visits]
+    }), 200
+
+@analytics_bp.route('/security', methods=['GET'])
+@jwt_required()
+def get_security_events():
+    """Get security monitoring data (admin only)"""
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
+    # Time range (default: last 7 days)
+    days = int(request.args.get('days', 7))
+    start_date = datetime.utcnow() - timedelta(days=days)
+    
+    # Failed login attempts
+    failed_logins = SecurityEvent.query.filter(
+        SecurityEvent.event_type == 'failed_login',
+        SecurityEvent.occurred_at >= start_date
+    ).count()
+    
+    # Blocked requests
+    blocked_requests = SecurityEvent.query.filter(
+        SecurityEvent.event_type == 'blocked_request',
+        SecurityEvent.occurred_at >= start_date
+    ).count()
+    
+    # Rate limit hits
+    rate_limit_hits = SecurityEvent.query.filter(
+        SecurityEvent.event_type == 'rate_limit',
+        SecurityEvent.occurred_at >= start_date
+    ).count()
+    
+    # Suspicious IPs (IPs with multiple failed logins)
+    suspicious_ips_query = db.session.query(
+        SecurityEvent.ip_address,
+        func.count(SecurityEvent.id).label('count')
+    ).filter(
+        SecurityEvent.event_type == 'failed_login',
+        SecurityEvent.occurred_at >= start_date
+    ).group_by(SecurityEvent.ip_address).having(
+        func.count(SecurityEvent.id) >= 3
+    ).order_by(func.count(SecurityEvent.id).desc()).limit(10).all()
+    
+    suspicious_ips = [ip for ip, count in suspicious_ips_query]
+    
+    # Recent security events
+    recent_events = SecurityEvent.query.filter(
+        SecurityEvent.occurred_at >= start_date
+    ).order_by(SecurityEvent.occurred_at.desc()).limit(50).all()
+    
+    # Events by type
+    events_by_type = db.session.query(
+        SecurityEvent.event_type,
+        func.count(SecurityEvent.id).label('count')
+    ).filter(
+        SecurityEvent.occurred_at >= start_date
+    ).group_by(SecurityEvent.event_type).all()
+    
+    return jsonify({
+        'failed_logins': failed_logins,
+        'blocked_requests': blocked_requests,
+        'rate_limit_hits': rate_limit_hits,
+        'suspicious_ips': suspicious_ips,
+        'events_by_type': {event_type: count for event_type, count in events_by_type},
+        'recent_events': [event.to_dict() for event in recent_events]
+    }), 200
+
+@analytics_bp.route('/track/pageview', methods=['POST'])
+def track_pageview():
+    """Track a page view (public endpoint, can be called from frontend)"""
+    data = request.get_json() or {}
+    
+    page_path = data.get('page_path', request.path)
+    page_title = data.get('page_title')
+    session_id = data.get('session_id')
+    user_id = data.get('user_id')
+    guest_id = data.get('guest_id')
+    
+    from src.utils.analytics_tracker import track_page_view
+    track_page_view(
+        page_path=page_path,
+        page_title=page_title,
+        user_id=user_id,
+        guest_id=guest_id,
+        session_id=session_id
+    )
+    
+    return jsonify({'message': 'Page view tracked'}), 200
+
+@analytics_bp.route('/track/visit/start', methods=['POST'])
+def start_visit_tracking():
+    """Start tracking a visit (public endpoint)"""
+    data = request.get_json() or {}
+    
+    session_id = data.get('session_id')
+    user_id = data.get('user_id')
+    guest_id = data.get('guest_id')
+    
+    from src.utils.analytics_tracker import start_visit
+    visit = start_visit(
+        user_id=user_id,
+        guest_id=guest_id,
+        session_id=session_id
+    )
+    
+    if visit:
+        return jsonify({
+            'message': 'Visit started',
+            'session_id': visit.session_id
+        }), 200
+    else:
+        return jsonify({'error': 'Failed to start visit'}), 500
+
+@analytics_bp.route('/track/visit/end', methods=['POST'])
+def end_visit_tracking():
+    """End tracking a visit (public endpoint)"""
+    data = request.get_json() or {}
+    
+    session_id = data.get('session_id')
+    if not session_id:
+        return jsonify({'error': 'session_id is required'}), 400
+    
+    from src.utils.analytics_tracker import end_visit
+    visit = end_visit(session_id)
+    
+    if visit:
+        return jsonify({'message': 'Visit ended'}), 200
+    else:
+        return jsonify({'error': 'Visit not found'}), 404
