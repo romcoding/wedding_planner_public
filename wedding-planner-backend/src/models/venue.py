@@ -59,72 +59,102 @@ class Venue(db.Model):
     requests = db.relationship('VenueRequest', backref='venue', lazy=True, cascade='all, delete-orphan')
     
     def to_dict(self, include_requests=False):
-        """Convert venue to dictionary"""
-        # Parse amenities
-        amenities_list = []
-        if self.amenities:
-            try:
-                amenities_list = json.loads(self.amenities)
-            except (json.JSONDecodeError, TypeError):
-                # If not JSON, treat as comma-separated string
-                amenities_list = [a.strip() for a in self.amenities.split(',') if a.strip()]
+        """Convert venue to dictionary with safe handling of missing columns"""
+        try:
+            # Parse amenities
+            amenities_list = []
+            if hasattr(self, 'amenities') and self.amenities:
+                try:
+                    amenities_list = json.loads(self.amenities)
+                except (json.JSONDecodeError, TypeError):
+                    # If not JSON, treat as comma-separated string
+                    amenities_list = [a.strip() for a in str(self.amenities).split(',') if a.strip()]
+        except:
+            amenities_list = []
         
-        # Parse available dates
-        available_dates_list = []
-        if self.available_dates:
-            try:
-                available_dates_list = json.loads(self.available_dates)
-            except (json.JSONDecodeError, TypeError):
-                available_dates_list = []
+        try:
+            # Parse available dates
+            available_dates_list = []
+            if hasattr(self, 'available_dates') and self.available_dates:
+                try:
+                    available_dates_list = json.loads(self.available_dates)
+                except (json.JSONDecodeError, TypeError):
+                    available_dates_list = []
+        except:
+            available_dates_list = []
         
-        # Parse images
-        images_list = []
-        if self.images:
+        try:
+            # Parse images
+            images_list = []
+            if hasattr(self, 'images') and self.images:
+                try:
+                    images_list = json.loads(self.images)
+                except (json.JSONDecodeError, TypeError):
+                    images_list = []
+        except:
+            images_list = []
+        
+        # Safely get attribute values with defaults
+        def safe_get(attr, default=None):
             try:
-                images_list = json.loads(self.images)
-            except (json.JSONDecodeError, TypeError):
-                images_list = []
+                return getattr(self, attr, default) if hasattr(self, attr) else default
+            except:
+                return default
+        
+        # Build location string safely
+        location_str = safe_get('location')
+        if not location_str:
+            city = safe_get('city')
+            region = safe_get('region')
+            address = safe_get('address')
+            if city and region:
+                location_str = f"{city}, {region}"
+            elif address:
+                location_str = address
         
         result = {
             'id': self.id,
             'user_id': self.user_id,
-            'name': self.name,
-            'description': self.description,
+            'name': safe_get('name', ''),
+            'description': safe_get('description'),
             # Location fields
-            'address': self.address,
-            'city': self.city,
-            'region': self.region,
-            'location': self.location or (f"{self.city}, {self.region}" if self.city and self.region else self.address),  # Backward compatibility
+            'address': safe_get('address'),
+            'city': safe_get('city'),
+            'region': safe_get('region'),
+            'location': location_str,
             # Capacity fields
-            'capacity_min': self.capacity_min,
-            'capacity_max': self.capacity_max,
-            'capacity': self.capacity or self.capacity_max,  # Backward compatibility
+            'capacity_min': safe_get('capacity_min'),
+            'capacity_max': safe_get('capacity_max'),
+            'capacity': safe_get('capacity') or safe_get('capacity_max'),
             # Price fields
-            'price_min': float(self.price_min) if self.price_min else None,
-            'price_max': float(self.price_max) if self.price_max else None,
-            'price_range': self.price_range,  # Keep for backward compatibility
+            'price_min': float(safe_get('price_min')) if safe_get('price_min') else None,
+            'price_max': float(safe_get('price_max')) if safe_get('price_max') else None,
+            'price_range': safe_get('price_range'),
             # Style and amenities
-            'style': self.style,
+            'style': safe_get('style'),
             'amenities': amenities_list,
             # Contact information
-            'contact_name': self.contact_name,
-            'contact_email': self.contact_email,
-            'contact_phone': self.contact_phone,
-            'website': self.website or self.external_url,  # Prefer website, fallback to external_url
-            'external_url': self.external_url,
+            'contact_name': safe_get('contact_name'),
+            'contact_email': safe_get('contact_email'),
+            'contact_phone': safe_get('contact_phone'),
+            'website': safe_get('website') or safe_get('external_url'),
+            'external_url': safe_get('external_url'),
             # Additional fields
             'available_dates': available_dates_list,
-            'rating': float(self.rating) if self.rating else None,
+            'rating': float(safe_get('rating')) if safe_get('rating') else None,
             'images': images_list,
-            'imported_via_scraper': self.imported_via_scraper,
-            'notes': self.notes,
-            'is_deleted': self.is_deleted,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'imported_via_scraper': safe_get('imported_via_scraper', False),
+            'notes': safe_get('notes'),
+            'is_deleted': safe_get('is_deleted', False),
+            'created_at': self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
         }
         
-        if include_requests and self.requests:
-            result['requests'] = [req.to_dict() for req in self.requests]
+        if include_requests and hasattr(self, 'requests') and self.requests:
+            try:
+                result['requests'] = [req.to_dict() for req in self.requests]
+            except:
+                result['requests'] = []
         
         return result
 

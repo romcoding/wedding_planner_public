@@ -14,99 +14,131 @@ venues_bp = Blueprint('venues', __name__)
 @jwt_required()
 def get_venues():
     """Get all venues with optional filtering and pagination"""
-    user_id = get_admin_id()
-    
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    # Query parameters
-    search = request.args.get('search', '').strip()
-    min_capacity = request.args.get('min_capacity', type=int)
-    max_capacity = request.args.get('max_capacity', type=int)
-    min_price = request.args.get('min_price', type=float)
-    max_price = request.args.get('max_price', type=float)
-    style = request.args.get('style', '').strip()
-    city = request.args.get('city', '').strip()
-    region = request.args.get('region', '').strip()
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 50, type=int)
-    include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
-    
-    # Build query
-    query = Venue.query.filter_by(user_id=user_id)
-    
-    if not include_deleted:
-        query = query.filter_by(is_deleted=False)
-    
-    if search:
-        search_term = f'%{search}%'
-        query = query.filter(
-            db.or_(
-                Venue.name.ilike(search_term),
-                Venue.location.ilike(search_term),
-                Venue.address.ilike(search_term),
-                Venue.city.ilike(search_term),
-                Venue.description.ilike(search_term)
-            )
+    try:
+        user_id = get_admin_id()
+        
+        if not user_id:
+            return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+        
+        # Query parameters
+        search = request.args.get('search', '').strip()
+        min_capacity = request.args.get('min_capacity', type=int)
+        max_capacity = request.args.get('max_capacity', type=int)
+        min_price = request.args.get('min_price', type=float)
+        max_price = request.args.get('max_price', type=float)
+        style = request.args.get('style', '').strip()
+        city = request.args.get('city', '').strip()
+        region = request.args.get('region', '').strip()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 50, type=int)
+        include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
+        
+        # Build query
+        query = Venue.query.filter_by(user_id=user_id)
+        
+        if not include_deleted:
+            query = query.filter_by(is_deleted=False)
+        
+        if search:
+            search_term = f'%{search}%'
+            # Use db.or_ with None checks for columns that might not exist
+            conditions = [Venue.name.ilike(search_term)]
+            if hasattr(Venue, 'location'):
+                conditions.append(Venue.location.ilike(search_term))
+            if hasattr(Venue, 'address'):
+                conditions.append(Venue.address.ilike(search_term))
+            if hasattr(Venue, 'city'):
+                conditions.append(Venue.city.ilike(search_term))
+            if hasattr(Venue, 'description'):
+                conditions.append(Venue.description.ilike(search_term))
+            query = query.filter(db.or_(*conditions))
+        
+        if min_capacity:
+            conditions = []
+            if hasattr(Venue, 'capacity_max'):
+                conditions.append(Venue.capacity_max >= min_capacity)
+            if hasattr(Venue, 'capacity'):
+                conditions.append(Venue.capacity >= min_capacity)
+            if conditions:
+                query = query.filter(db.or_(*conditions))
+        
+        if max_capacity:
+            conditions = []
+            if hasattr(Venue, 'capacity_min'):
+                conditions.append(Venue.capacity_min <= max_capacity)
+            if hasattr(Venue, 'capacity'):
+                conditions.append(Venue.capacity <= max_capacity)
+            if conditions:
+                query = query.filter(db.or_(*conditions))
+        
+        if min_price:
+            conditions = []
+            if hasattr(Venue, 'price_max'):
+                conditions.append(Venue.price_max >= min_price)
+            if hasattr(Venue, 'price_min'):
+                conditions.append(Venue.price_min >= min_price)
+            if conditions:
+                query = query.filter(db.or_(*conditions))
+        
+        if max_price:
+            conditions = []
+            if hasattr(Venue, 'price_min'):
+                conditions.append(Venue.price_min <= max_price)
+            if hasattr(Venue, 'price_max'):
+                conditions.append(Venue.price_max <= max_price)
+            if conditions:
+                query = query.filter(db.or_(*conditions))
+        
+        if style and hasattr(Venue, 'style'):
+            query = query.filter_by(style=style)
+        
+        if city and hasattr(Venue, 'city'):
+            query = query.filter(Venue.city.ilike(f'%{city}%'))
+        
+        if region and hasattr(Venue, 'region'):
+            query = query.filter(Venue.region.ilike(f'%{region}%'))
+        
+        # Pagination
+        pagination = query.order_by(Venue.created_at.desc()).paginate(
+            page=page, per_page=per_page, error_out=False
         )
+        
+        venues = pagination.items
+        
+        # Safely convert venues to dict
+        venues_list = []
+        for venue in venues:
+            try:
+                venues_list.append(venue.to_dict())
+            except Exception as e:
+                # Log error but continue with other venues
+                print(f"Error converting venue {venue.id} to dict: {str(e)}")
+                # Return basic venue info if to_dict fails
+                venues_list.append({
+                    'id': venue.id,
+                    'name': venue.name or 'Unknown',
+                    'error': 'Error loading venue details'
+                })
+        
+        return jsonify({
+            'venues': venues_list,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': pagination.total,
+                'pages': pagination.pages
+            }
+        }), 200
     
-    if min_capacity:
-        query = query.filter(
-            db.or_(
-                Venue.capacity_max >= min_capacity,
-                Venue.capacity >= min_capacity
-            )
-        )
-    
-    if max_capacity:
-        query = query.filter(
-            db.or_(
-                Venue.capacity_min <= max_capacity,
-                Venue.capacity <= max_capacity
-            )
-        )
-    
-    if min_price:
-        query = query.filter(
-            db.or_(
-                Venue.price_max >= min_price,
-                Venue.price_min >= min_price
-            )
-        )
-    
-    if max_price:
-        query = query.filter(
-            db.or_(
-                Venue.price_min <= max_price,
-                Venue.price_max <= max_price
-            )
-        )
-    
-    if style:
-        query = query.filter_by(style=style)
-    
-    if city:
-        query = query.filter(Venue.city.ilike(f'%{city}%'))
-    
-    if region:
-        query = query.filter(Venue.region.ilike(f'%{region}%'))
-    
-    # Pagination
-    pagination = query.order_by(Venue.created_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    venues = pagination.items
-    
-    return jsonify({
-        'venues': [venue.to_dict() for venue in venues],
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': pagination.total,
-            'pages': pagination.pages
-        }
-    }), 200
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error in get_venues: {str(e)}")
+        print(error_details)
+        return jsonify({
+            'error': 'Internal server error',
+            'message': str(e)
+        }), 500
 
 @venues_bp.route('', methods=['POST'])
 @jwt_required()
