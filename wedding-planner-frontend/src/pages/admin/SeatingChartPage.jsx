@@ -805,4 +805,40 @@ function SeatComponent({ assignment, tableId }) {
   )
 }
 
+// Unassigned Guests Drop Zone Component
+function UnassignedGuestsDropZone({ guests, activeId }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: 'unassigned-guests',
+    data: { type: 'unassigned' }
+  })
+
+  return (
+    <div className="lg:col-span-1">
+      <div className="bg-white rounded-lg shadow p-4 sticky top-6">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
+          <Users className="w-5 h-5" />
+          Unassigned Guests ({guests?.length || 0})
+        </h3>
+        <div 
+          ref={setNodeRef}
+          className={`space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto min-h-[100px] p-2 border-2 border-dashed rounded transition-colors ${
+            isOver ? 'border-blue-500 bg-blue-50' : 'border-gray-300'
+          }`}
+        >
+          {guests?.map((guest) => (
+            <GuestCard
+              key={guest.id}
+              guest={guest}
+              isDragging={activeId === `guest-${guest.id}`}
+            />
+          ))}
+          {(!guests || guests.length === 0) && (
+            <p className="text-sm text-gray-500 text-center py-4">All guests assigned! Drag guests here to unassign.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default SeatingChartPage
