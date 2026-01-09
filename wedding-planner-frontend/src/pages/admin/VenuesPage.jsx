@@ -541,23 +541,25 @@ export default function VenuesPage() {
                 {/* Basic Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Name *</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Venue Name *</label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      placeholder="Enter the full name of the venue"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                     />
+                    <p className="text-xs text-gray-600 mt-1">The official name of the wedding venue</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Style</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Venue Style</label>
                     <select
                       value={formData.style}
                       onChange={(e) => setFormData({ ...formData, style: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     >
-                      <option value="">Select style...</option>
+                      <option value="">Select venue style...</option>
                       <option value="Rustic">Rustic</option>
                       <option value="Modern">Modern</option>
                       <option value="Classic">Classic</option>
@@ -572,70 +574,82 @@ export default function VenuesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">Description</label>
                   <textarea
                     value={formData.description}
                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                     rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    placeholder="Enter a detailed description of the venue, its features, and ambiance..."
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                   />
+                  <p className="text-xs text-gray-600 mt-1">Describe the venue's atmosphere, unique features, and what makes it special</p>
                 </div>
 
                 {/* Location */}
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3">Location</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Location</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Address</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Street Address</label>
                       <input
                         type="text"
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., 123 Main Street"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Full street address</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">City</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">City</label>
                       <input
                         type="text"
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., New York"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">City name</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Region</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Region/State</label>
                       <input
                         type="text"
                         value={formData.region}
                         onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., NY or California"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">State, province, or region</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Capacity */}
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3">Capacity</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Capacity</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Min Capacity</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Minimum Capacity</label>
                       <input
                         type="number"
                         value={formData.capacity_min}
                         onChange={(e) => setFormData({ ...formData, capacity_min: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., 50"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Minimum number of guests</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Max Capacity</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Maximum Capacity</label>
                       <input
                         type="number"
                         value={formData.capacity_max}
                         onChange={(e) => setFormData({ ...formData, capacity_max: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., 300"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Maximum number of guests</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Capacity (Legacy)</label>
@@ -651,44 +665,49 @@ export default function VenuesPage() {
 
                 {/* Pricing */}
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3">Pricing</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Pricing</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Min Price</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Minimum Price ($)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={formData.price_min}
                         onChange={(e) => setFormData({ ...formData, price_min: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., 5000"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Lowest price in USD</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Max Price</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Maximum Price ($)</label>
                       <input
                         type="number"
                         step="0.01"
                         value={formData.price_max}
                         onChange={(e) => setFormData({ ...formData, price_max: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., 10000"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Highest price in USD</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Price Range (Legacy)</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Price Range (Text)</label>
                       <input
                         type="text"
                         value={formData.price_range}
                         onChange={(e) => setFormData({ ...formData, price_range: e.target.value })}
-                        placeholder="$5,000-$10,000"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., $5,000-$10,000 or Budget/Mid-range/Premium"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Text description of price range</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Amenities */}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Amenities (comma-separated)</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">Amenities</label>
                   <input
                     type="text"
                     value={formData.amenities.join(', ')}
@@ -696,41 +715,48 @@ export default function VenuesPage() {
                       ...formData, 
                       amenities: e.target.value.split(',').map(a => a.trim()).filter(a => a)
                     })}
-                    placeholder="Parking, Catering, Bar, Dance Floor..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    placeholder="Parking, Catering, Bar, Dance Floor, Outdoor Space, Bridal Suite..."
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                   />
+                  <p className="text-xs text-gray-600 mt-1">Separate multiple amenities with commas</p>
                 </div>
 
                 {/* Contact Information */}
                 <div className="border-t pt-4">
-                  <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Contact Information</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-medium mb-1">Contact Name</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Contact Person Name</label>
                       <input
                         type="text"
                         value={formData.contact_name}
                         onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., John Smith"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Primary contact person</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Contact Email</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Contact Email</label>
                       <input
                         type="email"
                         value={formData.contact_email}
                         onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., info@venue.com"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Email address for inquiries</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium mb-1">Contact Phone</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Contact Phone</label>
                       <input
                         type="tel"
                         value={formData.contact_phone}
                         onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                        placeholder="e.g., +1 234 567 8900"
+                        className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
+                      <p className="text-xs text-gray-600 mt-1">Phone number with country code</p>
                     </div>
                   </div>
                 </div>

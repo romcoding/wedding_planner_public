@@ -386,53 +386,112 @@ class VenueScraperService:
             except:
                 page_text = "Unable to fetch page content"
             
-            # Prepare precise prompt with validation requirements
+            # Prepare detailed, structured prompt for comprehensive data extraction
             prompt = f"""
-            Analyze the following wedding venue website and extract ONLY accurate, verified information.
-            URL: {url}
-            
-            Current scraped data (may contain errors):
-            {json.dumps(venue_data, indent=2)}
-            
-            Page content excerpt:
-            {page_text[:2000]}
-            
-            Extract and return ONLY information that you are confident is accurate. If you are unsure about any field, omit it (return null).
-            
-            Return a JSON object with these fields (only include fields you are certain about):
-            - name: Exact venue name (string, max 150 chars)
-            - description: Accurate description (string, 50-500 chars, must be factual)
-            - location: Full address if clearly stated (string, max 200 chars)
-            - capacity: Maximum guest capacity ONLY if explicitly stated (integer, 1-100000)
-            - price_range: Price range ONLY if clearly stated (string, format: "$X,XXX-$X,XXX" or "Budget/Mid-range/Premium")
-            - style: Venue style ONLY if clearly indicated (one of: Rustic, Modern, Classic, Elegant, Beach, Garden, Industrial, Barn, Vintage)
-            - amenities: Array of amenities ONLY if explicitly mentioned (array of strings)
-            - contact_email: Email address if found (string, must be valid email format)
-            - contact_phone: Phone number if found (string, must be valid phone format)
-            - rating: Rating ONLY if from a review system (float, 0.0-5.0)
-            
-            IMPORTANT RULES:
-            1. Only include data you are CERTAIN is accurate
-            2. Do NOT guess or infer information
-            3. Do NOT include generic or placeholder text
-            4. If a field is uncertain, omit it (return null)
-            5. Validate all data types and formats
-            6. Return ONLY valid JSON, no markdown, no explanations
-            
-            Return format (example):
-            {{
-              "name": "Venue Name",
-              "description": "Accurate description...",
-              "location": "Full address",
-              "capacity": 200,
-              "price_range": "$5,000-$10,000",
-              "style": "Elegant",
-              "amenities": ["Parking", "Catering"],
-              "contact_email": "info@venue.com",
-              "contact_phone": "+1 234 567 8900",
-              "rating": 4.5
-            }}
-            """
+You are an expert wedding venue data extraction specialist. Your task is to analyze the provided wedding venue website and extract comprehensive, accurate information into a structured JSON format.
+
+URL: {url}
+
+Current scraped data (may contain errors or be incomplete):
+{json.dumps(venue_data, indent=2)}
+
+Page content excerpt:
+{page_text[:3000]}
+
+Extract and return ONLY information that you are confident is accurate. If you are unsure about any field, omit it (return null). Be thorough but accurate.
+
+Return a JSON object with the following structure. Map each field carefully to the correct data category:
+
+BASIC INFORMATION:
+- name: Exact, official venue name as it appears on the website (string, max 150 chars, required)
+- description: Detailed, factual description of the venue (string, 50-1000 chars). Include ambiance, features, unique selling points
+- style: Venue style/aesthetic (string, must be one of: "Rustic", "Modern", "Classic", "Elegant", "Beach", "Garden", "Industrial", "Barn", "Vintage", or null if unclear)
+
+LOCATION (split address into components):
+- address: Full street address including street number and name (string, e.g., "123 Main Street")
+- city: City name (string, e.g., "New York")
+- region: State, province, or region (string, e.g., "NY", "California", "Ontario")
+- location: Full address string for backward compatibility (string, combine address + city + region)
+
+CAPACITY:
+- capacity_min: Minimum guest capacity if stated (integer, 1-100000, or null)
+- capacity_max: Maximum guest capacity if stated (integer, 1-100000, or null)
+- capacity: Single capacity number if only one is mentioned (integer, for backward compatibility)
+
+PRICING:
+- price_min: Minimum price in USD as a number (float, e.g., 5000.00, or null)
+- price_max: Maximum price in USD as a number (float, e.g., 10000.00, or null)
+- price_range: Price range as text string (string, format: "$5,000-$10,000" or "Budget"/"Mid-range"/"Premium", or null)
+
+AMENITIES:
+- amenities: Array of specific amenities mentioned (array of strings, e.g., ["Parking", "Catering", "Bar", "Dance Floor", "Outdoor Space", "Bridal Suite", "Sound System", "Lighting", "WiFi", "Air Conditioning", "Heating", "Restrooms", "Accessibility", "Photography", "Videography"]). Only include explicitly mentioned amenities.
+
+CONTACT INFORMATION:
+- contact_name: Name of primary contact person if mentioned (string, e.g., "John Smith", or null)
+- contact_email: Email address for inquiries (string, must be valid email format, e.g., "info@venue.com", or null)
+- contact_phone: Phone number with country code if available (string, e.g., "+1 234 567 8900", or null)
+- website: The venue's main website URL (string, use the provided URL: {url})
+
+ADDITIONAL INFORMATION:
+- rating: Rating from review systems if available (float, 0.0-5.0, one decimal place, or null)
+- images: Array of image URLs found on the page (array of strings, extract actual image URLs from img tags, or empty array)
+- available_dates: Array of available dates if mentioned (array of strings, format: "YYYY-MM-DD", or empty array)
+- notes: Any additional relevant notes or information (string, or null)
+- external_url: Original URL that was scraped (string, use: {url})
+
+EXTRACTION GUIDELINES:
+1. Be thorough - extract as much information as possible from the page
+2. Be accurate - only include information you are CERTAIN about
+3. Parse addresses carefully - split into address, city, region components
+4. Extract capacity ranges - if both min and max are mentioned, include both
+5. Parse pricing carefully - extract numeric values for price_min/price_max AND text for price_range
+6. Look for amenities in lists, feature sections, or descriptions
+7. Extract contact information from contact pages, footer, or main content
+8. Find image URLs in img tags, galleries, or carousels
+9. Extract style from descriptions, keywords, or category tags
+10. If rating is mentioned (Google, Yelp, etc.), extract it
+
+VALIDATION RULES:
+- name: Must be 3-150 characters, not generic
+- description: Must be 50-1000 characters, factual and specific
+- address: Must include street information
+- city: Must be a valid city name
+- region: Must be state/province/region name
+- capacity_min/max: Must be positive integers, capacity_max >= capacity_min if both present
+- price_min/max: Must be positive numbers, price_max >= price_min if both present
+- contact_email: Must contain @ and valid domain
+- contact_phone: Must be at least 7 characters
+- style: Must match one of the predefined styles exactly
+- amenities: Must be array of non-empty strings
+- rating: Must be between 0.0 and 5.0
+
+Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example structure:
+{{
+  "name": "Panorama Resort & Spa",
+  "description": "The Panorama Resort & Spa in Feusisberg is a unique place to unwind. Relax in the first-class spa, indulge in our sensual restaurants...",
+  "address": "123 Resort Road",
+  "city": "Feusisberg",
+  "region": "Schwyz",
+  "location": "123 Resort Road, Feusisberg, Schwyz",
+  "capacity_min": 50,
+  "capacity_max": 300,
+  "capacity": 300,
+  "price_min": 5000.00,
+  "price_max": 10000.00,
+  "price_range": "$5,000-$10,000",
+  "style": "Elegant",
+  "amenities": ["Parking", "Catering", "Bar", "Dance Floor", "Spa", "Outdoor Space"],
+  "contact_name": "Event Coordinator",
+  "contact_email": "conventions@panoramaresort.ch",
+  "contact_phone": "+41 44 123 4567",
+  "website": "{url}",
+  "rating": 4.5,
+  "images": ["https://example.com/image1.jpg", "https://example.com/image2.jpg"],
+  "available_dates": ["2024-06-15", "2024-07-20"],
+  "notes": "Luxury resort with spa facilities",
+  "external_url": "{url}"
+}}
+"""
             
             client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
@@ -440,12 +499,12 @@ class VenueScraperService:
                 messages=[
                     {
                         "role": "system", 
-                        "content": "You are a precise data extraction assistant. You ONLY return verified, accurate information. If uncertain, omit the field. Always return valid JSON only, no markdown, no explanations."
+                        "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
                     },
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.1,  # Lower temperature for more deterministic, accurate responses
-                max_tokens=1000
+                max_tokens=2000  # Increased for more detailed extraction
             )
             
             # Parse LLM response
@@ -460,35 +519,79 @@ class VenueScraperService:
             
             enhanced_data = json.loads(llm_text)
             
-            # Validate and merge data (only include validated fields)
+            # Validate and merge data (comprehensive validation for all fields)
             validated_enhanced = {}
             for key, value in enhanced_data.items():
-                if value is not None and value != '':
-                    # Additional validation
+                if value is not None and value != '' and value != []:
+                    # Comprehensive validation for all fields
                     if key == 'name' and isinstance(value, str) and 3 <= len(value) <= 150:
                         validated_enhanced[key] = value
                     elif key == 'description' and isinstance(value, str) and 50 <= len(value) <= 1000:
                         validated_enhanced[key] = value
+                    elif key == 'address' and isinstance(value, str) and len(value) <= 255:
+                        validated_enhanced[key] = value
+                    elif key == 'city' and isinstance(value, str) and len(value) <= 100:
+                        validated_enhanced[key] = value
+                    elif key == 'region' and isinstance(value, str) and len(value) <= 100:
+                        validated_enhanced[key] = value
                     elif key == 'location' and isinstance(value, str) and len(value) <= 200:
+                        validated_enhanced[key] = value
+                    elif key == 'capacity_min' and isinstance(value, int) and 1 <= value <= 100000:
+                        validated_enhanced[key] = value
+                    elif key == 'capacity_max' and isinstance(value, int) and 1 <= value <= 100000:
                         validated_enhanced[key] = value
                     elif key == 'capacity' and isinstance(value, int) and 1 <= value <= 100000:
                         validated_enhanced[key] = value
+                    elif key == 'price_min' and isinstance(value, (int, float)) and value > 0:
+                        validated_enhanced[key] = float(value)
+                    elif key == 'price_max' and isinstance(value, (int, float)) and value > 0:
+                        validated_enhanced[key] = float(value)
                     elif key == 'price_range' and isinstance(value, str) and len(value) <= 100:
                         validated_enhanced[key] = value
                     elif key == 'style' and value in ['Rustic', 'Modern', 'Classic', 'Elegant', 'Beach', 'Garden', 'Industrial', 'Barn', 'Vintage']:
                         validated_enhanced[key] = value
-                    elif key == 'amenities' and isinstance(value, list):
+                    elif key == 'amenities' and isinstance(value, list) and len(value) > 0:
+                        # Filter out empty strings
+                        validated_amenities = [a for a in value if isinstance(a, str) and a.strip()]
+                        if validated_amenities:
+                            validated_enhanced[key] = validated_amenities
+                    elif key == 'contact_name' and isinstance(value, str) and len(value) <= 200:
                         validated_enhanced[key] = value
-                    elif key == 'contact_email' and isinstance(value, str) and '@' in value and '.' in value:
+                    elif key == 'contact_email' and isinstance(value, str) and '@' in value and '.' in value and len(value) <= 200:
                         validated_enhanced[key] = value
-                    elif key == 'contact_phone' and isinstance(value, str) and len(value) >= 7:
+                    elif key == 'contact_phone' and isinstance(value, str) and len(value) >= 7 and len(value) <= 50:
+                        validated_enhanced[key] = value
+                    elif key == 'website' and isinstance(value, str) and len(value) <= 500:
                         validated_enhanced[key] = value
                     elif key == 'rating' and isinstance(value, (int, float)) and 0 <= value <= 5:
-                        validated_enhanced[key] = float(value)
+                        validated_enhanced[key] = round(float(value), 1)
+                    elif key == 'images' and isinstance(value, list):
+                        # Filter valid URLs
+                        validated_images = [img for img in value if isinstance(img, str) and (img.startswith('http://') or img.startswith('https://'))]
+                        if validated_images:
+                            validated_enhanced[key] = validated_images
+                    elif key == 'available_dates' and isinstance(value, list):
+                        # Validate date format YYYY-MM-DD
+                        validated_dates = []
+                        for date_str in value:
+                            if isinstance(date_str, str) and len(date_str) == 10:
+                                try:
+                                    from datetime import datetime
+                                    datetime.strptime(date_str, '%Y-%m-%d')
+                                    validated_dates.append(date_str)
+                                except:
+                                    pass
+                        if validated_dates:
+                            validated_enhanced[key] = validated_dates
+                    elif key == 'notes' and isinstance(value, str):
+                        validated_enhanced[key] = value[:1000]  # Limit length
+                    elif key == 'external_url' and isinstance(value, str) and len(value) <= 500:
+                        validated_enhanced[key] = value
             
             # Merge: LLM data takes precedence, but keep original website
             venue_data.update(validated_enhanced)
             venue_data['website'] = url  # Always keep original URL
+            venue_data['external_url'] = url  # Set external URL
             
             return venue_data
             
