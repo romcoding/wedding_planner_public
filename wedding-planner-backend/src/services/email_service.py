@@ -54,9 +54,6 @@ class EmailService:
             else:
                 # Use default template
                 html_body = f"""
-            
-            # Create rich, joyful HTML email template
-            html_body = f"""
             <!DOCTYPE html>
             <html>
               <head>
@@ -177,6 +174,8 @@ class EmailService:
                     </td>
                   </tr>
                 </table>
+                <!-- Tracking pixel -->
+                <img src="{tracking_pixel_url}" width="1" height="1" style="display:none;" />
               </body>
             </html>
             """
