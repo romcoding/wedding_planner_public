@@ -435,5 +435,193 @@ def scrape_venue():
     if use_llm:
         venue_data = VenueScraperService.enhance_with_llm(venue_data, url)
     
+    # Mark as imported via scraper
+    venue_data['imported_via_scraper'] = True
+    
     return jsonify(venue_data), 200
 
+@venues_bp.route('/export', methods=['GET'])
+@jwt_required()
+def export_venues_csv():
+    """Export all venues to CSV"""
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
+    venues = Venue.query.filter_by(user_id=user_id, is_deleted=False).all()
+    
+    # Create CSV in memory
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # Write header
+    writer.writerow([
+        'Name', 'Description', 'Address', 'City', 'Region', 'Location',
+        'Capacity Min', 'Capacity Max', 'Price Min', 'Price Max', 'Price Range',
+        'Style', 'Amenities', 'Contact Name', 'Contact Email', 'Contact Phone',
+        'Website', 'External URL', 'Rating', 'Available Dates', 'Images', 'Notes'
+    ])
+    
+    # Write data
+    for venue in venues:
+        # Parse amenities with error handling
+        amenities_str = ''
+        if venue.amenities:
+            try:
+                amenities_list = json.loads(venue.amenities)
+                amenities_str = ', '.join(amenities_list) if isinstance(amenities_list, list) else str(amenities_list)
+            except:
+                amenities_str = venue.amenities  # Fallback to raw string
+        
+        # Parse available dates with error handling
+        available_dates_str = ''
+        if venue.available_dates:
+            try:
+                dates_list = json.loads(venue.available_dates)
+                available_dates_str = ', '.join(dates_list) if isinstance(dates_list, list) else str(dates_list)
+            except:
+                available_dates_str = venue.available_dates  # Fallback to raw string
+        
+        # Parse images with error handling
+        images_str = ''
+        if venue.images:
+            try:
+                images_list = json.loads(venue.images)
+                images_str = ', '.join(images_list) if isinstance(images_list, list) else str(images_list)
+            except:
+                images_str = venue.images  # Fallback to raw string
+        
+        writer.writerow([
+            venue.name or '',
+            venue.description or '',
+            venue.address or '',
+            venue.city or '',
+            venue.region or '',
+            venue.location or '',
+            venue.capacity_min or '',
+            venue.capacity_max or '',
+            venue.price_min or '',
+            venue.price_max or '',
+            venue.price_range or '',
+            venue.style or '',
+            amenities_str,
+            venue.contact_name or '',
+            venue.contact_email or '',
+            venue.contact_phone or '',
+            venue.website or '',
+            venue.external_url or '',
+            venue.rating or '',
+            available_dates_str,
+            images_str,
+            venue.notes or ''
+        ])
+    
+    # Create response
+    output.seek(0)
+    mem = io.BytesIO()
+    mem.write(output.getvalue().encode('utf-8'))
+    mem.seek(0)
+    
+    return send_file(
+        mem,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name=f'venues_export_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+    )
+
+@venues_bp.route('/import', methods=['POST'])
+@jwt_required()
+def import_venues_csv():
+    """Import venues from CSV"""
+    user_id = get_admin_id()
+    
+    if not user_id:
+        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+    
+    if not file.filename.endswith('.csv'):
+        return jsonify({'error': 'File must be a CSV'}), 400
+    
+    try:
+        # Read CSV
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        csv_reader = csv.DictReader(stream)
+        
+        imported = 0
+        errors = []
+        
+        for row_num, row in enumerate(csv_reader, start=2):  # Start at 2 (header is row 1)
+            try:
+                # Parse amenities
+                amenities = []
+                if row.get('Amenities'):
+                    amenities = [a.strip() for a in row['Amenities'].split(',') if a.strip()]
+                
+                # Parse available dates
+                available_dates = []
+                if row.get('Available Dates'):
+                    available_dates = [d.strip() for d in row['Available Dates'].split(',') if d.strip()]
+                
+                # Parse images
+                images = []
+                if row.get('Images'):
+                    images = [img.strip() for img in row['Images'].split(',') if img.strip()]
+                
+                # Create venue
+                venue = Venue(
+                    user_id=user_id,
+                    name=row.get('Name', '').strip(),
+                    description=row.get('Description', '').strip() or None,
+                    address=row.get('Address', '').strip() or None,
+                    city=row.get('City', '').strip() or None,
+                    region=row.get('Region', '').strip() or None,
+                    location=row.get('Location', '').strip() or None,
+                    capacity_min=int(row['Capacity Min']) if row.get('Capacity Min') and row['Capacity Min'].strip() else None,
+                    capacity_max=int(row['Capacity Max']) if row.get('Capacity Max') and row['Capacity Max'].strip() else None,
+                    capacity=int(row['Capacity']) if row.get('Capacity') and row['Capacity'].strip() else None,
+                    price_min=float(row['Price Min']) if row.get('Price Min') and row['Price Min'].strip() else None,
+                    price_max=float(row['Price Max']) if row.get('Price Max') and row['Price Max'].strip() else None,
+                    price_range=row.get('Price Range', '').strip() or None,
+                    style=row.get('Style', '').strip() or None,
+                    amenities=json.dumps(amenities) if amenities else None,
+                    contact_name=row.get('Contact Name', '').strip() or None,
+                    contact_email=row.get('Contact Email', '').strip() or None,
+                    contact_phone=row.get('Contact Phone', '').strip() or None,
+                    website=row.get('Website', '').strip() or None,
+                    external_url=row.get('External URL', '').strip() or None,
+                    rating=float(row['Rating']) if row.get('Rating') and row['Rating'].strip() else None,
+                    available_dates=json.dumps(available_dates) if available_dates else None,
+                    images=json.dumps(images) if images else None,
+                    notes=row.get('Notes', '').strip() or None,
+                    imported_via_scraper=False
+                )
+                
+                if not venue.name:
+                    errors.append(f"Row {row_num}: Name is required")
+                    continue
+                
+                db.session.add(venue)
+                imported += 1
+                
+            except Exception as e:
+                errors.append(f"Row {row_num}: {str(e)}")
+                continue
+        
+        db.session.commit()
+        
+        return jsonify({
+            'message': f'Successfully imported {imported} venues',
+            'imported': imported,
+            'errors': errors
+        }), 200
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Error importing CSV: {str(e)}'}), 500

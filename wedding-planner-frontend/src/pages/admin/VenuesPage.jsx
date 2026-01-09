@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { 
@@ -18,8 +18,11 @@ import {
   Upload,
   GitCompare,
   X,
-  Loader
+  Loader,
+  Image as ImageIcon,
+  Calendar
 } from 'lucide-react'
+import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 export default function VenuesPage() {
   const queryClient = useQueryClient()
@@ -31,17 +34,32 @@ export default function VenuesPage() {
   const [scrapingUrl, setScrapingUrl] = useState('')
   const [isScraping, setIsScraping] = useState(false)
   const [useLLM, setUseLLM] = useState(false)
+  const fileInputRef = useRef(null)
+  const csvFileInputRef = useRef(null)
+  const [imagePreviews, setImagePreviews] = useState([])
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
   const [minCapacity, setMinCapacity] = useState('')
+  const [maxCapacity, setMaxCapacity] = useState('')
+  const [minPrice, setMinPrice] = useState('')
+  const [maxPrice, setMaxPrice] = useState('')
   const [styleFilter, setStyleFilter] = useState('')
+  const [cityFilter, setCityFilter] = useState('')
+  const [regionFilter, setRegionFilter] = useState('')
   
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    address: '',
+    city: '',
+    region: '',
     location: '',
+    capacity_min: '',
+    capacity_max: '',
     capacity: '',
+    price_min: '',
+    price_max: '',
     price_range: '',
     style: '',
     amenities: [],
@@ -49,17 +67,25 @@ export default function VenuesPage() {
     contact_email: '',
     contact_phone: '',
     website: '',
+    external_url: '',
     rating: '',
+    available_dates: [],
+    images: [],
     notes: '',
   })
 
   const { data: venuesData, isLoading } = useQuery({
-    queryKey: ['venues', searchTerm, minCapacity, styleFilter],
+    queryKey: ['venues', searchTerm, minCapacity, maxCapacity, minPrice, maxPrice, styleFilter, cityFilter, regionFilter],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (searchTerm) params.append('search', searchTerm)
       if (minCapacity) params.append('min_capacity', minCapacity)
+      if (maxCapacity) params.append('max_capacity', maxCapacity)
+      if (minPrice) params.append('min_price', minPrice)
+      if (maxPrice) params.append('max_price', maxPrice)
       if (styleFilter) params.append('style', styleFilter)
+      if (cityFilter) params.append('city', cityFilter)
+      if (regionFilter) params.append('region', regionFilter)
       
       const response = await api.get(`/venues?${params.toString()}`)
       return response.data
@@ -99,12 +125,52 @@ export default function VenuesPage() {
     },
   })
 
+  const exportCSV = useMutation({
+    mutationFn: async () => {
+      const response = await api.get('/venues/export', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `venues_export_${new Date().toISOString().split('T')[0]}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    },
+  })
+
+  const importCSV = useMutation({
+    mutationFn: async (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      const response = await api.post('/venues/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      return response.data
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries(['venues'])
+      alert(`Successfully imported ${data.imported} venues. ${data.errors.length > 0 ? `Errors: ${data.errors.join(', ')}` : ''}`)
+      if (csvFileInputRef.current) csvFileInputRef.current.value = ''
+    },
+    onError: (error) => {
+      alert(error.response?.data?.error || 'Failed to import CSV')
+    }
+  })
+
   const resetForm = () => {
     setFormData({
       name: '',
       description: '',
+      address: '',
+      city: '',
+      region: '',
       location: '',
+      capacity_min: '',
+      capacity_max: '',
       capacity: '',
+      price_min: '',
+      price_max: '',
       price_range: '',
       style: '',
       amenities: [],
@@ -112,11 +178,15 @@ export default function VenuesPage() {
       contact_email: '',
       contact_phone: '',
       website: '',
+      external_url: '',
       rating: '',
+      available_dates: [],
+      images: [],
       notes: '',
     })
     setEditingId(null)
     setScrapingUrl('')
+    setImagePreviews([])
   }
 
   const handleScrape = async () => {
@@ -133,8 +203,15 @@ export default function VenuesPage() {
       setFormData({
         name: data.name || '',
         description: data.description || '',
+        address: data.address || '',
+        city: data.city || '',
+        region: data.region || '',
         location: data.location || '',
+        capacity_min: data.capacity_min || '',
+        capacity_max: data.capacity_max || data.capacity || '',
         capacity: data.capacity || '',
+        price_min: data.price_min || '',
+        price_max: data.price_max || '',
         price_range: data.price_range || '',
         style: data.style || '',
         amenities: Array.isArray(data.amenities) ? data.amenities : [],
@@ -142,7 +219,10 @@ export default function VenuesPage() {
         contact_email: data.contact_email || '',
         contact_phone: data.contact_phone || '',
         website: scrapingUrl,
+        external_url: data.external_url || '',
         rating: data.rating || '',
+        available_dates: Array.isArray(data.available_dates) ? data.available_dates : [],
+        images: Array.isArray(data.images) ? data.images : [],
         notes: data.notes || '',
       })
       
@@ -156,11 +236,40 @@ export default function VenuesPage() {
     }
   }
 
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files)
+    files.forEach(file => {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          setImagePreviews(prev => [...prev, event.target.result])
+          setFormData(prev => ({
+            ...prev,
+            images: [...prev.images, event.target.result]
+          }))
+        }
+        reader.readAsDataURL(file)
+      }
+    })
+  }
+
+  const removeImage = (index) => {
+    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }))
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     const payload = {
       ...formData,
+      capacity_min: formData.capacity_min ? parseInt(formData.capacity_min) : null,
+      capacity_max: formData.capacity_max ? parseInt(formData.capacity_max) : null,
       capacity: formData.capacity ? parseInt(formData.capacity) : null,
+      price_min: formData.price_min ? parseFloat(formData.price_min) : null,
+      price_max: formData.price_max ? parseFloat(formData.price_max) : null,
       rating: formData.rating ? parseFloat(formData.rating) : null,
     }
     
@@ -176,8 +285,15 @@ export default function VenuesPage() {
     setFormData({
       name: venue.name || '',
       description: venue.description || '',
+      address: venue.address || '',
+      city: venue.city || '',
+      region: venue.region || '',
       location: venue.location || '',
+      capacity_min: venue.capacity_min || '',
+      capacity_max: venue.capacity_max || '',
       capacity: venue.capacity || '',
+      price_min: venue.price_min || '',
+      price_max: venue.price_max || '',
       price_range: venue.price_range || '',
       style: venue.style || '',
       amenities: Array.isArray(venue.amenities) ? venue.amenities : [],
@@ -185,9 +301,13 @@ export default function VenuesPage() {
       contact_email: venue.contact_email || '',
       contact_phone: venue.contact_phone || '',
       website: venue.website || '',
+      external_url: venue.external_url || '',
       rating: venue.rating || '',
+      available_dates: Array.isArray(venue.available_dates) ? venue.available_dates : [],
+      images: Array.isArray(venue.images) ? venue.images : [],
       notes: venue.notes || '',
     })
+    setImagePreviews(Array.isArray(venue.images) ? venue.images : [])
     setShowForm(true)
   }
 
@@ -207,102 +327,13 @@ export default function VenuesPage() {
     setShowCompare(true)
   }
 
-  const exportToCSV = () => {
-    const headers = ['Name', 'Location', 'Capacity', 'Price Range', 'Style', 'Rating', 'Contact Email', 'Website']
-    const rows = venues.map(v => [
-      v.name || '',
-      v.location || '',
-      v.capacity || '',
-      v.price_range || '',
-      v.style || '',
-      v.rating || '',
-      v.contact_email || '',
-      v.website || ''
-    ])
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n')
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' })
-    const url = window.URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'venues.csv'
-    a.click()
-    window.URL.revokeObjectURL(url)
-  }
-
-  const handleImportCSV = (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = async (e) => {
-      const text = e.target.result
-      const lines = text.split('\n')
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''))
-      
-      // Map headers to venue fields
-      const headerMap = {
-        'Name': 'name',
-        'Location': 'location',
-        'Capacity': 'capacity',
-        'Price Range': 'price_range',
-        'Style': 'style',
-        'Rating': 'rating',
-        'Contact Email': 'contact_email',
-        'Website': 'website',
-      }
-
-      const venuesToImport = []
-      for (let i = 1; i < lines.length; i++) {
-        if (!lines[i].trim()) continue
-        
-        const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''))
-        const venue = { amenities: [] }
-        
-        headers.forEach((header, index) => {
-          const field = headerMap[header]
-          if (field && values[index]) {
-            if (field === 'capacity') {
-              venue[field] = parseInt(values[index]) || null
-            } else if (field === 'rating') {
-              venue[field] = parseFloat(values[index]) || null
-            } else {
-              venue[field] = values[index]
-            }
-          }
-        })
-        
-        if (venue.name) {
-          venuesToImport.push(venue)
-        }
-      }
-
-      // Import venues one by one
-      let successCount = 0
-      let errorCount = 0
-      
-      for (const venue of venuesToImport) {
-        try {
-          await createVenue.mutateAsync(venue)
-          successCount++
-        } catch (error) {
-          console.error('Error importing venue:', error)
-          errorCount++
-        }
-      }
-
-      alert(`Import complete: ${successCount} venues imported, ${errorCount} errors`)
-      queryClient.invalidateQueries(['venues'])
-      
-      // Reset file input
-      event.target.value = ''
+  const handleCSVImport = (e) => {
+    const file = e.target.files[0]
+    if (file && file.name.endsWith('.csv')) {
+      importCSV.mutate(file)
+    } else {
+      alert('Please select a CSV file')
     }
-    
-    reader.readAsText(file)
   }
 
   if (isLoading) {
@@ -316,7 +347,7 @@ export default function VenuesPage() {
           <h1 className="text-3xl font-bold text-gray-900">Venue Management</h1>
           <p className="text-gray-600 mt-1">Manage and compare wedding venues</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {selectedVenues.length >= 2 && (
             <button
               onClick={handleCompare}
@@ -330,17 +361,19 @@ export default function VenuesPage() {
             <Upload className="h-5 w-5" />
             Import CSV
             <input
+              ref={csvFileInputRef}
               type="file"
               accept=".csv"
-              onChange={handleImportCSV}
+              onChange={handleCSVImport}
               className="hidden"
             />
           </label>
           <button
-            onClick={exportToCSV}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            onClick={() => exportCSV.mutate()}
+            disabled={exportCSV.isPending}
+            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
           >
-            <Download className="h-5 w-5" />
+            {exportCSV.isPending ? <Loader className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
             Export CSV
           </button>
           <button
@@ -408,7 +441,7 @@ export default function VenuesPage() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
             <input
@@ -419,17 +452,42 @@ export default function VenuesPage() {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
             />
           </div>
-          <input
-            type="number"
-            value={minCapacity}
-            onChange={(e) => setMinCapacity(e.target.value)}
-            placeholder="Min capacity"
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-          />
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={minCapacity}
+              onChange={(e) => setMinCapacity(e.target.value)}
+              placeholder="Min capacity"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+            />
+            <input
+              type="number"
+              value={maxCapacity}
+              onChange={(e) => setMaxCapacity(e.target.value)}
+              placeholder="Max capacity"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+            />
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              value={minPrice}
+              onChange={(e) => setMinPrice(e.target.value)}
+              placeholder="Min price"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+            />
+            <input
+              type="number"
+              value={maxPrice}
+              onChange={(e) => setMaxPrice(e.target.value)}
+              placeholder="Max price"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+            />
+          </div>
           <select
             value={styleFilter}
             onChange={(e) => setStyleFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
           >
             <option value="">All Styles</option>
             <option value="Rustic">Rustic</option>
@@ -443,12 +501,28 @@ export default function VenuesPage() {
             <option value="Vintage">Vintage</option>
           </select>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <input
+            type="text"
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            placeholder="Filter by city..."
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+          />
+          <input
+            type="text"
+            value={regionFilter}
+            onChange={(e) => setRegionFilter(e.target.value)}
+            placeholder="Filter by region..."
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+          />
+        </div>
       </div>
 
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-2xl font-bold">{editingId ? 'Edit Venue' : 'Add New Venue'}</h2>
@@ -464,6 +538,7 @@ export default function VenuesPage() {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
+                {/* Basic Information */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Name *</label>
@@ -476,52 +551,11 @@ export default function VenuesPage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Location</label>
-                    <input
-                      type="text"
-                      value={formData.location}
-                      onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-1">Description</label>
-                  <textarea
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    rows="3"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Capacity</label>
-                    <input
-                      type="number"
-                      value={formData.capacity}
-                      onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Price Range</label>
-                    <input
-                      type="text"
-                      value={formData.price_range}
-                      onChange={(e) => setFormData({ ...formData, price_range: e.target.value })}
-                      placeholder="$5,000-$10,000"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                    />
-                  </div>
-                  <div>
                     <label className="block text-sm font-medium mb-1">Style</label>
                     <select
                       value={formData.style}
                       onChange={(e) => setFormData({ ...formData, style: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                     >
                       <option value="">Select style...</option>
                       <option value="Rustic">Rustic</option>
@@ -538,6 +572,122 @@ export default function VenuesPage() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium mb-1">Description</label>
+                  <textarea
+                    value={formData.description}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                    rows="3"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Location */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-3">Location</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Address</label>
+                      <input
+                        type="text"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">City</label>
+                      <input
+                        type="text"
+                        value={formData.city}
+                        onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Region</label>
+                      <input
+                        type="text"
+                        value={formData.region}
+                        onChange={(e) => setFormData({ ...formData, region: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Capacity */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-3">Capacity</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Min Capacity</label>
+                      <input
+                        type="number"
+                        value={formData.capacity_min}
+                        onChange={(e) => setFormData({ ...formData, capacity_min: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Max Capacity</label>
+                      <input
+                        type="number"
+                        value={formData.capacity_max}
+                        onChange={(e) => setFormData({ ...formData, capacity_max: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Capacity (Legacy)</label>
+                      <input
+                        type="number"
+                        value={formData.capacity}
+                        onChange={(e) => setFormData({ ...formData, capacity: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Pricing */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-3">Pricing</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Min Price</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.price_min}
+                        onChange={(e) => setFormData({ ...formData, price_min: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Max Price</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.price_max}
+                        onChange={(e) => setFormData({ ...formData, price_max: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Price Range (Legacy)</label>
+                      <input
+                        type="text"
+                        value={formData.price_range}
+                        onChange={(e) => setFormData({ ...formData, price_range: e.target.value })}
+                        placeholder="$5,000-$10,000"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amenities */}
+                <div>
                   <label className="block text-sm font-medium mb-1">Amenities (comma-separated)</label>
                   <input
                     type="text"
@@ -547,47 +697,61 @@ export default function VenuesPage() {
                       amenities: e.target.value.split(',').map(a => a.trim()).filter(a => a)
                     })}
                     placeholder="Parking, Catering, Bar, Dance Floor..."
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Contact Name</label>
-                    <input
-                      type="text"
-                      value={formData.contact_name}
-                      onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Contact Email</label>
-                    <input
-                      type="email"
-                      value={formData.contact_email}
-                      onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-1">Contact Phone</label>
-                    <input
-                      type="tel"
-                      value={formData.contact_phone}
-                      onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
-                    />
+                {/* Contact Information */}
+                <div className="border-t pt-4">
+                  <h3 className="text-lg font-semibold mb-3">Contact Information</h3>
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Contact Name</label>
+                      <input
+                        type="text"
+                        value={formData.contact_name}
+                        onChange={(e) => setFormData({ ...formData, contact_name: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Contact Email</label>
+                      <input
+                        type="email"
+                        value={formData.contact_email}
+                        onChange={(e) => setFormData({ ...formData, contact_email: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium mb-1">Contact Phone</label>
+                      <input
+                        type="tel"
+                        value={formData.contact_phone}
+                        onChange={(e) => setFormData({ ...formData, contact_phone: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Website & Rating */}
+                <div className="grid grid-cols-3 gap-4">
                   <div>
                     <label className="block text-sm font-medium mb-1">Website</label>
                     <input
                       type="url"
                       value={formData.website}
                       onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">External URL</label>
+                    <input
+                      type="url"
+                      value={formData.external_url}
+                      onChange={(e) => setFormData({ ...formData, external_url: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
                     />
                   </div>
@@ -605,13 +769,76 @@ export default function VenuesPage() {
                   </div>
                 </div>
 
+                {/* Available Dates */}
+                <div>
+                  <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Available Dates (comma-separated, YYYY-MM-DD)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.available_dates.join(', ')}
+                    onChange={(e) => setFormData({ 
+                      ...formData, 
+                      available_dates: e.target.value.split(',').map(d => d.trim()).filter(d => d)
+                    })}
+                    placeholder="2024-06-15, 2024-07-20, 2024-08-10"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                  />
+                </div>
+
+                {/* Images */}
+                <div>
+                  <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                    <ImageIcon className="h-4 w-4" />
+                    Images (URLs or upload)
+                  </label>
+                  <div className="space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                    <input
+                      type="text"
+                      value={formData.images.join(', ')}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        images: e.target.value.split(',').map(img => img.trim()).filter(img => img)
+                      })}
+                      placeholder="Enter image URLs separated by commas"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    />
+                    {imagePreviews.length > 0 && (
+                      <div className="grid grid-cols-4 gap-2 mt-2">
+                        {imagePreviews.map((preview, index) => (
+                          <div key={index} className="relative">
+                            <img src={preview} alt={`Preview ${index}`} className="w-full h-24 object-cover rounded" />
+                            <button
+                              type="button"
+                              onClick={() => removeImage(index)}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Notes */}
                 <div>
                   <label className="block text-sm font-medium mb-1">Notes</label>
                   <textarea
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                     rows="3"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
                   />
                 </div>
 
@@ -688,23 +915,30 @@ export default function VenuesPage() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{venue.name}</div>
+                      {venue.imported_via_scraper && (
+                        <span className="text-xs text-blue-600">(Scraped)</span>
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-500 flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
-                        {venue.location || '-'}
+                        {venue.city && venue.region ? `${venue.city}, ${venue.region}` : venue.location || venue.address || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-500 flex items-center gap-1">
                         <Users className="h-4 w-4" />
-                        {venue.capacity || '-'}
+                        {venue.capacity_min && venue.capacity_max 
+                          ? `${venue.capacity_min}-${venue.capacity_max}` 
+                          : venue.capacity_max || venue.capacity || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-500 flex items-center gap-1">
                         <DollarSign className="h-4 w-4" />
-                        {venue.price_range || '-'}
+                        {venue.price_min && venue.price_max 
+                          ? `$${venue.price_min}-$${venue.price_max}` 
+                          : venue.price_range || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -782,15 +1016,34 @@ export default function VenuesPage() {
   )
 }
 
-// Compare Venues Component
+// Compare Venues Component with Charts
 function CompareVenuesModal({ venueIds, venues, onClose }) {
   const selectedVenues = venues.filter(v => venueIds.includes(v.id))
   
+  // Prepare data for charts
+  const radarData = selectedVenues.map(venue => ({
+    name: venue.name,
+    Capacity: venue.capacity_max || venue.capacity || 0,
+    Rating: (venue.rating || 0) * 20, // Scale to 0-100
+    Price: venue.price_max ? Math.min(venue.price_max / 100, 100) : 0, // Normalize
+  }))
+
+  const barData = selectedVenues.map(venue => ({
+    name: venue.name.length > 15 ? venue.name.substring(0, 15) + '...' : venue.name,
+    Capacity: venue.capacity_max || venue.capacity || 0,
+    Rating: venue.rating || 0,
+    Price: venue.price_max || venue.price_min || 0,
+  }))
+
   const attributes = [
     { key: 'name', label: 'Name' },
-    { key: 'location', label: 'Location' },
-    { key: 'capacity', label: 'Capacity' },
-    { key: 'price_range', label: 'Price Range' },
+    { key: 'address', label: 'Address' },
+    { key: 'city', label: 'City' },
+    { key: 'region', label: 'Region' },
+    { key: 'capacity_min', label: 'Min Capacity' },
+    { key: 'capacity_max', label: 'Max Capacity' },
+    { key: 'price_min', label: 'Min Price' },
+    { key: 'price_max', label: 'Max Price' },
     { key: 'style', label: 'Style' },
     { key: 'rating', label: 'Rating' },
     { key: 'contact_email', label: 'Contact Email' },
@@ -808,6 +1061,47 @@ function CompareVenuesModal({ venueIds, venues, onClose }) {
             </button>
           </div>
 
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Capacity & Rating Comparison</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={barData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="Capacity" fill="#8884d8" />
+                  <Bar dataKey="Rating" fill="#82ca9d" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Multi-Attribute Comparison</h3>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={radarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="name" />
+                  <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                  {selectedVenues.map((venue, index) => (
+                    <Radar
+                      key={venue.id}
+                      name={venue.name}
+                      dataKey={index === 0 ? 'Capacity' : index === 1 ? 'Rating' : 'Price'}
+                      stroke={`hsl(${index * 60}, 70%, 50%)`}
+                      fill={`hsl(${index * 60}, 70%, 50%)`}
+                      fillOpacity={0.6}
+                    />
+                  ))}
+                  <Tooltip />
+                  <Legend />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Comparison Table */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
@@ -903,21 +1197,33 @@ function VenueDetailModal({ venueId, onClose }) {
                   <MapPin className="h-4 w-4" />
                   Location
                 </h3>
-                <p className="text-gray-600">{venue.location || '-'}</p>
+                <p className="text-gray-600">
+                  {venue.address && <div>{venue.address}</div>}
+                  {venue.city && venue.region && <div>{venue.city}, {venue.region}</div>}
+                  {!venue.address && !venue.city && (venue.location || '-')}
+                </p>
               </div>
               <div>
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <Users className="h-4 w-4" />
                   Capacity
                 </h3>
-                <p className="text-gray-600">{venue.capacity || '-'}</p>
+                <p className="text-gray-600">
+                  {venue.capacity_min && venue.capacity_max 
+                    ? `${venue.capacity_min}-${venue.capacity_max}` 
+                    : venue.capacity_max || venue.capacity || '-'}
+                </p>
               </div>
               <div>
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
                   <DollarSign className="h-4 w-4" />
                   Price Range
                 </h3>
-                <p className="text-gray-600">{venue.price_range || '-'}</p>
+                <p className="text-gray-600">
+                  {venue.price_min && venue.price_max 
+                    ? `$${venue.price_min}-$${venue.price_max}` 
+                    : venue.price_range || '-'}
+                </p>
               </div>
               <div>
                 <h3 className="font-semibold mb-2 flex items-center gap-2">
@@ -936,6 +1242,20 @@ function VenueDetailModal({ venueId, onClose }) {
                     <span key={i} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                       {amenity}
                     </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {Array.isArray(venue.images) && venue.images.length > 0 && (
+              <div>
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Images
+                </h3>
+                <div className="grid grid-cols-3 gap-2">
+                  {venue.images.map((img, i) => (
+                    <img key={i} src={img} alt={`Venue ${i}`} className="w-full h-32 object-cover rounded" />
                   ))}
                 </div>
               </div>
@@ -980,4 +1300,3 @@ function VenueDetailModal({ venueId, onClose }) {
     </div>
   )
 }
-
