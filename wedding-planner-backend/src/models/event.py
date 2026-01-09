@@ -16,6 +16,7 @@ class Event(db.Model):
     # Timing
     start_time = db.Column(db.DateTime, nullable=False)
     end_time = db.Column(db.DateTime)
+    end_date = db.Column(db.Date)  # For multi-day events
     
     # Display
     order = db.Column(db.Integer, default=0)  # For ordering events
@@ -32,9 +33,9 @@ class Event(db.Model):
     
     user = db.relationship('User', backref=db.backref('events', lazy=True))
     
-    def to_dict(self):
+    def to_dict(self, include_tasks=False):
         """Convert event to dictionary"""
-        return {
+        result = {
             'id': self.id,
             'user_id': self.user_id,
             'name': self.name,
@@ -42,6 +43,7 @@ class Event(db.Model):
             'location': self.location,
             'start_time': self.start_time.isoformat() if self.start_time else None,
             'end_time': self.end_time.isoformat() if self.end_time else None,
+            'end_date': self.end_date.isoformat() if self.end_date else None,
             'order': self.order,
             'is_public': self.is_public,
             'is_active': self.is_active,
@@ -50,4 +52,7 @@ class Event(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
+        if include_tasks and self.tasks:
+            result['tasks'] = [task.to_dict() for task in self.tasks]
+        return result
 

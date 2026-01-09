@@ -65,6 +65,12 @@ def create_event():
         end_time = None
         if data.get('end_time'):
             end_time = datetime.fromisoformat(data['end_time'].replace('Z', '+00:00'))
+        
+        # Parse end_date if provided
+        end_date = None
+        if data.get('end_date'):
+            from datetime import date
+            end_date = date.fromisoformat(data['end_date'])
     except ValueError as e:
         return jsonify({'error': f'Invalid date format: {str(e)}'}), 400
     
@@ -75,6 +81,7 @@ def create_event():
         location=data.get('location', ''),
         start_time=start_time,
         end_time=end_time,
+        end_date=end_date,
         order=data.get('order', 0),
         is_public=data.get('is_public', True),
         is_active=data.get('is_active', True),
@@ -123,6 +130,15 @@ def update_event(event_id):
                 return jsonify({'error': 'Invalid end_time format'}), 400
         else:
             event.end_time = None
+    if 'end_date' in data:
+        if data['end_date']:
+            try:
+                from datetime import date
+                event.end_date = date.fromisoformat(data['end_date'])
+            except ValueError:
+                return jsonify({'error': 'Invalid end_date format'}), 400
+        else:
+            event.end_date = None
     if 'order' in data:
         event.order = data['order']
     if 'is_public' in data:
