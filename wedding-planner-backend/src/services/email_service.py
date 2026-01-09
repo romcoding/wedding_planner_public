@@ -8,7 +8,7 @@ class EmailService:
     """Service for sending emails"""
     
     @staticmethod
-    def send_invitation_email(email, invitation_token, guest_name, frontend_url):
+    def send_invitation_email(email, invitation_token, guest_name, frontend_url, template=None):
         """Send invitation email to guest"""
         try:
             # Get SMTP settings from environment
@@ -26,13 +26,34 @@ class EmailService:
             # Create message with proper content type
             # Use 'alternative' to let email client choose best format
             msg = MIMEMultipart('alternative')
-            msg['Subject'] = "You're Invited to Our Wedding! 💍✨"
+            
+            # Use template if provided, otherwise use default
+            if template:
+                msg['Subject'] = template.subject.replace('{guest_name}', guest_name or 'Guest')
+                html_body = template.html_content
+            else:
+                msg['Subject'] = "You're Invited to Our Wedding! 💍✨"
+                html_body = None  # Will use default template below
+            
             msg['From'] = from_email
             msg['To'] = email
             # Don't set Content-Type on multipart - let it be set automatically
             
-            # Create invitation link (direct to RSVP page for passwordless system)
+            # Create invitation link with tracking
             invitation_link = f"{frontend_url}/rsvp/{invitation_token}"
+            tracking_pixel_url = f"{frontend_url}/api/invitations/track/open/{invitation_token}"
+            
+            # If using template, replace placeholders
+            if template and html_body:
+                html_body = html_body.replace('{guest_name}', guest_name or 'Guest')
+                html_body = html_body.replace('{invitation_link}', invitation_link)
+                html_body = html_body.replace('{token}', invitation_token)
+                # Add tracking pixel if not already present
+                if '<img' not in html_body or 'track/open' not in html_body:
+                    html_body += f'<img src="{tracking_pixel_url}" width="1" height="1" style="display:none;" />'
+            else:
+                # Use default template
+                html_body = f"""
             
             # Create rich, joyful HTML email template
             html_body = f"""

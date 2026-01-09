@@ -19,8 +19,18 @@ class Invitation(db.Model):
     # Status and timing
     status = db.Column(db.String(20), default='pending')  # pending, sent, accepted, expired, revoked
     sent_at = db.Column(db.DateTime)
+    scheduled_at = db.Column(db.DateTime)  # For scheduled sending
     expires_at = db.Column(db.DateTime)
     accepted_at = db.Column(db.DateTime)
+    
+    # Template
+    template_id = db.Column(db.Integer, db.ForeignKey('invitation_templates.id'), nullable=True)
+    
+    # Tracking
+    opened_at = db.Column(db.DateTime)
+    opened_count = db.Column(db.Integer, default=0)
+    clicked_at = db.Column(db.DateTime)
+    clicked_count = db.Column(db.Integer, default=0)
     
     # Guest relationship (if accepted)
     guest_id = db.Column(db.Integer, db.ForeignKey('guests.id'), nullable=True)
@@ -32,6 +42,7 @@ class Invitation(db.Model):
     
     user = db.relationship('User', backref=db.backref('invitations', lazy=True))
     guest = db.relationship('Guest', backref=db.backref('invitation', uselist=False), foreign_keys=[guest_id])
+    template = db.relationship('InvitationTemplate', backref=db.backref('invitations', lazy=True))
     
     @staticmethod
     def generate_token():
@@ -79,9 +90,21 @@ class Invitation(db.Model):
         """Revoke the invitation"""
         self.status = 'revoked'
     
-    def to_dict(self):
+    def track_open(self):
+        """Track email open"""
+        if not self.opened_at:
+            self.opened_at = datetime.utcnow()
+        self.opened_count = (self.opened_count or 0) + 1
+    
+    def track_click(self):
+        """Track link click"""
+        if not self.clicked_at:
+            self.clicked_at = datetime.utcnow()
+        self.clicked_count = (self.clicked_count or 0) + 1
+    
+    def to_dict(self, include_template=False):
         """Convert invitation to dictionary"""
-        return {
+        result = {
             'id': self.id,
             'user_id': self.user_id,
             'email': self.email,
@@ -91,12 +114,21 @@ class Invitation(db.Model):
             'plus_one_count': self.plus_one_count,
             'status': self.status,
             'sent_at': self.sent_at.isoformat() if self.sent_at else None,
+            'scheduled_at': self.scheduled_at.isoformat() if self.scheduled_at else None,
             'expires_at': self.expires_at.isoformat() if self.expires_at else None,
             'accepted_at': self.accepted_at.isoformat() if self.accepted_at else None,
+            'template_id': self.template_id,
+            'opened_at': self.opened_at.isoformat() if self.opened_at else None,
+            'opened_count': self.opened_count or 0,
+            'clicked_at': self.clicked_at.isoformat() if self.clicked_at else None,
+            'clicked_count': self.clicked_count or 0,
             'guest_id': self.guest_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'notes': self.notes,
             'is_valid': self.is_valid()
         }
+        if include_template and self.template:
+            result['template'] = self.template.to_dict()
+        return result
 

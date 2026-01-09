@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Invitation, User, Guest
+from src.models import db, Invitation, User, Guest, InvitationTemplate
 from src.services.email_service import EmailService
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 
 invitations_bp = Blueprint('invitations', __name__)
@@ -30,7 +30,7 @@ def get_invitations():
     
     invitations = query.order_by(Invitation.created_at.desc()).all()
     
-    return jsonify([inv.to_dict() for inv in invitations]), 200
+    return jsonify([inv.to_dict(include_template=True) for inv in invitations]), 200
 
 @invitations_bp.route('', methods=['POST'])
 @jwt_required()
@@ -53,6 +53,8 @@ def create_invitation():
     plus_one_count = data.get('plus_one_count', 0)
     expires_days = data.get('expires_days', 30)
     send_email = data.get('send_email', True)
+    template_id = data.get('template_id')
+    scheduled_at = data.get('scheduled_at')  # ISO datetime string
     
     # Check if invitation already exists for this email
     existing = Invitation.query.filter_by(email=email).filter(
@@ -72,17 +74,34 @@ def create_invitation():
         expires_days=expires_days
     )
     
+    # Set template if provided
+    if template_id:
+        template = InvitationTemplate.query.filter_by(id=template_id, user_id=user_id).first()
+        if template:
+            invitation.template_id = template_id
+    
+    # Set scheduled time if provided
+    if scheduled_at:
+        try:
+            invitation.scheduled_at = datetime.fromisoformat(scheduled_at.replace('Z', '+00:00'))
+            send_email = False  # Don't send immediately if scheduled
+        except ValueError:
+            return jsonify({'error': 'Invalid scheduled_at format'}), 400
+    
     db.session.add(invitation)
     db.session.commit()
     
-    # Send email if requested
-    if send_email:
+    # Send email if requested and not scheduled
+    if send_email and not invitation.scheduled_at:
         frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+        template = invitation.template if invitation.template_id else None
+        
         email_sent = EmailService.send_invitation_email(
             email=email,
             invitation_token=invitation.token,
             guest_name=guest_name,
-            frontend_url=frontend_url
+            frontend_url=frontend_url,
+            template=template
         )
         
         if email_sent:
@@ -91,7 +110,7 @@ def create_invitation():
     
     return jsonify({
         'message': 'Invitation created successfully',
-        'invitation': invitation.to_dict()
+        'invitation': invitation.to_dict(include_template=True)
     }), 201
 
 @invitations_bp.route('/<int:invitation_id>', methods=['GET'])
@@ -105,7 +124,7 @@ def get_invitation(invitation_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     invitation = Invitation.query.get_or_404(invitation_id)
-    return jsonify(invitation.to_dict()), 200
+    return jsonify(invitation.to_dict(include_template=True)), 200
 
 @invitations_bp.route('/<int:invitation_id>/resend', methods=['POST'])
 @jwt_required()
