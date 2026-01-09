@@ -46,6 +46,7 @@ def create_table():
     )
     
     db.session.add(table)
+    db.session.flush()  # Flush to get the table.id before creating assignments
     
     # Create empty seat assignments
     for seat_num in range(1, table.capacity + 1):
