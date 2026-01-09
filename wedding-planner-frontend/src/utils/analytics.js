@@ -29,7 +29,9 @@ function generateSessionId() {
 async function startVisit() {
   try {
     const user = JSON.parse(localStorage.getItem('user') || 'null')
-    const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/track/visit/start`, {
+    // Get base URL and ensure it doesn't have double /api
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
+    const response = await fetch(`${baseUrl}/api/analytics/track/visit/start`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -60,8 +62,10 @@ export function trackPageView(pagePath, pageTitle = null) {
   
   try {
     const user = JSON.parse(localStorage.getItem('user') || 'null')
+    // Get base URL and ensure it doesn't have double /api
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
     
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/track/pageview`, {
+    fetch(`${baseUrl}/api/analytics/track/pageview`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -87,7 +91,9 @@ export function endVisit() {
   }
   
   try {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/analytics/track/visit/end`, {
+    // Get base URL and ensure it doesn't have double /api
+    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
+    fetch(`${baseUrl}/api/analytics/track/visit/end`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

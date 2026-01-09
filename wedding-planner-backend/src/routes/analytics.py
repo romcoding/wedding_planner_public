@@ -316,9 +316,12 @@ def get_security_events():
         'recent_events': [event.to_dict() for event in recent_events]
     }), 200
 
-@analytics_bp.route('/track/pageview', methods=['POST'])
+@analytics_bp.route('/track/pageview', methods=['POST', 'OPTIONS'])
 def track_pageview():
     """Track a page view (public endpoint, can be called from frontend)"""
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    
     data = request.get_json() or {}
     
     page_path = data.get('page_path', request.path)
@@ -338,9 +341,12 @@ def track_pageview():
     
     return jsonify({'message': 'Page view tracked'}), 200
 
-@analytics_bp.route('/track/visit/start', methods=['POST'])
+@analytics_bp.route('/track/visit/start', methods=['POST', 'OPTIONS'])
 def start_visit_tracking():
     """Start tracking a visit (public endpoint)"""
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    
     data = request.get_json() or {}
     
     session_id = data.get('session_id')
@@ -362,9 +368,12 @@ def start_visit_tracking():
     else:
         return jsonify({'error': 'Failed to start visit'}), 500
 
-@analytics_bp.route('/track/visit/end', methods=['POST'])
+@analytics_bp.route('/track/visit/end', methods=['POST', 'OPTIONS'])
 def end_visit_tracking():
     """End tracking a visit (public endpoint)"""
+    if request.method == 'OPTIONS':
+        return jsonify({}), 200
+    
     data = request.get_json() or {}
     
     session_id = data.get('session_id')
