@@ -1,0 +1,275 @@
+{
+  "templates": [
+    {
+      "name": "Initial Planning",
+      "tasks": [
+        {
+          "title": "Set wedding date",
+          "description": "Choose and confirm the wedding date",
+          "priority": "high",
+          "category": "Planning",
+          "due_date_offset_days": -365
+        },
+        {
+          "title": "Create guest list",
+          "description": "Compile initial guest list with contact information",
+          "priority": "high",
+          "category": "Guests",
+          "due_date_offset_days": -300
+        },
+        {
+          "title": "Set budget",
+          "description": "Determine overall wedding budget and allocate by category",
+          "priority": "high",
+          "category": "Budget",
+          "due_date_offset_days": -330
+        },
+        {
+          "title": "Choose wedding style/theme",
+          "description": "Decide on wedding style, colors, and theme",
+          "priority": "medium",
+          "category": "Planning",
+          "due_date_offset_days": -300
+        }
+      ]
+    },
+    {
+      "name": "Venue & Catering",
+      "tasks": [
+        {
+          "title": "Research and visit venues",
+          "description": "Research potential venues and schedule visits",
+          "priority": "high",
+          "category": "Venue",
+          "due_date_offset_days": -300
+        },
+        {
+          "title": "Book venue",
+          "description": "Sign contract and pay deposit for chosen venue",
+          "priority": "urgent",
+          "category": "Venue",
+          "due_date_offset_days": -270
+        },
+        {
+          "title": "Taste test catering options",
+          "description": "Schedule and attend catering tastings",
+          "priority": "high",
+          "category": "Catering",
+          "due_date_offset_days": -180
+        },
+        {
+          "title": "Finalize catering menu",
+          "description": "Confirm final menu selections and dietary options",
+          "priority": "high",
+          "category": "Catering",
+          "due_date_offset_days": -90
+        }
+      ]
+    },
+    {
+      "name": "Photography & Videography",
+      "tasks": [
+        {
+          "title": "Research photographers",
+          "description": "Look for photographers that match your style",
+          "priority": "high",
+          "category": "Photography",
+          "due_date_offset_days": -240
+        },
+        {
+          "title": "Book photographer",
+          "description": "Sign contract and pay deposit",
+          "priority": "high",
+          "category": "Photography",
+          "due_date_offset_days": -210
+        },
+        {
+          "title": "Book videographer",
+          "description": "Research and book wedding videographer",
+          "priority": "medium",
+          "category": "Photography",
+          "due_date_offset_days": -180
+        },
+        {
+          "title": "Schedule engagement photos",
+          "description": "Plan and schedule engagement photo session",
+          "priority": "medium",
+          "category": "Photography",
+          "due_date_offset_days": -120
+        }
+      ]
+    },
+    {
+      "name": "Attire & Beauty",
+      "tasks": [
+        {
+          "title": "Shop for wedding dress",
+          "description": "Start shopping for the perfect wedding dress",
+          "priority": "high",
+          "category": "Dress",
+          "due_date_offset_days": -240
+        },
+        {
+          "title": "Order wedding dress",
+          "description": "Place order for wedding dress (allow time for alterations)",
+          "priority": "urgent",
+          "category": "Dress",
+          "due_date_offset_days": -180
+        },
+        {
+          "title": "Book hair and makeup artist",
+          "description": "Research and book hair and makeup services",
+          "priority": "medium",
+          "category": "Hair & Makeup",
+          "due_date_offset_days": -150
+        },
+        {
+          "title": "Schedule dress fittings",
+          "description": "Plan multiple fittings leading up to wedding",
+          "priority": "high",
+          "category": "Dress",
+          "due_date_offset_days": -60
+        }
+      ]
+    },
+    {
+      "name": "Invitations & Stationery",
+      "tasks": [
+        {
+          "title": "Design save-the-dates",
+          "description": "Create or order save-the-date cards",
+          "priority": "high",
+          "category": "Invitations",
+          "due_date_offset_days": -240
+        },
+        {
+          "title": "Send save-the-dates",
+          "description": "Mail or send digital save-the-dates",
+          "priority": "high",
+          "category": "Invitations",
+          "due_date_offset_days": -210
+        },
+        {
+          "title": "Order wedding invitations",
+          "description": "Design and order wedding invitations",
+          "priority": "high",
+          "category": "Invitations",
+          "due_date_offset_days": -120
+        },
+        {
+          "title": "Send wedding invitations",
+          "description": "Mail invitations 6-8 weeks before wedding",
+          "priority": "high",
+          "category": "Invitations",
+          "due_date_offset_days": -60
+        }
+      ]
+    },
+    {
+      "name": "Music & Entertainment",
+      "tasks": [
+        {
+          "title": "Book DJ or band",
+          "description": "Research and book music entertainment",
+          "priority": "high",
+          "category": "Music",
+          "due_date_offset_days": -180
+        },
+        {
+          "title": "Create playlist",
+          "description": "Compile must-play and do-not-play song lists",
+          "priority": "medium",
+          "category": "Music",
+          "due_date_offset_days": -30
+        },
+        {
+          "title": "Book ceremony musicians",
+          "description": "If separate from reception, book ceremony music",
+          "priority": "medium",
+          "category": "Music",
+          "due_date_offset_days": -120
+        }
+      ]
+    },
+    {
+      "name": "Flowers & Décor",
+      "tasks": [
+        {
+          "title": "Meet with florist",
+          "description": "Consult with florist about arrangements",
+          "priority": "high",
+          "category": "Flowers",
+          "due_date_offset_days": -150
+        },
+        {
+          "title": "Finalize flower arrangements",
+          "description": "Confirm all floral arrangements and centerpieces",
+          "priority": "high",
+          "category": "Flowers",
+          "due_date_offset_days": -90
+        },
+        {
+          "title": "Plan décor and rentals",
+          "description": "Decide on decorations and rental items needed",
+          "priority": "medium",
+          "category": "Décor",
+          "due_date_offset_days": -120
+        },
+        {
+          "title": "Order décor items",
+          "description": "Purchase or rent all décor elements",
+          "priority": "medium",
+          "category": "Décor",
+          "due_date_offset_days": -60
+        }
+      ]
+    },
+    {
+      "name": "Final Month",
+      "tasks": [
+        {
+          "title": "Finalize guest count",
+          "description": "Confirm final RSVP count with venue and caterer",
+          "priority": "urgent",
+          "category": "Guests",
+          "due_date_offset_days": -30
+        },
+        {
+          "title": "Create seating chart",
+          "description": "Assign guests to tables",
+          "priority": "high",
+          "category": "Guests",
+          "due_date_offset_days": -21
+        },
+        {
+          "title": "Confirm all vendors",
+          "description": "Touch base with all vendors to confirm details",
+          "priority": "urgent",
+          "category": "Planning",
+          "due_date_offset_days": -14
+        },
+        {
+          "title": "Pack for honeymoon",
+          "description": "Prepare and pack for honeymoon trip",
+          "priority": "medium",
+          "category": "Planning",
+          "due_date_offset_days": -7
+        },
+        {
+          "title": "Final dress fitting",
+          "description": "Last dress fitting and pickup",
+          "priority": "urgent",
+          "category": "Dress",
+          "due_date_offset_days": -7
+        },
+        {
+          "title": "Rehearsal dinner",
+          "description": "Plan and attend rehearsal dinner",
+          "priority": "high",
+          "category": "Planning",
+          "due_date_offset_days": -1
+        }
+      ]
+    }
+  ]
+}

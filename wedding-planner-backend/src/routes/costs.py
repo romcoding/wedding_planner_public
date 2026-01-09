@@ -143,3 +143,53 @@ def delete_cost(cost_id):
     
     return jsonify({'message': 'Cost deleted successfully'}), 200
 
+@costs_bp.route('/analytics', methods=['GET'])
+@jwt_required()
+def get_cost_analytics():
+    """Get cost analytics by category"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    costs = Cost.query.filter_by(user_id=user_id).all()
+    
+    # Calculate totals by category and status
+    category_totals = {}
+    status_totals = {'planned': 0, 'pending': 0, 'paid': 0}
+    
+    for cost in costs:
+        category = cost.category or 'other'
+        if category not in category_totals:
+            category_totals[category] = {'planned': 0, 'pending': 0, 'paid': 0, 'total': 0}
+        
+        amount = float(cost.amount)
+        category_totals[category][cost.status] += amount
+        category_totals[category]['total'] += amount
+        status_totals[cost.status] += amount
+    
+    # Calculate percentages and alerts
+    total_planned = status_totals['planned']
+    alerts = []
+    
+    for category, totals in category_totals.items():
+        if total_planned > 0:
+            planned_for_category = totals['planned']
+            spent_for_category = totals['paid'] + totals['pending']
+            if planned_for_category > 0:
+                percentage = (spent_for_category / planned_for_category) * 100
+                if percentage >= 90:
+                    alerts.append({
+                        'category': category,
+                        'percentage': round(percentage, 1),
+                        'planned': planned_for_category,
+                        'spent': spent_for_category
+                    })
+    
+    return jsonify({
+        'by_category': category_totals,
+        'by_status': status_totals,
+        'total': sum(status_totals.values()),
+        'alerts': alerts
+    }), 200

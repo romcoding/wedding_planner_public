@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit } from 'lucide-react'
+import { PlusCircle, Trash, Edit, FileText, X } from 'lucide-react'
+import taskTemplates from '../../data/taskTemplates.json'
 
 const TasksPage = () => {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState(null)
+  const [showTemplates, setShowTemplates] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -143,6 +145,39 @@ const TasksPage = () => {
     updateTask.mutate({ id, data })
   }
 
+  const handleAddFromTemplate = (template) => {
+    const weddingDate = prompt('Enter your wedding date (YYYY-MM-DD) to calculate due dates:')
+    if (!weddingDate) return
+
+    const baseDate = new Date(weddingDate)
+    let successCount = 0
+    let errorCount = 0
+
+    template.tasks.forEach((taskTemplate) => {
+      const dueDate = new Date(baseDate)
+      dueDate.setDate(dueDate.getDate() + taskTemplate.due_date_offset_days)
+      
+      const taskData = {
+        title: taskTemplate.title,
+        description: taskTemplate.description || '',
+        priority: taskTemplate.priority || 'medium',
+        status: 'todo',
+        due_date: dueDate.toISOString().split('T')[0],
+        category: taskTemplate.category || '',
+      }
+
+      createTask.mutate(taskData, {
+        onSuccess: () => successCount++,
+        onError: () => errorCount++
+      })
+    })
+
+    setTimeout(() => {
+      alert(`Added ${successCount} tasks from template. ${errorCount > 0 ? `${errorCount} failed.` : ''}`)
+      setShowTemplates(false)
+    }, 1000)
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-8">
@@ -150,30 +185,69 @@ const TasksPage = () => {
           <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
           <p className="text-gray-600 mt-1">Manage your wedding planning tasks</p>
         </div>
-        <button
-          onClick={() => {
-            setShowForm((prev) => !prev)
-            if (showForm) {
-              setEditingTaskId(null)
-              setFormData({
-                title: '',
-                description: '',
-                priority: 'medium',
-                status: 'todo',
-                due_date: '',
-                category: '',
-                assigned_to: '',
-                estimated_cost: '',
-                actual_cost: '',
-              })
-            }
-          }}
-          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <PlusCircle className="h-5 w-5" />
-          <span>Add Task</span>
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setShowTemplates(true)}
+            className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
+          >
+            <FileText className="h-5 w-5" />
+            <span>Add from Template</span>
+          </button>
+          <button
+            onClick={() => {
+              resetForm()
+              setShowForm(true)
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <PlusCircle className="h-5 w-5" />
+            <span>Add Task</span>
+          </button>
+        </div>
       </div>
+
+      {/* Template Selection Modal */}
+      {showTemplates && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold">Task Templates</h2>
+                <button
+                  onClick={() => setShowTemplates(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              <div className="space-y-4">
+                {taskTemplates.templates.map((template, index) => (
+                  <div key={index} className="border rounded-lg p-4">
+                    <h3 className="font-semibold text-lg mb-2">{template.name}</h3>
+                    <p className="text-sm text-gray-600 mb-3">
+                      {template.tasks.length} tasks
+                    </p>
+                    <ul className="text-sm text-gray-700 mb-4 space-y-1">
+                      {template.tasks.slice(0, 3).map((task, i) => (
+                        <li key={i}>• {task.title}</li>
+                      ))}
+                      {template.tasks.length > 3 && (
+                        <li className="text-gray-500">... and {template.tasks.length - 3} more</li>
+                      )}
+                    </ul>
+                    <button
+                      onClick={() => handleAddFromTemplate(template)}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+                    >
+                      Add All Tasks
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 mb-6">
