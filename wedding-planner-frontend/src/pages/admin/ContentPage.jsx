@@ -484,6 +484,14 @@ const ContentPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex items-center gap-2">
                           <button
+                            onClick={() => setPreviewContent(item)}
+                            className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                            title="Preview content"
+                          >
+                            <Eye className="h-4 w-4" />
+                            Preview
+                          </button>
+                          <button
                             onClick={() => handleEdit(item)}
                             className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
                           >
