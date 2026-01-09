@@ -458,14 +458,22 @@ def scrape_venue():
         return jsonify({'error': 'URL is required'}), 400
     
     # Basic scraping
+    print(f"🔍 Starting venue scrape for URL: {url}, use_llm: {use_llm}")
     venue_data = VenueScraperService.scrape_venue_from_url(url)
     
     if 'error' in venue_data:
+        print(f"❌ Scraping error: {venue_data.get('error')}")
         return jsonify(venue_data), 400
+    
+    print(f"✅ Basic scraping completed. Found {len(venue_data)} fields.")
     
     # Enhance with LLM if requested
     if use_llm:
+        print(f"🤖 LLM enhancement requested. Starting enhancement...")
         venue_data = VenueScraperService.enhance_with_llm(venue_data, url)
+        print(f"✅ LLM enhancement completed.")
+    else:
+        print("ℹ️  LLM enhancement not requested (use_llm=False)")
     
     # Mark as imported via scraper
     venue_data['imported_via_scraper'] = True

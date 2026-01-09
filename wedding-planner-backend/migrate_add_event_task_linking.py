@@ -27,15 +27,27 @@ def migrate():
             # Add event_id to tasks table
             if inspector.has_table('tasks'):
                 columns = [col['name'] for col in inspector.get_columns('tasks')]
+                print(f"Current 'tasks' table columns: {', '.join(columns)}")
+                
                 if 'event_id' not in columns:
                     print("Adding 'event_id' column to 'tasks' table...")
                     try:
                         with db.engine.connect() as conn:
-                            conn.execute(text("ALTER TABLE tasks ADD COLUMN event_id INTEGER REFERENCES events(id)"))
+                            # First add the column without foreign key constraint
+                            conn.execute(text("ALTER TABLE tasks ADD COLUMN event_id INTEGER"))
                             conn.commit()
-                        print("✅ Added 'event_id' column to tasks table.")
+                            # Then add foreign key constraint if events table exists
+                            if inspector.has_table('events'):
+                                try:
+                                    conn.execute(text("ALTER TABLE tasks ADD CONSTRAINT fk_tasks_event_id FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE SET NULL"))
+                                    conn.commit()
+                                except Exception as fk_error:
+                                    print(f"⚠️  Could not add foreign key constraint (may already exist): {fk_error}")
+                            print("✅ Added 'event_id' column to tasks table.")
                     except Exception as e:
                         print(f"❌ Error adding event_id: {e}")
+                        import traceback
+                        traceback.print_exc()
                         db.session.rollback()
                 else:
                     print("✓ 'event_id' column already exists in tasks table.")
@@ -53,21 +65,40 @@ def migrate():
                 else:
                     print("✓ 'reminder_date' column already exists in tasks table.")
             
-            # Add end_date to events table
+            # Add end_time and dress_code to events table
             if inspector.has_table('events'):
                 columns = [col['name'] for col in inspector.get_columns('events')]
-                if 'end_date' not in columns:
-                    print("Adding 'end_date' column to 'events' table...")
+                print(f"Current 'events' table columns: {', '.join(columns)}")
+                
+                if 'end_time' not in columns:
+                    print("Adding 'end_time' column to 'events' table...")
                     try:
                         with db.engine.connect() as conn:
-                            conn.execute(text("ALTER TABLE events ADD COLUMN end_date DATE"))
+                            conn.execute(text("ALTER TABLE events ADD COLUMN end_time TIMESTAMP"))
                             conn.commit()
-                        print("✅ Added 'end_date' column to events table.")
+                        print("✅ Added 'end_time' column to events table.")
                     except Exception as e:
-                        print(f"❌ Error adding end_date: {e}")
+                        print(f"❌ Error adding end_time: {e}")
+                        import traceback
+                        traceback.print_exc()
                         db.session.rollback()
                 else:
-                    print("✓ 'end_date' column already exists in events table.")
+                    print("✓ 'end_time' column already exists in events table.")
+                
+                if 'dress_code' not in columns:
+                    print("Adding 'dress_code' column to 'events' table...")
+                    try:
+                        with db.engine.connect() as conn:
+                            conn.execute(text("ALTER TABLE events ADD COLUMN dress_code VARCHAR(100)"))
+                            conn.commit()
+                        print("✅ Added 'dress_code' column to events table.")
+                    except Exception as e:
+                        print(f"❌ Error adding dress_code: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        db.session.rollback()
+                else:
+                    print("✓ 'dress_code' column already exists in events table.")
 
             print()
             print("=" * 60)

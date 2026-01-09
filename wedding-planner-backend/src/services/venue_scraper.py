@@ -363,10 +363,15 @@ class VenueScraperService:
         api_key = api_key or os.getenv('OPENAI_API_KEY')
         
         if not api_key:
+            print("⚠️  OPENAI_API_KEY not found in environment variables. Skipping LLM enhancement.")
             return venue_data  # Return original data if no API key
+        
+        print(f"🤖 Starting LLM enhancement for URL: {url}")
+        print(f"🔑 API Key found: {api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else '***'}")
         
         try:
             import openai
+            print("✅ OpenAI library imported successfully")
             
             # Fetch page content for LLM analysis
             try:
@@ -493,6 +498,7 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
 }}
 """
             
+            print("📡 Calling OpenAI API...")
             client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
                 model="gpt-4o-mini",
@@ -506,6 +512,7 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
                 temperature=0.1,  # Lower temperature for more deterministic, accurate responses
                 max_tokens=2000  # Increased for more detailed extraction
             )
+            print(f"✅ OpenAI API call successful. Tokens used: {response.usage.total_tokens if hasattr(response, 'usage') else 'unknown'}")
             
             # Parse LLM response
             llm_text = response.choices[0].message.content.strip()
@@ -596,12 +603,15 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
             return venue_data
             
         except ImportError:
-            print("OpenAI library not installed. Install with: pip install openai")
+            print("❌ OpenAI library not installed. Install with: pip install openai")
             return venue_data
         except json.JSONDecodeError as e:
-            print(f"LLM returned invalid JSON: {str(e)}")
+            print(f"❌ LLM returned invalid JSON: {str(e)}")
+            print(f"Response text: {llm_text[:500] if 'llm_text' in locals() else 'N/A'}")
             return venue_data  # Return original data on JSON error
         except Exception as e:
-            print(f"Error enhancing with LLM: {str(e)}")
+            print(f"❌ Error enhancing with LLM: {str(e)}")
+            import traceback
+            print(f"Traceback: {traceback.format_exc()}")
             return venue_data  # Return original data on error
 
