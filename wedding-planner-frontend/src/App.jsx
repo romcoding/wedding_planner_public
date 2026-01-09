@@ -17,6 +17,7 @@ import InvitationsPage from './pages/admin/InvitationsPage'
 import EventsPage from './pages/admin/EventsPage'
 import VenuesPage from './pages/admin/VenuesPage'
 import SeatingChartPage from './pages/admin/SeatingChartPage'
+import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
@@ -82,6 +83,7 @@ function AppRoutes() {
         <Route path="events" element={<EventsPage />} />
         <Route path="venues" element={<VenuesPage />} />
         <Route path="seating" element={<SeatingChartPage />} />
+        <Route path="rsvp-reminders" element={<RSVPRemindersPage />} />
       </Route>
 
       <Route

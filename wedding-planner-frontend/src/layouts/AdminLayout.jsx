@@ -13,7 +13,8 @@ import {
   Calendar,
   LogOut,
   MapPin,
-  Grid3x3
+  Grid3x3,
+  Bell
 } from 'lucide-react'
 
 export default function AdminLayout() {
@@ -24,6 +25,7 @@ export default function AdminLayout() {
     { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
     { path: '/admin/guests', icon: Users, label: 'RSVP Requests' },
     { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
+    { path: '/admin/rsvp-reminders', icon: Bell, label: 'RSVP Reminders' },
     { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
     { path: '/admin/events', icon: Calendar, label: 'Timeline' },
     { path: '/admin/venues', icon: MapPin, label: 'Venues' },

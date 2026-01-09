@@ -19,6 +19,7 @@ from src.routes.gift_registry import gift_registry_bp
 from src.routes.guest_photos import guest_photos_bp
 from src.routes.venues import venues_bp
 from src.routes.seating import seating_bp
+from src.routes.rsvp_reminders import reminders_bp
 
 load_dotenv()
 
@@ -83,6 +84,7 @@ def create_app():
     app.register_blueprint(guest_photos_bp, url_prefix='/api/guest-photos')
     app.register_blueprint(venues_bp, url_prefix='/api/venues')
     app.register_blueprint(seating_bp, url_prefix='/api/seating')
+    app.register_blueprint(reminders_bp, url_prefix='/api/rsvp-reminders')
     
     # Create tables
     with app.app_context():
