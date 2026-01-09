@@ -144,16 +144,14 @@ const SeatingChartPage = () => {
 
   const handleDragEnd = (event) => {
     const { active, over, delta } = event
-    setActiveId(null)
-    setDraggedTableId(null)
-
     const activeData = active.data.current
 
     // Handle table dragging
-    if (activeData?.type === 'table' && over) {
+    if (activeData?.type === 'table') {
       const tableId = activeData.tableId
       const table = tables?.find(t => t.id === tableId)
-      if (table) {
+      if (table && delta) {
+        // Calculate new position based on delta (already in screen coordinates, need to convert to room coordinates)
         const newX = Math.max(0, Math.min(ROOM_WIDTH - 200, table.position_x + delta.x / zoom))
         const newY = Math.max(0, Math.min(ROOM_HEIGHT - 200, table.position_y + delta.y / zoom))
         
@@ -166,8 +164,13 @@ const SeatingChartPage = () => {
           }
         })
       }
+      setActiveId(null)
+      setDraggedTableId(null)
       return
     }
+
+    setActiveId(null)
+    setDraggedTableId(null)
 
     if (!over) return
 
