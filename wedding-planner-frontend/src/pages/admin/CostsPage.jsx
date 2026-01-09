@@ -28,6 +28,7 @@ const CostsPage = () => {
     name: '',
     description: '',
     amount: '',
+    currency: 'EUR',
     category: '',
     status: 'planned',
     payment_date: '',
@@ -35,6 +36,8 @@ const CostsPage = () => {
     vendor_contact: '',
     receipt_url: '',
     notes: '',
+    is_recurring: false,
+    recurring_frequency: '',
   })
 
   const { data: costs, isLoading } = useQuery({
@@ -83,6 +86,7 @@ const CostsPage = () => {
       name: '',
       description: '',
       amount: '',
+      currency: 'EUR',
       category: '',
       status: 'planned',
       payment_date: '',
@@ -90,6 +94,8 @@ const CostsPage = () => {
       vendor_contact: '',
       receipt_url: '',
       notes: '',
+      is_recurring: false,
+      recurring_frequency: '',
     })
     setEditingId(null)
   }
@@ -100,6 +106,7 @@ const CostsPage = () => {
       name: cost.name || '',
       description: cost.description || '',
       amount: cost.amount || '',
+      currency: cost.currency || 'EUR',
       category: cost.category || '',
       status: cost.status || 'planned',
       payment_date: cost.payment_date ? new Date(cost.payment_date).toISOString().split('T')[0] : '',
@@ -107,6 +114,8 @@ const CostsPage = () => {
       vendor_contact: cost.vendor_contact || '',
       receipt_url: cost.receipt_url || '',
       notes: cost.notes || '',
+      is_recurring: cost.is_recurring || false,
+      recurring_frequency: cost.recurring_frequency || '',
     })
     setShowForm(true)
   }
@@ -272,10 +281,14 @@ const CostsPage = () => {
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-700">Name *</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Cost Name *</label>
                     <input
                       type="text"
                       value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g., Venue Deposit"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      required
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                       required
@@ -283,14 +296,28 @@ const CostsPage = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Amount *</label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                      required
-                    />
+                    <div className="flex gap-2">
+                      <select
+                        value={formData.currency}
+                        onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                        className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      >
+                        <option value="EUR">EUR</option>
+                        <option value="USD">USD</option>
+                        <option value="GBP">GBP</option>
+                        <option value="CHF">CHF</option>
+                      </select>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        placeholder="0.00"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">Enter the cost amount</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Category</label>
@@ -325,6 +352,32 @@ const CostsPage = () => {
                       onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Date when payment was/will be made</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Recurring Cost</label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.is_recurring}
+                        onChange={(e) => setFormData({ ...formData, is_recurring: e.target.checked })}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-700">This is a recurring cost</span>
+                    </div>
+                    {formData.is_recurring && (
+                      <select
+                        value={formData.recurring_frequency}
+                        onChange={(e) => setFormData({ ...formData, recurring_frequency: e.target.value })}
+                        className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      >
+                        <option value="">Select frequency...</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                        <option value="quarterly">Quarterly</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Vendor Name</label>

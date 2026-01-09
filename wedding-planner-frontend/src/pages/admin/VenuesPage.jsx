@@ -1223,6 +1223,7 @@ function VenueDetailModal({ venueId, onClose }) {
         contact_date: new Date().toISOString().split('T')[0],
         status: 'pending',
         proposed_price: '',
+        currency: 'EUR',
         notes: ''
       })
     },
@@ -1460,14 +1461,28 @@ function VenueDetailModal({ venueId, onClose }) {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-1">Proposed Price</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={requestFormData.proposed_price}
-                          onChange={(e) => setRequestFormData({ ...requestFormData, proposed_price: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        />
+                        <label className="block text-sm font-medium mb-1">Proposed Price (EUR)</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={requestFormData.currency || 'EUR'}
+                            onChange={(e) => setRequestFormData({ ...requestFormData, currency: e.target.value })}
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                          >
+                            <option value="EUR">EUR</option>
+                            <option value="USD">USD</option>
+                            <option value="GBP">GBP</option>
+                            <option value="CHF">CHF</option>
+                          </select>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={requestFormData.proposed_price}
+                            onChange={(e) => setRequestFormData({ ...requestFormData, proposed_price: e.target.value })}
+                            placeholder="0.00"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Enter the proposed price from the venue</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-1">Notes</label>

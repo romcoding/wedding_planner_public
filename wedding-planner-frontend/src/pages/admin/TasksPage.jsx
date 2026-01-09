@@ -9,6 +9,10 @@ const TasksPage = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState(null)
   const [showTemplates, setShowTemplates] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [priorityFilter, setPriorityFilter] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('')
+  const [sortBy, setSortBy] = useState('due_date')
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -480,14 +484,45 @@ const TasksPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {tasks?.length === 0 ? (
-                  <tr>
-                    <td colSpan="10" className="px-6 py-12 text-center text-gray-500">
-                      No tasks yet. Create your first task!
-                    </td>
-                  </tr>
-                ) : (
-                  tasks?.map((task) => (
+                {(() => {
+                  // Filter and sort tasks
+                  let filteredTasks = tasks || []
+                  
+                  if (statusFilter) {
+                    filteredTasks = filteredTasks.filter(t => t.status === statusFilter)
+                  }
+                  if (priorityFilter) {
+                    filteredTasks = filteredTasks.filter(t => t.priority === priorityFilter)
+                  }
+                  if (categoryFilter) {
+                    filteredTasks = filteredTasks.filter(t => t.category === categoryFilter)
+                  }
+                  
+                  // Sort tasks
+                  filteredTasks = [...filteredTasks].sort((a, b) => {
+                    if (sortBy === 'due_date') {
+                      if (!a.due_date) return 1
+                      if (!b.due_date) return -1
+                      return new Date(a.due_date) - new Date(b.due_date)
+                    } else if (sortBy === 'priority') {
+                      const priorityOrder = { urgent: 4, high: 3, medium: 2, low: 1 }
+                      return (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+                    } else if (sortBy === 'status') {
+                      return a.status.localeCompare(b.status)
+                    } else if (sortBy === 'created_at') {
+                      return new Date(b.created_at) - new Date(a.created_at)
+                    }
+                    return 0
+                  })
+                  
+                  return filteredTasks.length === 0 ? (
+                    <tr>
+                      <td colSpan="10" className="px-6 py-12 text-center text-gray-500">
+                        {tasks?.length === 0 ? 'No tasks yet. Create your first task!' : 'No tasks match the current filters.'}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredTasks.map((task) => (
                     <tr key={task.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{task.title}</div>
