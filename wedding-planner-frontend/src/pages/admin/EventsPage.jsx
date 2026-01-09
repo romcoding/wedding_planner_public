@@ -207,8 +207,10 @@ const EventsPage = () => {
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setView('list')}
-              className={`px-3 py-1 rounded flex items-center gap-2 ${
-                view === 'list' ? 'bg-white shadow' : ''
+              className={`px-3 py-1 rounded flex items-center gap-2 font-medium ${
+                view === 'list' 
+                  ? 'bg-blue-600 text-white shadow' 
+                  : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
               }`}
             >
               <List className="w-4 h-4" />
@@ -216,8 +218,10 @@ const EventsPage = () => {
             </button>
             <button
               onClick={() => setView('calendar')}
-              className={`px-3 py-1 rounded flex items-center gap-2 ${
-                view === 'calendar' ? 'bg-white shadow' : ''
+              className={`px-3 py-1 rounded flex items-center gap-2 font-medium ${
+                view === 'calendar' 
+                  ? 'bg-blue-600 text-white shadow' 
+                  : 'bg-gray-200 text-gray-900 hover:bg-gray-300'
               }`}
             >
               <Grid className="w-4 h-4" />
@@ -420,7 +424,7 @@ const EventsPage = () => {
                       resetForm()
                       setShowForm(false)
                     }}
-                    className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                    className="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
                   >
                     Cancel
                   </button>
@@ -465,7 +469,7 @@ const EventsPage = () => {
                       </div>
                       <h3 className="text-xl font-bold text-gray-900">{event.name}</h3>
                       {!event.is_public && (
-                        <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Private</span>
+                        <span className="text-xs bg-gray-200 text-gray-900 px-2 py-1 rounded font-medium">Private</span>
                       )}
                     </div>
                     

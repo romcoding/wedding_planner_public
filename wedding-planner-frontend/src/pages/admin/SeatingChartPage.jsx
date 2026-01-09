@@ -387,14 +387,14 @@ const SeatingChartPage = () => {
         <div className="flex gap-2">
           <button
             onClick={() => setZoom(Math.min(2, zoom + 0.1))}
-            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200"
+            className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"
             title="Zoom In"
           >
             <ZoomIn className="w-4 h-4" />
           </button>
           <button
             onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200"
+            className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"
             title="Zoom Out"
           >
             <ZoomOut className="w-4 h-4" />
@@ -404,7 +404,7 @@ const SeatingChartPage = () => {
               setZoom(1)
               setPan({ x: 0, y: 0 })
             }}
-            className="flex items-center gap-2 bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200"
+            className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"
             title="Reset View"
           >
             <RotateCcw className="w-4 h-4" />
@@ -484,7 +484,7 @@ const SeatingChartPage = () => {
                       resetForm()
                       setShowTableForm(false)
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="px-4 py-2 border-2 border-gray-400 text-gray-900 rounded-lg hover:bg-gray-100 font-medium"
                   >
                     Cancel
                   </button>

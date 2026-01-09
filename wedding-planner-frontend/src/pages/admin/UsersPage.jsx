@@ -297,7 +297,7 @@ const UsersPage = () => {
                     setEditingUser(null)
                     resetForm()
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                  className="px-4 py-2 border-2 border-gray-400 rounded-lg text-gray-900 hover:bg-gray-100 font-medium"
                 >
                   Cancel
                 </button>

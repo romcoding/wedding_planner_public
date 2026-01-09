@@ -314,7 +314,7 @@ const RSVPRemindersPage = () => {
                       resetForm()
                       setShowForm(false)
                     }}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    className="px-4 py-2 border-2 border-gray-400 text-gray-900 rounded-lg hover:bg-gray-100 font-medium"
                   >
                     Cancel
                   </button>
@@ -345,7 +345,7 @@ const RSVPRemindersPage = () => {
                     <Mail className="w-5 h-5 text-blue-500" />
                     <h3 className="text-xl font-bold text-gray-900">{reminder.name}</h3>
                     {!reminder.is_active && (
-                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Inactive</span>
+                      <span className="text-xs bg-gray-200 text-gray-900 px-2 py-1 rounded font-medium">Inactive</span>
                     )}
                     {reminder.next_send_at && new Date(reminder.next_send_at) > new Date() && (
                       <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
