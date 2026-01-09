@@ -1151,8 +1151,18 @@ function CompareVenuesModal({ venueIds, venues, onClose }) {
   )
 }
 
-// Venue Detail Component
+// Venue Detail Component with Request Tracking
 function VenueDetailModal({ venueId, onClose }) {
+  const queryClient = useQueryClient()
+  const [activeTab, setActiveTab] = useState('details')
+  const [showRequestForm, setShowRequestForm] = useState(false)
+  const [requestFormData, setRequestFormData] = useState({
+    contact_date: new Date().toISOString().split('T')[0],
+    status: 'pending',
+    proposed_price: '',
+    notes: ''
+  })
+
   const { data: venue, isLoading } = useQuery({
     queryKey: ['venue', venueId],
     queryFn: async () => {
@@ -1160,6 +1170,34 @@ function VenueDetailModal({ venueId, onClose }) {
       return response.data
     },
     enabled: !!venueId,
+  })
+
+  const createRequest = useMutation({
+    mutationFn: (data) => api.post(`/venues/${venueId}/requests`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['venue', venueId])
+      setShowRequestForm(false)
+      setRequestFormData({
+        contact_date: new Date().toISOString().split('T')[0],
+        status: 'pending',
+        proposed_price: '',
+        notes: ''
+      })
+    },
+  })
+
+  const updateRequest = useMutation({
+    mutationFn: ({ id, data }) => api.put(`/venues/requests/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['venue', venueId])
+    },
+  })
+
+  const deleteRequest = useMutation({
+    mutationFn: (id) => api.delete(`/venues/requests/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['venue', venueId])
+    },
   })
 
   if (isLoading) {
@@ -1172,6 +1210,8 @@ function VenueDetailModal({ venueId, onClose }) {
 
   if (!venue) return null
 
+  const requests = venue.requests || []
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -1183,7 +1223,35 @@ function VenueDetailModal({ venueId, onClose }) {
             </button>
           </div>
 
-          <div className="space-y-4">
+          {/* Tabs */}
+          <div className="border-b mb-4">
+            <div className="flex gap-4">
+              <button
+                onClick={() => setActiveTab('details')}
+                className={`pb-2 px-4 font-medium ${
+                  activeTab === 'details'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Details
+              </button>
+              <button
+                onClick={() => setActiveTab('requests')}
+                className={`pb-2 px-4 font-medium ${
+                  activeTab === 'requests'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Communication History ({requests.length})
+              </button>
+            </div>
+          </div>
+
+          {/* Details Tab */}
+          {activeTab === 'details' && (
+            <div className="space-y-4">
             {venue.description && (
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
@@ -1295,6 +1363,157 @@ function VenueDetailModal({ venueId, onClose }) {
               </div>
             )}
           </div>
+          )}
+
+          {/* Requests Tab */}
+          {activeTab === 'requests' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">Communication History</h3>
+                <button
+                  onClick={() => setShowRequestForm(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  Add Request
+                </button>
+              </div>
+
+              {/* Request Form Modal */}
+              {showRequestForm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                  <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="text-lg font-semibold">Add Venue Request</h3>
+                      <button onClick={() => setShowRequestForm(false)}>
+                        <X className="h-5 w-5" />
+                      </button>
+                    </div>
+                    <form onSubmit={(e) => {
+                      e.preventDefault()
+                      createRequest.mutate(requestFormData)
+                    }} className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Contact Date *</label>
+                        <input
+                          type="date"
+                          value={requestFormData.contact_date}
+                          onChange={(e) => setRequestFormData({ ...requestFormData, contact_date: e.target.value })}
+                          required
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Status</label>
+                        <select
+                          value={requestFormData.status}
+                          onChange={(e) => setRequestFormData({ ...requestFormData, status: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        >
+                          <option value="pending">Pending</option>
+                          <option value="contacted">Contacted</option>
+                          <option value="proposal_received">Proposal Received</option>
+                          <option value="accepted">Accepted</option>
+                          <option value="rejected">Rejected</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Proposed Price</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={requestFormData.proposed_price}
+                          onChange={(e) => setRequestFormData({ ...requestFormData, proposed_price: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-1">Notes</label>
+                        <textarea
+                          value={requestFormData.notes}
+                          onChange={(e) => setRequestFormData({ ...requestFormData, notes: e.target.value })}
+                          rows="3"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setShowRequestForm(false)}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                        >
+                          Add Request
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Requests List */}
+              {requests.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No communication history yet. Add your first request!</p>
+              ) : (
+                <div className="space-y-3">
+                  {requests.map((request) => (
+                    <div key={request.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <div className="font-semibold">{new Date(request.contact_date).toLocaleDateString()}</div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            request.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                            request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                            request.status === 'proposal_received' ? 'bg-blue-100 text-blue-800' :
+                            request.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {request.status.replace('_', ' ').toUpperCase()}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => {
+                              const newStatus = prompt('Enter new status (pending, contacted, proposal_received, accepted, rejected):', request.status)
+                              if (newStatus) {
+                                updateRequest.mutate({ id: request.id, data: { status: newStatus } })
+                              }
+                            }}
+                            className="text-blue-600 hover:text-blue-800"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (confirm('Delete this request?')) {
+                                deleteRequest.mutate(request.id)
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <Trash className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                      {request.proposed_price && (
+                        <div className="text-sm text-gray-600 mb-1">
+                          Proposed Price: ${parseFloat(request.proposed_price).toFixed(2)}
+                        </div>
+                      )}
+                      {request.notes && (
+                        <div className="text-sm text-gray-600">{request.notes}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
