@@ -17,11 +17,18 @@ const TasksPage = () => {
     assigned_to: '',
     estimated_cost: '',
     actual_cost: '',
+    event_id: '',
+    reminder_date: '',
   })
 
   const { data: tasks, isLoading } = useQuery({
     queryKey: ['tasks'],
     queryFn: () => api.get('/tasks').then((res) => res.data),
+  })
+
+  const { data: events } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => api.get('/events').then((res) => res.data),
   })
 
   const createTask = useMutation({
@@ -40,6 +47,8 @@ const TasksPage = () => {
         assigned_to: '',
         estimated_cost: '',
         actual_cost: '',
+        event_id: '',
+        reminder_date: '',
       })
     },
     onError: (error) => {
@@ -64,6 +73,8 @@ const TasksPage = () => {
         assigned_to: '',
         estimated_cost: '',
         actual_cost: '',
+        event_id: '',
+        reminder_date: '',
       })
     },
     onError: (error) => {
@@ -94,6 +105,8 @@ const TasksPage = () => {
       assigned_to: task.assigned_to || '',
       estimated_cost: task.estimated_cost || '',
       actual_cost: task.actual_cost || '',
+      event_id: task.event_id || '',
+      reminder_date: task.reminder_date ? new Date(task.reminder_date).toISOString().slice(0, 16) : '',
     })
     setShowForm(true)
   }
@@ -113,6 +126,8 @@ const TasksPage = () => {
       estimated_cost: formData.estimated_cost ? parseFloat(formData.estimated_cost) : null,
       actual_cost: formData.actual_cost ? parseFloat(formData.actual_cost) : null,
       due_date: formData.due_date || null,
+      event_id: formData.event_id ? parseInt(formData.event_id) : null,
+      reminder_date: formData.reminder_date ? new Date(formData.reminder_date).toISOString() : null,
     }
     if (editingTaskId) {
       editTask.mutate({ id: editingTaskId, payload })
@@ -285,6 +300,38 @@ const TasksPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Linked Event
+              </label>
+              <select
+                value={formData.event_id}
+                onChange={(e) =>
+                  setFormData({ ...formData, event_id: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">None</option>
+                {events?.map((event) => (
+                  <option key={event.id} value={event.id}>
+                    {event.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-gray-700">
+                Reminder Date & Time
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.reminder_date}
+                onChange={(e) =>
+                  setFormData({ ...formData, reminder_date: e.target.value })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
           </div>
           <div className="flex justify-end mt-4 gap-2">
             <button
@@ -337,13 +384,14 @@ const TasksPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estimated</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actual</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Event</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {tasks?.length === 0 ? (
                   <tr>
-                    <td colSpan="9" className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan="10" className="px-6 py-12 text-center text-gray-500">
                       No tasks yet. Create your first task!
                     </td>
                   </tr>
@@ -398,6 +446,9 @@ const TasksPage = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {task.actual_cost ? `$${parseFloat(task.actual_cost).toFixed(2)}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {task.event ? task.event.name : '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2">

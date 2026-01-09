@@ -19,6 +19,8 @@ def get_tasks():
     status = request.args.get('status')
     priority = request.args.get('priority')
     category = request.args.get('category')
+    event_id = request.args.get('event_id', type=int)
+    assignee = request.args.get('assignee')
     
     query = Task.query.filter_by(user_id=user_id)
     
@@ -28,10 +30,14 @@ def get_tasks():
         query = query.filter_by(priority=priority)
     if category:
         query = query.filter_by(category=category)
+    if event_id:
+        query = query.filter_by(event_id=event_id)
+    if assignee:
+        query = query.filter_by(assigned_to=assignee)
     
     tasks = query.order_by(Task.due_date.asc(), Task.priority.desc()).all()
     
-    return jsonify([task.to_dict() for task in tasks]), 200
+    return jsonify([task.to_dict(include_event=True) for task in tasks]), 200
 
 @tasks_bp.route('', methods=['POST'])
 @jwt_required()
@@ -62,6 +68,13 @@ def create_task():
         except ValueError:
             return jsonify({'error': 'Invalid date format. Use YYYY-MM-DD'}), 400
     
+    reminder_date = None
+    if data.get('reminder_date'):
+        try:
+            reminder_date = datetime.fromisoformat(data['reminder_date'].replace('Z', '+00:00'))
+        except ValueError:
+            return jsonify({'error': 'Invalid reminder_date format'}), 400
+    
     task = Task(
         user_id=user_id,
         title=data['title'],
@@ -72,7 +85,9 @@ def create_task():
         category=data.get('category'),
         assigned_to=data.get('assigned_to'),
         estimated_cost=data.get('estimated_cost'),
-        actual_cost=data.get('actual_cost')
+        actual_cost=data.get('actual_cost'),
+        event_id=data.get('event_id'),
+        reminder_date=reminder_date
     )
     
     db.session.add(task)
@@ -132,11 +147,21 @@ def update_task(task_id):
         task.estimated_cost = data['estimated_cost']
     if 'actual_cost' in data:
         task.actual_cost = data['actual_cost']
+    if 'event_id' in data:
+        task.event_id = data['event_id'] if data['event_id'] else None
+    if 'reminder_date' in data:
+        if data['reminder_date']:
+            try:
+                task.reminder_date = datetime.fromisoformat(data['reminder_date'].replace('Z', '+00:00'))
+            except ValueError:
+                return jsonify({'error': 'Invalid reminder_date format'}), 400
+        else:
+            task.reminder_date = None
     
     task.updated_at = datetime.utcnow()
     db.session.commit()
     
-    return jsonify(task.to_dict()), 200
+    return jsonify(task.to_dict(include_event=True)), 200
 
 @tasks_bp.route('/<int:task_id>', methods=['DELETE'])
 @jwt_required()
