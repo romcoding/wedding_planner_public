@@ -9,6 +9,13 @@ import json
 import re
 import logging
 
+# Try to import openai at module level to catch import errors early
+try:
+    import openai
+    OPENAI_AVAILABLE = True
+except ImportError:
+    OPENAI_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 class VenueScraperService:
@@ -372,9 +379,13 @@ class VenueScraperService:
         logger.info(f"🤖 Starting LLM enhancement for URL: {url}")
         logger.info(f"🔑 API Key found: {api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else '***'}")
         
+        if not OPENAI_AVAILABLE:
+            logger.error("❌ OpenAI library not installed. Install with: pip install openai")
+            return venue_data
+        
+        logger.info(f"✅ OpenAI library available. Version: {openai.__version__ if hasattr(openai, '__version__') else 'unknown'}")
+        
         try:
-            import openai
-            logger.info(f"✅ OpenAI library imported successfully. Version: {openai.__version__ if hasattr(openai, '__version__') else 'unknown'}")
             
             # Fetch page content for LLM analysis
             try:
@@ -609,7 +620,7 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
             return venue_data
             
         except ImportError:
-            logger.error("❌ OpenAI library not installed. Install with: pip install openai")
+            logger.error("❌ OpenAI library import failed. This should not happen if OPENAI_AVAILABLE is True.")
             return venue_data
         except json.JSONDecodeError as e:
             logger.error(f"❌ LLM returned invalid JSON: {str(e)}")
