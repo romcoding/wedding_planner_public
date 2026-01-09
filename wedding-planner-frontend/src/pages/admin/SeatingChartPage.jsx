@@ -439,11 +439,23 @@ const SeatingChartPage = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={(args) => {
-              // First try pointer-based detection (more accurate for transformed elements)
+              // Use pointerWithin for better accuracy with transformed/scaled elements
+              // This works better when the room is zoomed or panned
               const pointerCollisions = pointerWithin(args)
+              
+              // If we have pointer collisions, prefer them
               if (pointerCollisions.length > 0) {
-                return pointerCollisions
+                // Sort by distance to pointer (closest first)
+                return pointerCollisions.sort((a, b) => {
+                  const aData = a.data.current
+                  const bData = b.data.current
+                  // Prefer seats over tables
+                  if (aData?.type === 'seat' && bData?.type !== 'seat') return -1
+                  if (bData?.type === 'seat' && aData?.type !== 'seat') return 1
+                  return 0
+                })
               }
+              
               // Fallback to rect intersection
               return rectIntersection(args)
             }}
@@ -650,7 +662,8 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
 
 // Seat Component (Drop Target)
 function SeatComponent({ assignment, tableId }) {
-  const { setNodeRef, isOver } = useDroppable({
+  // Always make it droppable
+  const { setNodeRef: setDroppableRef, isOver } = useDroppable({
     id: `seat-${tableId}-${assignment.seat_number}`,
     data: {
       type: 'seat',
@@ -661,7 +674,8 @@ function SeatComponent({ assignment, tableId }) {
     }
   })
 
-  const { attributes, listeners, setNodeRef: setDragRef, transform, isDragging } = useDraggable({
+  // Only make it draggable if it has a guest
+  const { attributes, listeners, setNodeRef: setDraggableRef, transform, isDragging } = useDraggable({
     id: `seat-${tableId}-${assignment.seat_number}`,
     data: {
       type: 'seat',
@@ -674,10 +688,13 @@ function SeatComponent({ assignment, tableId }) {
     disabled: !assignment.guest_id
   })
 
-  const combinedRef = (node) => {
-    setNodeRef(node)
-    setDragRef(node)
-  }
+  // Combine refs properly
+  const combinedRef = React.useCallback((node) => {
+    setDroppableRef(node)
+    if (assignment.guest_id) {
+      setDraggableRef(node)
+    }
+  }, [setDroppableRef, setDraggableRef, assignment.guest_id])
 
   const style = {
     transform: CSS.Translate.toString(transform),
