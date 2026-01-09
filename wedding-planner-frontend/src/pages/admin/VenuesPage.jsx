@@ -764,25 +764,29 @@ export default function VenuesPage() {
                 {/* Website & Rating */}
                 <div className="grid grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium mb-1">Website</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Website URL</label>
                     <input
                       type="url"
                       value={formData.website}
                       onChange={(e) => setFormData({ ...formData, website: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      placeholder="https://www.venue.com"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                     />
+                    <p className="text-xs text-gray-600 mt-1">Main website URL</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">External URL</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">External/Scraped URL</label>
                     <input
                       type="url"
                       value={formData.external_url}
                       onChange={(e) => setFormData({ ...formData, external_url: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      placeholder="https://www.venue.com/weddings"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                     />
+                    <p className="text-xs text-gray-600 mt-1">Original scraped URL</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1">Rating (0-5)</label>
+                    <label className="block text-sm font-semibold text-gray-900 mb-1">Rating (0-5)</label>
                     <input
                       type="number"
                       min="0"
@@ -790,16 +794,18 @@ export default function VenuesPage() {
                       step="0.1"
                       value={formData.rating}
                       onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      placeholder="e.g., 4.5"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                     />
+                    <p className="text-xs text-gray-600 mt-1">Rating from reviews (0.0 to 5.0)</p>
                   </div>
                 </div>
 
                 {/* Available Dates */}
                 <div>
-                  <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                  <label className="block text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
-                    Available Dates (comma-separated, YYYY-MM-DD)
+                    Available Dates
                   </label>
                   <input
                     type="text"
@@ -809,15 +815,16 @@ export default function VenuesPage() {
                       available_dates: e.target.value.split(',').map(d => d.trim()).filter(d => d)
                     })}
                     placeholder="2024-06-15, 2024-07-20, 2024-08-10"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                   />
+                  <p className="text-xs text-gray-600 mt-1">Separate dates with commas, format: YYYY-MM-DD</p>
                 </div>
 
                 {/* Images */}
                 <div>
-                  <label className="block text-sm font-medium mb-1 flex items-center gap-2">
+                  <label className="block text-sm font-semibold text-gray-900 mb-1 flex items-center gap-2">
                     <ImageIcon className="h-4 w-4" />
-                    Images (URLs or upload)
+                    Images
                   </label>
                   <div className="space-y-2">
                     <input
@@ -826,7 +833,7 @@ export default function VenuesPage() {
                       accept="image/*"
                       multiple
                       onChange={handleImageUpload}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     />
                     <input
                       type="text"
@@ -835,9 +842,10 @@ export default function VenuesPage() {
                         ...formData, 
                         images: e.target.value.split(',').map(img => img.trim()).filter(img => img)
                       })}
-                      placeholder="Enter image URLs separated by commas"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
+                      placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg"
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                     />
+                    <p className="text-xs text-gray-600">Upload files or enter image URLs separated by commas</p>
                     {imagePreviews.length > 0 && (
                       <div className="grid grid-cols-4 gap-2 mt-2">
                         {imagePreviews.map((preview, index) => (
@@ -859,10 +867,12 @@ export default function VenuesPage() {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-sm font-medium mb-1">Notes</label>
+                  <label className="block text-sm font-semibold text-gray-900 mb-1">Notes</label>
                   <textarea
                     value={formData.notes}
                     onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                    placeholder="Additional notes, special requirements, or important information about this venue..."
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                     rows="3"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder-gray-400"
                   />
