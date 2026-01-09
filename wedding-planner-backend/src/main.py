@@ -3,6 +3,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 import os
+import logging
 from src.models import db
 from src.routes.auth import auth_bp
 from src.routes.guest_auth import guest_auth_bp
