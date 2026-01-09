@@ -1,7 +1,9 @@
-from flask import Blueprint, jsonify
+from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Guest, Task, Cost, User
+from src.models import db, Guest, Task, Cost, User, PageView, Visit, SecurityEvent
+from src.utils.jwt_helpers import get_admin_id
 from sqlalchemy import func
+from datetime import datetime, timedelta
 
 analytics_bp = Blueprint('analytics', __name__)
 

@@ -42,7 +42,24 @@ def login():
     user = User.query.filter_by(email=data['email']).first()
     
     if not user or not user.check_password(data['password']):
+        # Track failed login attempt
+        from src.utils.analytics_tracker import track_security_event
+        track_security_event(
+            event_type='failed_login',
+            user_id=user.id if user else None,
+            details={'email': data.get('email'), 'reason': 'invalid_credentials'},
+            severity='medium'
+        )
         return jsonify({'error': 'Invalid credentials'}), 401
+    
+    # Track successful login
+    from src.utils.analytics_tracker import track_security_event
+    track_security_event(
+        event_type='successful_login',
+        user_id=user.id,
+        details={'email': user.email},
+        severity='low'
+    )
     
     # JWT identity must be a string
     access_token = create_access_token(identity=str(user.id))

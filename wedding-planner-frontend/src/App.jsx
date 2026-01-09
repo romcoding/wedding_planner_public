@@ -1,7 +1,9 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { GuestAuthProvider, useGuestAuth } from './contexts/GuestAuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
+import { trackRouteChange } from './utils/analytics'
 import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
 import LoginPage from './pages/admin/LoginPage'
@@ -52,6 +54,12 @@ function GuestRoutes() {
 
 function AppRoutes() {
   const { user, loading } = useAuth()
+  const location = useLocation()
+
+  // Track route changes
+  useEffect(() => {
+    trackRouteChange(location.pathname, document.title)
+  }, [location.pathname])
 
   if (loading) {
     return (
