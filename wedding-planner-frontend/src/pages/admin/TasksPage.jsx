@@ -37,29 +37,26 @@ const TasksPage = () => {
     queryFn: () => api.get('/events').then((res) => res.data),
   })
 
+  const [fieldErrors, setFieldErrors] = useState({})
+
   const createTask = useMutation({
     mutationFn: (payload) => api.post('/tasks', payload),
     onSuccess: () => {
       queryClient.invalidateQueries(['tasks'])
       setShowForm(false)
       setEditingTaskId(null)
-      setFormData({
-        title: '',
-        description: '',
-        priority: 'medium',
-        status: 'todo',
-        due_date: '',
-        category: '',
-        assigned_to: '',
-        estimated_cost: '',
-        actual_cost: '',
-        event_id: '',
-        reminder_date: '',
-      })
+      resetForm()
+      setFieldErrors({})
+      alert('Task created successfully!')
     },
     onError: (error) => {
       console.error('Error creating task:', error)
-      alert(error.response?.data?.error || 'Failed to create task. Please try again.')
+      const errorData = error.response?.data
+      if (errorData?.errors) {
+        setFieldErrors(errorData.errors)
+      } else {
+        setFieldErrors({ general: errorData?.error || 'Failed to create task. Please try again.' })
+      }
     },
   })
 
@@ -132,17 +129,27 @@ const TasksPage = () => {
       reminder_date: '',
     })
     setEditingTaskId(null)
+    setFieldErrors({})
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (!formData.title.trim()) {
-      alert('Please enter a task title')
+    setFieldErrors({})
+    
+    // Validate required fields
+    const errors = {}
+    if (!formData.title || !formData.title.trim()) {
+      errors.title = 'Task title is required'
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
       return
     }
+    
     const payload = {
       ...formData,
-      title: formData.title.trim(),
+      title: formData.title.trim(),  // Trim whitespace
       description: formData.description?.trim() || '',
       category: formData.category?.trim() || '',
       assigned_to: formData.assigned_to?.trim() || '',

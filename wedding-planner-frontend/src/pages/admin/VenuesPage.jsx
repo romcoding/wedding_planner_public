@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { 
@@ -1267,20 +1267,50 @@ function VenueDetailModal({ venueId, onClose }) {
 
           {/* Tabs */}
           <div className="border-b mb-4">
-            <div className="flex gap-4">
+            <div className="flex gap-4 overflow-x-auto">
               <button
                 onClick={() => setActiveTab('details')}
-                className={`pb-2 px-4 font-medium ${
+                className={`pb-2 px-4 font-medium whitespace-nowrap ${
                   activeTab === 'details'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Details
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('offers')}
+                className={`pb-2 px-4 font-medium whitespace-nowrap ${
+                  activeTab === 'offers'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Offers
+              </button>
+              <button
+                onClick={() => setActiveTab('documents')}
+                className={`pb-2 px-4 font-medium whitespace-nowrap ${
+                  activeTab === 'documents'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Documents
+              </button>
+              <button
+                onClick={() => setActiveTab('chat')}
+                className={`pb-2 px-4 font-medium whitespace-nowrap ${
+                  activeTab === 'chat'
+                    ? 'border-b-2 border-blue-600 text-blue-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Chat
               </button>
               <button
                 onClick={() => setActiveTab('requests')}
-                className={`pb-2 px-4 font-medium ${
+                className={`pb-2 px-4 font-medium whitespace-nowrap ${
                   activeTab === 'requests'
                     ? 'border-b-2 border-blue-600 text-blue-600'
                     : 'text-gray-500 hover:text-gray-700'

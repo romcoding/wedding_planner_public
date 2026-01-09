@@ -42,8 +42,22 @@ def create_cost():
     
     data = request.get_json()
     
-    if not data or not data.get('name') or not data.get('amount'):
-        return jsonify({'error': 'Name and amount are required'}), 400
+    if not data or not data.get('name'):
+        return jsonify({'error': 'Name is required'}), 400
+    
+    if 'amount' not in data or data.get('amount') is None:
+        return jsonify({'error': 'Amount is required'}), 400
+    
+    # Ensure amount is a number
+    try:
+        amount = float(data['amount'])
+        if amount <= 0:
+            return jsonify({'error': 'Amount must be greater than 0'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Amount must be a valid number'}), 400
+    
+    if not data.get('category'):
+        return jsonify({'error': 'Category is required'}), 400
     
     payment_date = None
     if data.get('payment_date'):
@@ -56,8 +70,8 @@ def create_cost():
         user_id=user_id,
         name=data['name'],
         description=data.get('description'),
-        category=data.get('category', 'other'),
-        amount=data['amount'],
+        category=data['category'],
+        amount=amount,  # Use parsed float
         currency=data.get('currency', 'EUR'),
         status=data.get('status', 'planned'),
         payment_date=payment_date,

@@ -9,6 +9,7 @@ const RSVPRemindersPage = () => {
   const toast = useToast()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [fieldErrors, setFieldErrors] = useState({})
   const [formData, setFormData] = useState({
     name: '',
     days_before_event: 14,
@@ -102,10 +103,40 @@ const RSVPRemindersPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    setFieldErrors({})
+    
+    // Validate required fields
+    const errors = {}
+    if (!formData.name || !formData.name.trim()) {
+      errors.name = 'Reminder name is required'
+    }
+    if (!formData.days_before_event || formData.days_before_event < 1) {
+      errors.days_before_event = 'Days before event must be at least 1'
+    }
+    if (!formData.subject || !formData.subject.trim()) {
+      errors.subject = 'Subject is required'
+    }
+    if (!formData.message || !formData.message.trim()) {
+      errors.message = 'Message is required'
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+    
+    // Ensure boolean values are properly set
+    const payload = {
+      ...formData,
+      only_unassigned: formData.only_unassigned || false,
+      is_active: formData.is_active !== undefined ? formData.is_active : true,
+      days_before_event: parseInt(formData.days_before_event, 10),
+    }
+    
     if (editingId) {
-      updateReminder.mutate({ id: editingId, data: formData })
+      updateReminder.mutate({ id: editingId, data: payload })
     } else {
-      createReminder.mutate(formData)
+      createReminder.mutate(payload)
     }
   }
 
@@ -160,6 +191,11 @@ const RSVPRemindersPage = () => {
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {fieldErrors.general && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                    {fieldErrors.general}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium mb-1 text-gray-700">Reminder Name *</label>
                   <input
@@ -168,9 +204,14 @@ const RSVPRemindersPage = () => {
                     value={formData.name}
                     onChange={handleChange}
                     placeholder="e.g., 2 weeks before wedding"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                      fieldErrors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     required
                   />
+                  {fieldErrors.name && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.name}</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-gray-700">Days Before Event *</label>
@@ -180,9 +221,14 @@ const RSVPRemindersPage = () => {
                     value={formData.days_before_event}
                     onChange={handleChange}
                     min="1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                      fieldErrors.days_before_event ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     required
                   />
+                  {fieldErrors.days_before_event && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.days_before_event}</p>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">Reminder will be sent this many days before the main event</p>
                 </div>
                 <div>
@@ -193,9 +239,14 @@ const RSVPRemindersPage = () => {
                     value={formData.subject}
                     onChange={handleChange}
                     placeholder="e.g., Reminder: Please RSVP for our wedding"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                      fieldErrors.subject ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     required
                   />
+                  {fieldErrors.subject && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.subject}</p>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">Use {'{guest_name}'} to personalize</p>
                 </div>
                 <div>
@@ -206,9 +257,14 @@ const RSVPRemindersPage = () => {
                     onChange={handleChange}
                     rows="8"
                     placeholder="Dear {guest_name},&#10;&#10;This is a friendly reminder to RSVP for our wedding..."
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                      fieldErrors.message ? 'border-red-500' : 'border-gray-300'
+                    }`}
                     required
                   />
+                  {fieldErrors.message && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.message}</p>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">
                     Use {'{guest_name}'} for name and {'{rsvp_link}'} for RSVP link
                   </p>

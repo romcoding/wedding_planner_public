@@ -56,8 +56,15 @@ def create_event():
     
     data = request.get_json()
     
-    if not data or not data.get('name') or not data.get('start_time'):
-        return jsonify({'error': 'Name and start_time are required'}), 400
+    # Validate required fields
+    errors = {}
+    if not data or not data.get('name') or not data.get('name').strip():
+        errors['name'] = 'Event name is required'
+    if not data or not data.get('start_time'):
+        errors['start_time'] = 'Start time is required'
+    
+    if errors:
+        return jsonify({'error': 'Validation failed', 'errors': errors}), 400
     
     # Parse datetime
     try:
@@ -93,9 +100,12 @@ def create_event():
         db.session.add(event)
         db.session.commit()
         return jsonify(event.to_dict()), 201
-    except IntegrityError:
+    except IntegrityError as e:
         db.session.rollback()
-        return jsonify({'error': 'Failed to create event'}), 500
+        return jsonify({'error': 'Failed to create event', 'details': str(e)}), 500
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to create event', 'details': str(e)}), 500
 
 @events_bp.route('/<int:event_id>', methods=['PUT'])
 @jwt_required()

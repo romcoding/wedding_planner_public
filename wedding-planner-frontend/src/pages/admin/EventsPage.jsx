@@ -39,17 +39,26 @@ const EventsPage = () => {
     return dateA - dateB
   }) : []
 
+  const [fieldErrors, setFieldErrors] = useState({})
+
   const createEvent = useMutation({
     mutationFn: (payload) => api.post('/events', payload),
     onSuccess: () => {
       queryClient.invalidateQueries(['events'])
       resetForm()
       setShowForm(false)
+      setFieldErrors({})
       alert('Event created successfully!')
     },
     onError: (error) => {
       console.error('Error creating event:', error)
-      alert(error.response?.data?.error || 'Failed to create event. Please check all required fields and date formats.')
+      const errorData = error.response?.data
+      if (errorData?.errors) {
+        // Field-specific errors
+        setFieldErrors(errorData.errors)
+      } else {
+        setFieldErrors({ general: errorData?.error || 'Failed to create event. Please check all required fields and date formats.' })
+      }
     },
   })
 
@@ -59,6 +68,17 @@ const EventsPage = () => {
       queryClient.invalidateQueries(['events'])
       resetForm()
       setShowForm(false)
+      setFieldErrors({})
+      alert('Event updated successfully!')
+    },
+    onError: (error) => {
+      console.error('Error updating event:', error)
+      const errorData = error.response?.data
+      if (errorData?.errors) {
+        setFieldErrors(errorData.errors)
+      } else {
+        setFieldErrors({ general: errorData?.error || 'Failed to update event.' })
+      }
     },
   })
 
@@ -82,6 +102,7 @@ const EventsPage = () => {
       notes: '',
     })
     setEditingId(null)
+    setFieldErrors({})
   }
 
   const handleEdit = (event) => {
@@ -104,24 +125,35 @@ const EventsPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    setFieldErrors({})
     
     // Validate required fields
-    if (!formData.name.trim()) {
-      alert('Please enter an event name')
-      return
+    const errors = {}
+    if (!formData.name || !formData.name.trim()) {
+      errors.name = 'Event name is required'
     }
     if (!formData.start_time) {
-      alert('Please enter a start time')
+      errors.start_time = 'Start time is required'
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
       return
     }
     
     // Convert local datetime to ISO format
-    const payload = {
-      ...formData,
-      start_time: new Date(formData.start_time).toISOString(),
-      end_time: formData.end_time ? new Date(formData.end_time).toISOString() : null,
-      end_date: formData.end_date || null,
-      order: parseInt(formData.order, 10) || 0,
+    let payload
+    try {
+      payload = {
+        ...formData,
+        start_time: new Date(formData.start_time).toISOString(),
+        end_time: formData.end_time ? new Date(formData.end_time).toISOString() : null,
+        end_date: formData.end_date || null,
+        order: parseInt(formData.order, 10) || 0,
+      }
+    } catch (error) {
+      setFieldErrors({ general: 'Invalid date format. Please check your date inputs.' })
+      return
     }
     
     if (editingId) {
@@ -225,6 +257,11 @@ const EventsPage = () => {
                 </button>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
+                {fieldErrors.general && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                    {fieldErrors.general}
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Event Name *
@@ -235,8 +272,13 @@ const EventsPage = () => {
                     value={formData.name}
                     onChange={handleChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                      fieldErrors.name ? 'border-red-500' : 'border-gray-300'
+                    }`}
                   />
+                  {fieldErrors.name && (
+                    <p className="text-red-600 text-sm mt-1">{fieldErrors.name}</p>
+                  )}
                 </div>
 
                 <div>
@@ -262,9 +304,16 @@ const EventsPage = () => {
                       name="start_time"
                       value={formData.start_time}
                       onChange={handleChange}
+                      step="900"
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                        fieldErrors.start_time ? 'border-red-500' : 'border-gray-300'
+                      }`}
                     />
+                    {fieldErrors.start_time && (
+                      <p className="text-red-600 text-sm mt-1">{fieldErrors.start_time}</p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-1">Time will be rounded to nearest 15 minutes</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -275,8 +324,10 @@ const EventsPage = () => {
                       name="end_time"
                       value={formData.end_time}
                       onChange={handleChange}
+                      step="900"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                     />
+                    <p className="text-xs text-gray-500 mt-1">Optional - time will be rounded to nearest 15 minutes</p>
                   </div>
                 </div>
 

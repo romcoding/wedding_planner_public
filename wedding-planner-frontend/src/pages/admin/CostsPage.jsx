@@ -50,6 +50,8 @@ const CostsPage = () => {
     queryFn: () => api.get('/costs/analytics').then((res) => res.data),
   })
 
+  const [fieldErrors, setFieldErrors] = useState({})
+
   const createCost = useMutation({
     mutationFn: (payload) => api.post('/costs', payload),
     onSuccess: () => {
@@ -57,11 +59,17 @@ const CostsPage = () => {
       queryClient.invalidateQueries(['cost-analytics'])
       resetForm()
       setShowForm(false)
+      setFieldErrors({})
       alert('Cost created successfully!')
     },
     onError: (error) => {
       console.error('Error creating cost:', error)
-      alert(error.response?.data?.error || 'Failed to create cost. Please check all required fields and ensure amount is a valid number.')
+      const errorData = error.response?.data
+      if (errorData?.errors) {
+        setFieldErrors(errorData.errors)
+      } else {
+        setFieldErrors({ general: errorData?.error || 'Failed to create cost. Please check all required fields and ensure amount is a valid number.' })
+      }
     },
   })
 
@@ -122,24 +130,33 @@ const CostsPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    setFieldErrors({})
     
     // Validate required fields
-    if (!formData.name.trim()) {
-      alert('Please enter a cost name')
-      return
+    const errors = {}
+    if (!formData.name || !formData.name.trim()) {
+      errors.name = 'Cost name is required'
     }
-    if (!formData.amount || isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
-      alert('Please enter a valid amount (greater than 0)')
-      return
+    if (!formData.amount || formData.amount === '') {
+      errors.amount = 'Amount is required'
+    } else {
+      const amountNum = parseFloat(formData.amount)
+      if (isNaN(amountNum) || amountNum <= 0) {
+        errors.amount = 'Amount must be a valid number greater than 0'
+      }
     }
-    if (!formData.category) {
-      alert('Please select a category')
+    if (!formData.category || formData.category === '') {
+      errors.category = 'Category is required'
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
       return
     }
     
     const payload = {
       ...formData,
-      amount: parseFloat(formData.amount),
+      amount: parseFloat(formData.amount),  // Ensure it's a number, not string
       vendor: formData.vendor_name,  // For backward compatibility
       payment_date: formData.payment_date || null,
     }
@@ -307,27 +324,39 @@ const CostsPage = () => {
                       <input
                         type="number"
                         step="0.01"
+                        min="0.01"
                         value={formData.amount}
                         onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                         placeholder="0.00"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                          fieldErrors.amount ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         required
                       />
                     </div>
+                    {fieldErrors.amount && (
+                      <p className="text-red-600 text-sm mt-1">{fieldErrors.amount}</p>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">Enter the cost amount</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium mb-1 text-gray-700">Category</label>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Category *</label>
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                        fieldErrors.category ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      required
                     >
                       <option value="">Select category...</option>
                       {CATEGORIES.map(cat => (
                         <option key={cat} value={cat}>{cat}</option>
                       ))}
                     </select>
+                    {fieldErrors.category && (
+                      <p className="text-red-600 text-sm mt-1">{fieldErrors.category}</p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Status</label>

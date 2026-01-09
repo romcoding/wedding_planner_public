@@ -77,7 +77,7 @@ def create_task():
     
     task = Task(
         user_id=user_id,
-        title=data['title'],
+        title=data['title'].strip(),  # Trim whitespace
         description=data.get('description'),
         priority=data.get('priority', 'medium'),
         status=data.get('status', 'todo'),

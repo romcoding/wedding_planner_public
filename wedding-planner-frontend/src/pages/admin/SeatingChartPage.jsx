@@ -148,7 +148,7 @@ const SeatingChartPage = () => {
     const { active, over, delta } = event
     const activeData = active.data.current
 
-    // Handle table dragging
+    // Handle table dragging - must check this first to prevent seat assignment
     if (activeData?.type === 'table') {
       const tableId = activeData.tableId
       const table = tables?.find(t => t.id === tableId)
@@ -166,6 +166,13 @@ const SeatingChartPage = () => {
           }
         })
       }
+      setActiveId(null)
+      setDraggedTableId(null)
+      return
+    }
+
+    // If no drop target, reset and return
+    if (!over) {
       setActiveId(null)
       setDraggedTableId(null)
       return
@@ -232,7 +239,11 @@ const SeatingChartPage = () => {
       const overTableId = overData.tableId
       const overSeatNumber = overData.seatNumber
 
-      if (activeTableId === overTableId && activeSeatNumber === overSeatNumber) return
+      if (activeTableId === overTableId && activeSeatNumber === overSeatNumber) {
+        setActiveId(null)
+        setDraggedTableId(null)
+        return
+      }
 
       // Check if target seat is already taken
       const overTable = tables?.find(t => t.id === overTableId)
@@ -287,6 +298,24 @@ const SeatingChartPage = () => {
         }
       }
     }
+    
+    // If dragging a guest to unassigned area (unassign)
+    if (activeData?.type === 'seat' && overData?.type === 'unassigned') {
+      const activeSeat = tables?.flatMap(t => t.assignments || []).find(a => 
+        a.table_id === activeData.tableId && a.seat_number === activeData.seatNumber
+      )
+      if (activeSeat?.id) {
+        unassignGuest.mutate(activeSeat.id, {
+          onError: (error) => {
+            console.error('Error unassigning guest:', error)
+            alert('Failed to unassign guest. Please try again.')
+          }
+        })
+      }
+    }
+    
+    setActiveId(null)
+    setDraggedTableId(null)
   }
 
   const handleDragCancel = () => {
@@ -474,26 +503,7 @@ const SeatingChartPage = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Unassigned Guests Sidebar */}
-        <div className="lg:col-span-1">
-          <div className="bg-white rounded-lg shadow p-4 sticky top-6">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Unassigned Guests ({unassignedGuests?.length || 0})
-            </h3>
-            <div className="space-y-2 max-h-[calc(100vh-200px)] overflow-y-auto">
-              {unassignedGuests?.map((guest) => (
-                <GuestCard
-                  key={guest.id}
-                  guest={guest}
-                  isDragging={activeId === `guest-${guest.id}`}
-                />
-              ))}
-              {(!unassignedGuests || unassignedGuests.length === 0) && (
-                <p className="text-sm text-gray-500 text-center py-4">All guests assigned!</p>
-              )}
-            </div>
-          </div>
-        </div>
+        <UnassignedGuestsDropZone guests={unassignedGuests} activeId={activeId} />
 
         {/* Seating Chart Canvas */}
         <div className="lg:col-span-3">

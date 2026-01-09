@@ -22,6 +22,9 @@ from src.routes.venues import venues_bp
 from src.routes.seating import seating_bp
 from src.routes.rsvp_reminders import reminders_bp
 from src.routes.users import users_bp
+from src.routes.venue_offers import offers_bp
+from src.routes.venue_documents import documents_bp
+from src.routes.venue_chat import chat_bp
 
 load_dotenv()
 
@@ -96,6 +99,9 @@ def create_app():
     app.register_blueprint(gift_registry_bp, url_prefix='/api/gift-registry')
     app.register_blueprint(guest_photos_bp, url_prefix='/api/guest-photos')
     app.register_blueprint(venues_bp, url_prefix='/api/venues')
+    app.register_blueprint(offers_bp, url_prefix='/api')
+    app.register_blueprint(documents_bp, url_prefix='/api')
+    app.register_blueprint(chat_bp, url_prefix='/api')
     app.register_blueprint(seating_bp, url_prefix='/api/seating')
     app.register_blueprint(reminders_bp, url_prefix='/api/rsvp-reminders')
     app.register_blueprint(users_bp, url_prefix='/api/users')

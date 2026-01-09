@@ -33,18 +33,32 @@ def create_reminder():
     
     data = request.get_json()
     
-    if not data or not data.get('name') or not data.get('days_before_event') or not data.get('subject') or not data.get('message'):
-        return jsonify({'error': 'Name, days_before_event, subject, and message are required'}), 400
+    # Validate required fields with specific error messages
+    errors = {}
+    if not data or not data.get('name') or not data.get('name').strip():
+        errors['name'] = 'Reminder name is required'
+    if not data or data.get('days_before_event') is None:
+        errors['days_before_event'] = 'Days before event is required'
+    elif not isinstance(data.get('days_before_event'), int) or data.get('days_before_event') < 1:
+        errors['days_before_event'] = 'Days before event must be a positive integer'
+    if not data or not data.get('subject') or not data.get('subject').strip():
+        errors['subject'] = 'Subject is required'
+    if not data or not data.get('message') or not data.get('message').strip():
+        errors['message'] = 'Message is required'
     
+    if errors:
+        return jsonify({'error': 'Validation failed', 'errors': errors}), 400
+    
+    # Ensure boolean values are properly handled
     reminder = RSVPReminder(
         user_id=user_id,
-        name=data['name'],
-        days_before_event=data['days_before_event'],
-        subject=data['subject'],
-        message=data['message'],
+        name=data['name'].strip(),
+        days_before_event=int(data['days_before_event']),
+        subject=data['subject'].strip(),
+        message=data['message'].strip(),
         target_status=data.get('target_status', 'pending'),
-        only_unassigned=data.get('only_unassigned', False),
-        is_active=data.get('is_active', True)
+        only_unassigned=bool(data.get('only_unassigned', False)),
+        is_active=bool(data.get('is_active', True))
     )
     
     # Calculate next send date based on main event
