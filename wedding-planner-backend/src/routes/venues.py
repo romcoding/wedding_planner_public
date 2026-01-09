@@ -1,4 +1,4 @@
-from flask import Blueprint, request, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_jwt_extended import jwt_required
 from src.models import db, Venue, VenueRequest, User
 from src.utils.jwt_helpers import get_admin_id
@@ -7,8 +7,10 @@ from datetime import datetime
 import json
 import csv
 import io
+import logging
 
 venues_bp = Blueprint('venues', __name__)
+logger = logging.getLogger(__name__)
 
 @venues_bp.route('', methods=['GET'])
 @jwt_required()
@@ -452,32 +454,37 @@ def scrape_venue():
     
     data = request.get_json()
     url = data.get('url')
-    use_llm = data.get('use_llm', False)
+    use_llm = data.get('use_llm', False) or data.get('useLLM', False)  # Support both formats
+    
+    logger.info(f"🔍 Starting venue scrape for URL: {url}, use_llm: {use_llm}")
+    logger.info(f"📦 Request data: {json.dumps(data, indent=2)}")
     
     if not url:
+        logger.warning("❌ Scrape request missing URL")
         return jsonify({'error': 'URL is required'}), 400
     
     # Basic scraping
-    print(f"🔍 Starting venue scrape for URL: {url}, use_llm: {use_llm}")
+    logger.info(f"🌐 Fetching and parsing URL: {url}")
     venue_data = VenueScraperService.scrape_venue_from_url(url)
     
     if 'error' in venue_data:
-        print(f"❌ Scraping error: {venue_data.get('error')}")
+        logger.error(f"❌ Scraping error: {venue_data.get('error')}")
         return jsonify(venue_data), 400
     
-    print(f"✅ Basic scraping completed. Found {len(venue_data)} fields.")
+    logger.info(f"✅ Basic scraping completed. Found {len(venue_data)} fields: {list(venue_data.keys())}")
     
     # Enhance with LLM if requested
     if use_llm:
-        print(f"🤖 LLM enhancement requested. Starting enhancement...")
+        logger.info(f"🤖 LLM enhancement requested. Starting enhancement...")
         venue_data = VenueScraperService.enhance_with_llm(venue_data, url)
-        print(f"✅ LLM enhancement completed.")
+        logger.info(f"✅ LLM enhancement completed. Final fields: {list(venue_data.keys())}")
     else:
-        print("ℹ️  LLM enhancement not requested (use_llm=False)")
+        logger.info("ℹ️  LLM enhancement not requested (use_llm=False)")
     
     # Mark as imported via scraper
     venue_data['imported_via_scraper'] = True
     
+    logger.info(f"📤 Returning scraped venue data with {len(venue_data)} fields")
     return jsonify(venue_data), 200
 
 @venues_bp.route('/export', methods=['GET'])
