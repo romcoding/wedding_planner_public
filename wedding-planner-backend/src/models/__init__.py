@@ -16,6 +16,7 @@ from .guest_photo import GuestPhoto
 from .venue import Venue
 from .venue_request import VenueRequest
 from .invitation_template import InvitationTemplate
+from .table import Table, SeatAssignment
 
-__all__ = ['db', 'User', 'Guest', 'Task', 'Cost', 'Content', 'Image', 'Invitation', 'Event', 'Message', 'GiftRegistry', 'GuestPhoto', 'Venue', 'VenueRequest', 'InvitationTemplate']
+__all__ = ['db', 'User', 'Guest', 'Task', 'Cost', 'Content', 'Image', 'Invitation', 'Event', 'Message', 'GiftRegistry', 'GuestPhoto', 'Venue', 'VenueRequest', 'InvitationTemplate', 'Table', 'SeatAssignment']
 

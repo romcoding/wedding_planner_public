@@ -1,0 +1,293 @@
+from flask import Blueprint, request, jsonify
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from src.models import db, Table, SeatAssignment, Guest, User
+from datetime import datetime
+
+seating_bp = Blueprint('seating', __name__)
+
+@seating_bp.route('/tables', methods=['GET'])
+@jwt_required()
+def get_tables():
+    """Get all tables with assignments (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    include_assignments = request.args.get('include_assignments', 'false').lower() == 'true'
+    tables = Table.query.filter_by(user_id=user_id).order_by(Table.name).all()
+    
+    return jsonify([t.to_dict(include_assignments=include_assignments) for t in tables]), 200
+
+@seating_bp.route('/tables', methods=['POST'])
+@jwt_required()
+def create_table():
+    """Create a new table (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    
+    if not data or not data.get('name') or not data.get('capacity'):
+        return jsonify({'error': 'Name and capacity are required'}), 400
+    
+    table = Table(
+        user_id=user_id,
+        name=data['name'],
+        capacity=data['capacity'],
+        shape=data.get('shape', 'round'),
+        position_x=data.get('position_x', 0.0),
+        position_y=data.get('position_y', 0.0),
+        notes=data.get('notes')
+    )
+    
+    db.session.add(table)
+    
+    # Create empty seat assignments
+    for seat_num in range(1, table.capacity + 1):
+        assignment = SeatAssignment(
+            table_id=table.id,
+            seat_number=seat_num,
+            guest_id=None
+        )
+        db.session.add(assignment)
+    
+    db.session.commit()
+    
+    return jsonify(table.to_dict(include_assignments=True)), 201
+
+@seating_bp.route('/tables/<int:table_id>', methods=['PUT'])
+@jwt_required()
+def update_table(table_id):
+    """Update a table (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    table = Table.query.filter_by(id=table_id, user_id=user_id).first()
+    if not table:
+        return jsonify({'error': 'Table not found'}), 404
+    
+    data = request.get_json()
+    
+    if 'name' in data:
+        table.name = data['name']
+    if 'capacity' in data:
+        old_capacity = table.capacity
+        table.capacity = data['capacity']
+        
+        # Adjust seat assignments if capacity changed
+        if data['capacity'] > old_capacity:
+            # Add new empty seats
+            max_seat = max([a.seat_number for a in table.assignments] or [0])
+            for seat_num in range(max_seat + 1, data['capacity'] + 1):
+                assignment = SeatAssignment(
+                    table_id=table.id,
+                    seat_number=seat_num,
+                    guest_id=None
+                )
+                db.session.add(assignment)
+        elif data['capacity'] < old_capacity:
+            # Remove excess empty seats (only if not assigned)
+            assignments_to_remove = SeatAssignment.query.filter_by(
+                table_id=table.id
+            ).filter(
+                SeatAssignment.seat_number > data['capacity'],
+                SeatAssignment.guest_id.is_(None)
+            ).all()
+            for assignment in assignments_to_remove:
+                db.session.delete(assignment)
+    
+    if 'shape' in data:
+        table.shape = data['shape']
+    if 'position_x' in data:
+        table.position_x = data['position_x']
+    if 'position_y' in data:
+        table.position_y = data['position_y']
+    if 'notes' in data:
+        table.notes = data['notes']
+    
+    table.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify(table.to_dict(include_assignments=True)), 200
+
+@seating_bp.route('/tables/<int:table_id>', methods=['DELETE'])
+@jwt_required()
+def delete_table(table_id):
+    """Delete a table (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    table = Table.query.filter_by(id=table_id, user_id=user_id).first()
+    if not table:
+        return jsonify({'error': 'Table not found'}), 404
+    
+    db.session.delete(table)
+    db.session.commit()
+    
+    return jsonify({'message': 'Table deleted successfully'}), 200
+
+@seating_bp.route('/assignments', methods=['POST'])
+@jwt_required()
+def assign_guest():
+    """Assign a guest to a seat (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    
+    if not data or not data.get('table_id') or not data.get('seat_number'):
+        return jsonify({'error': 'table_id and seat_number are required'}), 400
+    
+    table = Table.query.filter_by(id=data['table_id'], user_id=user_id).first()
+    if not table:
+        return jsonify({'error': 'Table not found'}), 404
+    
+    if data['seat_number'] > table.capacity or data['seat_number'] < 1:
+        return jsonify({'error': 'Invalid seat number'}), 400
+    
+    # Find or create assignment
+    assignment = SeatAssignment.query.filter_by(
+        table_id=data['table_id'],
+        seat_number=data['seat_number']
+    ).first()
+    
+    if not assignment:
+        assignment = SeatAssignment(
+            table_id=data['table_id'],
+            seat_number=data['seat_number'],
+            guest_id=data.get('guest_id')
+        )
+        db.session.add(assignment)
+    else:
+        # Check if seat is already taken by another guest
+        if assignment.guest_id and assignment.guest_id != data.get('guest_id'):
+            return jsonify({'error': 'Seat is already assigned to another guest'}), 400
+        assignment.guest_id = data.get('guest_id')
+    
+    if 'notes' in data:
+        assignment.notes = data['notes']
+    
+    assignment.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify(assignment.to_dict(include_guest=True)), 200
+
+@seating_bp.route('/assignments/<int:assignment_id>', methods=['DELETE'])
+@jwt_required()
+def unassign_guest(assignment_id):
+    """Remove guest assignment from a seat (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    assignment = SeatAssignment.query.get(assignment_id)
+    if not assignment:
+        return jsonify({'error': 'Assignment not found'}), 404
+    
+    # Verify table belongs to user
+    table = Table.query.filter_by(id=assignment.table_id, user_id=user_id).first()
+    if not table:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    assignment.guest_id = None
+    assignment.notes = None
+    assignment.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify({'message': 'Guest unassigned successfully'}), 200
+
+@seating_bp.route('/assignments/bulk', methods=['POST'])
+@jwt_required()
+def bulk_assign():
+    """Bulk assign guests to seats (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    
+    if not data or not isinstance(data.get('assignments'), list):
+        return jsonify({'error': 'assignments array is required'}), 400
+    
+    results = {'success': [], 'errors': []}
+    
+    for assignment_data in data['assignments']:
+        try:
+            table_id = assignment_data.get('table_id')
+            seat_number = assignment_data.get('seat_number')
+            guest_id = assignment_data.get('guest_id')
+            
+            if not table_id or not seat_number:
+                results['errors'].append({'assignment': assignment_data, 'error': 'Missing table_id or seat_number'})
+                continue
+            
+            table = Table.query.filter_by(id=table_id, user_id=user_id).first()
+            if not table:
+                results['errors'].append({'assignment': assignment_data, 'error': 'Table not found'})
+                continue
+            
+            assignment = SeatAssignment.query.filter_by(
+                table_id=table_id,
+                seat_number=seat_number
+            ).first()
+            
+            if not assignment:
+                assignment = SeatAssignment(
+                    table_id=table_id,
+                    seat_number=seat_number,
+                    guest_id=guest_id
+                )
+                db.session.add(assignment)
+            else:
+                assignment.guest_id = guest_id
+            
+            assignment.updated_at = datetime.utcnow()
+            results['success'].append(assignment.to_dict())
+            
+        except Exception as e:
+            results['errors'].append({'assignment': assignment_data, 'error': str(e)})
+    
+    db.session.commit()
+    
+    return jsonify(results), 200
+
+@seating_bp.route('/guests/unassigned', methods=['GET'])
+@jwt_required()
+def get_unassigned_guests():
+    """Get all confirmed guests without seat assignments (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    # Get all guests with confirmed RSVP
+    confirmed_guests = Guest.query.filter_by(rsvp_status='confirmed').all()
+    
+    # Get all assigned guest IDs
+    assigned_guest_ids = {a.guest_id for a in SeatAssignment.query.filter(
+        SeatAssignment.guest_id.isnot(None)
+    ).all()}
+    
+    # Filter unassigned guests
+    unassigned = [g for g in confirmed_guests if g.id not in assigned_guest_ids]
+    
+    return jsonify([g.to_dict(include_sensitive=False) for g in unassigned]), 200

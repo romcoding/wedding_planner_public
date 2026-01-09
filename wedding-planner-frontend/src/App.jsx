@@ -16,6 +16,7 @@ import ImagesPage from './pages/admin/ImagesPage'
 import InvitationsPage from './pages/admin/InvitationsPage'
 import EventsPage from './pages/admin/EventsPage'
 import VenuesPage from './pages/admin/VenuesPage'
+import SeatingChartPage from './pages/admin/SeatingChartPage'
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
@@ -80,6 +81,7 @@ function AppRoutes() {
         <Route path="invitations" element={<InvitationsPage />} />
         <Route path="events" element={<EventsPage />} />
         <Route path="venues" element={<VenuesPage />} />
+        <Route path="seating" element={<SeatingChartPage />} />
       </Route>
 
       <Route

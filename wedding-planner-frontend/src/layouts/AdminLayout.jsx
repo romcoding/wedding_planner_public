@@ -12,7 +12,8 @@ import {
   Mail,
   Calendar,
   LogOut,
-  MapPin
+  MapPin,
+  Grid3x3
 } from 'lucide-react'
 
 export default function AdminLayout() {
@@ -22,6 +23,7 @@ export default function AdminLayout() {
   const navItems = [
     { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
     { path: '/admin/guests', icon: Users, label: 'RSVP Requests' },
+    { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
     { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
     { path: '/admin/events', icon: Calendar, label: 'Timeline' },
     { path: '/admin/venues', icon: MapPin, label: 'Venues' },

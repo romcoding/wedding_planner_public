@@ -18,6 +18,7 @@ from src.routes.messages import messages_bp
 from src.routes.gift_registry import gift_registry_bp
 from src.routes.guest_photos import guest_photos_bp
 from src.routes.venues import venues_bp
+from src.routes.seating import seating_bp
 
 load_dotenv()
 
@@ -81,6 +82,7 @@ def create_app():
     app.register_blueprint(gift_registry_bp, url_prefix='/api/gift-registry')
     app.register_blueprint(guest_photos_bp, url_prefix='/api/guest-photos')
     app.register_blueprint(venues_bp, url_prefix='/api/venues')
+    app.register_blueprint(seating_bp, url_prefix='/api/seating')
     
     # Create tables
     with app.app_context():
