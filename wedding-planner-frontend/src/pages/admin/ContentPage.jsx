@@ -9,6 +9,7 @@ const ContentPage = () => {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [previewContent, setPreviewContent] = useState(null)
   const [activeTab, setActiveTab] = useState('en')
   const [autoTranslate, setAutoTranslate] = useState(false)
   const [sourceLanguage, setSourceLanguage] = useState('en')
