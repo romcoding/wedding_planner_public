@@ -35,6 +35,11 @@ const RSVPRemindersPage = () => {
       queryClient.invalidateQueries(['rsvp-reminders'])
       resetForm()
       setShowForm(false)
+      toast.success('Reminder created successfully!')
+    },
+    onError: (error) => {
+      console.error('Error creating reminder:', error)
+      toast.error(error.response?.data?.error || 'Failed to create reminder. Please check all required fields.')
     },
   })
 
