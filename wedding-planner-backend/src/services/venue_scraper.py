@@ -374,7 +374,7 @@ class VenueScraperService:
         
         try:
             import openai
-            logger.info("✅ OpenAI library imported successfully")
+            logger.info(f"✅ OpenAI library imported successfully. Version: {openai.__version__ if hasattr(openai, '__version__') else 'unknown'}")
             
             # Fetch page content for LLM analysis
             try:
