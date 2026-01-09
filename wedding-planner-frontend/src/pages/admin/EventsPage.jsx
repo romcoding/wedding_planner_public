@@ -32,6 +32,13 @@ const EventsPage = () => {
     queryFn: () => api.get('/events').then((res) => res.data),
   })
 
+  // Sort events chronologically by start_time
+  const sortedEvents = events ? [...events].sort((a, b) => {
+    const dateA = new Date(a.start_time)
+    const dateB = new Date(b.start_time)
+    return dateA - dateB
+  }) : []
+
   const createEvent = useMutation({
     mutationFn: (payload) => api.post('/events', payload),
     onSuccess: () => {
@@ -132,8 +139,19 @@ const EventsPage = () => {
     }))
   }
 
-  // Convert events to calendar format
-  const calendarEvents = events ? events.map(event => ({
+  // Get event icon and color based on event name/type
+  const getEventIcon = (eventName) => {
+    const name = eventName.toLowerCase()
+    if (name.includes('ceremony') || name.includes('wedding')) return { icon: Heart, color: 'text-red-500', bg: 'bg-red-50' }
+    if (name.includes('reception') || name.includes('dinner')) return { icon: UtensilsCrossed, color: 'text-orange-500', bg: 'bg-orange-50' }
+    if (name.includes('music') || name.includes('dance')) return { icon: Music, color: 'text-purple-500', bg: 'bg-purple-50' }
+    if (name.includes('photo') || name.includes('picture')) return { icon: Camera, color: 'text-blue-500', bg: 'bg-blue-50' }
+    if (name.includes('gift') || name.includes('registry')) return { icon: Gift, color: 'text-pink-500', bg: 'bg-pink-50' }
+    return { icon: CalendarIcon, color: 'text-blue-500', bg: 'bg-blue-50' }
+  }
+
+  // Convert events to calendar format (use sortedEvents for consistency)
+  const calendarEvents = sortedEvents ? sortedEvents.map(event => ({
     id: event.id,
     title: event.name,
     start: new Date(event.start_time),
@@ -380,8 +398,10 @@ const EventsPage = () => {
       {/* List View */}
       {view === 'list' && (
         <div className="space-y-4">
-          {events && events.length > 0 ? (
-            events.map((event) => (
+          {sortedEvents && sortedEvents.length > 0 ? (
+            sortedEvents.map((event) => {
+              const { icon: EventIcon, color, bg } = getEventIcon(event.name)
+              return (
               <div
                 key={event.id}
                 className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
@@ -389,7 +409,9 @@ const EventsPage = () => {
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <CalendarIcon className="w-5 h-5 text-blue-500" />
+                      <div className={`p-2 rounded-lg ${bg}`}>
+                        <EventIcon className={`w-5 h-5 ${color}`} />
+                      </div>
                       <h3 className="text-xl font-bold text-gray-900">{event.name}</h3>
                       {!event.is_public && (
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">Private</span>

@@ -58,13 +58,16 @@ def create_cost():
         description=data.get('description'),
         category=data.get('category', 'other'),
         amount=data['amount'],
+        currency=data.get('currency', 'EUR'),
         status=data.get('status', 'planned'),
         payment_date=payment_date,
         vendor_name=data.get('vendor_name') or data.get('vendor'),  # Support both
         vendor_contact=data.get('vendor_contact'),
         receipt_url=data.get('receipt_url'),
         vendor=data.get('vendor'),  # Keep for backward compatibility
-        notes=data.get('notes')
+        notes=data.get('notes'),
+        is_recurring=data.get('is_recurring', False),
+        recurring_frequency=data.get('recurring_frequency')
     )
     
     db.session.add(cost)
@@ -115,8 +118,14 @@ def update_cost(cost_id):
         cost.vendor_contact = data['vendor_contact']
     if 'receipt_url' in data:
         cost.receipt_url = data['receipt_url']
+    if 'currency' in data:
+        cost.currency = data['currency']
     if 'notes' in data:
         cost.notes = data['notes']
+    if 'is_recurring' in data:
+        cost.is_recurring = data['is_recurring']
+    if 'recurring_frequency' in data:
+        cost.recurring_frequency = data['recurring_frequency']
     
     cost.updated_at = datetime.utcnow()
     db.session.commit()

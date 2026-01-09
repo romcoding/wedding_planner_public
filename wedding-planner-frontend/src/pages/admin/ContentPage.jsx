@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import ReactQuill from 'react-quill'
 import 'react-quill/dist/quill.snow.css'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X, Eye } from 'lucide-react'
 
 const ContentPage = () => {
   const queryClient = useQueryClient()
@@ -506,6 +506,60 @@ const ContentPage = () => {
                 )}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewContent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold">Content Preview: {previewContent.title || previewContent.key}</h2>
+                <button
+                  onClick={() => setPreviewContent(null)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-semibold mb-2">Key: {previewContent.key}</h3>
+                  <p className="text-sm text-gray-600">Type: {previewContent.content_type}</p>
+                </div>
+                
+                <div className="border-t pt-4">
+                  <h3 className="font-semibold mb-2">English (EN)</h3>
+                  <div 
+                    className="prose max-w-none"
+                    dangerouslySetInnerHTML={{ __html: previewContent.content_en || previewContent.content || '<p class="text-gray-400">No content</p>' }}
+                  />
+                </div>
+                
+                {previewContent.content_de && (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-2">German (DE)</h3>
+                    <div 
+                      className="prose max-w-none"
+                      dangerouslySetInnerHTML={{ __html: previewContent.content_de }}
+                    />
+                  </div>
+                )}
+                
+                {previewContent.content_fr && (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold mb-2">French (FR)</h3>
+                    <div 
+                      className="prose max-w-none"
+                      dangerouslySetInnerHTML={{ __html: previewContent.content_fr }}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

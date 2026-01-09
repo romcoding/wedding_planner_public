@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { useToast } from '../../components/ui/Toast'
 import { PlusCircle, Trash, Edit, Mail, X, Clock, Send, CheckCircle, AlertCircle } from 'lucide-react'
 
 const RSVPRemindersPage = () => {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
@@ -42,11 +44,11 @@ const RSVPRemindersPage = () => {
       queryClient.invalidateQueries(['rsvp-reminders'])
       resetForm()
       setShowForm(false)
-      alert('Reminder updated successfully!')
+      toast.success('Reminder updated successfully!')
     },
     onError: (error) => {
       console.error('Error updating reminder:', error)
-      alert(error.response?.data?.error || 'Failed to update reminder. Please check all required fields.')
+      toast.error(error.response?.data?.error || 'Failed to update reminder. Please check all required fields.')
     },
   })
 
