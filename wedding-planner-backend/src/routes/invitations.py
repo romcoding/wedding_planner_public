@@ -260,6 +260,124 @@ def register_with_invitation():
         'message': 'Registration successful',
         'access_token': access_token,
         'guest': guest.to_dict(include_sensitive=False),
-        'invitation': invitation.to_dict()
+        'invitation': invitation.to_dict(include_template=True)
     }), 201
 
+# Tracking endpoints
+@invitations_bp.route('/track/open/<token>', methods=['POST'])
+def track_open(token):
+    """Track email open (public endpoint, called by tracking pixel)"""
+    invitation = Invitation.query.filter_by(token=token).first()
+    if invitation:
+        invitation.track_open()
+        db.session.commit()
+    return '', 204  # Return 1x1 transparent pixel
+
+@invitations_bp.route('/track/click/<token>', methods=['POST'])
+def track_click(token):
+    """Track link click (public endpoint)"""
+    invitation = Invitation.query.filter_by(token=token).first()
+    if invitation:
+        invitation.track_click()
+        db.session.commit()
+    return jsonify({'message': 'Click tracked'}), 200
+
+# Template routes
+@invitations_bp.route('/templates', methods=['GET'])
+@jwt_required()
+def get_templates():
+    """Get all invitation templates (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    templates = InvitationTemplate.query.filter_by(user_id=user_id, is_active=True).order_by(InvitationTemplate.created_at.desc()).all()
+    return jsonify([t.to_dict() for t in templates]), 200
+
+@invitations_bp.route('/templates', methods=['POST'])
+@jwt_required()
+def create_template():
+    """Create invitation template (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    data = request.get_json()
+    
+    if not data or not data.get('name') or not data.get('subject') or not data.get('html_content'):
+        return jsonify({'error': 'Name, subject, and html_content are required'}), 400
+    
+    # If this is set as default, unset other defaults
+    if data.get('is_default'):
+        InvitationTemplate.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+    
+    template = InvitationTemplate(
+        user_id=user_id,
+        name=data['name'],
+        subject=data['subject'],
+        html_content=data['html_content'],
+        is_default=data.get('is_default', False),
+        is_active=data.get('is_active', True)
+    )
+    
+    db.session.add(template)
+    db.session.commit()
+    
+    return jsonify(template.to_dict()), 201
+
+@invitations_bp.route('/templates/<int:template_id>', methods=['PUT'])
+@jwt_required()
+def update_template(template_id):
+    """Update invitation template (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    template = InvitationTemplate.query.filter_by(id=template_id, user_id=user_id).first()
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    data = request.get_json()
+    
+    if 'name' in data:
+        template.name = data['name']
+    if 'subject' in data:
+        template.subject = data['subject']
+    if 'html_content' in data:
+        template.html_content = data['html_content']
+    if 'is_default' in data:
+        if data['is_default']:
+            InvitationTemplate.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+        template.is_default = data['is_default']
+    if 'is_active' in data:
+        template.is_active = data['is_active']
+    
+    template.updated_at = datetime.utcnow()
+    db.session.commit()
+    
+    return jsonify(template.to_dict()), 200
+
+@invitations_bp.route('/templates/<int:template_id>', methods=['DELETE'])
+@jwt_required()
+def delete_template(template_id):
+    """Delete invitation template (admin only)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    template = InvitationTemplate.query.filter_by(id=template_id, user_id=user_id).first()
+    if not template:
+        return jsonify({'error': 'Template not found'}), 404
+    
+    db.session.delete(template)
+    db.session.commit()
+    
+    return jsonify({'message': 'Template deleted successfully'}), 200
