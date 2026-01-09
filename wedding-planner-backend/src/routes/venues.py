@@ -1,10 +1,12 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file
 from flask_jwt_extended import jwt_required
 from src.models import db, Venue, VenueRequest, User
 from src.utils.jwt_helpers import get_admin_id
 from src.services.venue_scraper import VenueScraperService
 from datetime import datetime
 import json
+import csv
+import io
 
 venues_bp = Blueprint('venues', __name__)
 
@@ -20,8 +22,12 @@ def get_venues():
     # Query parameters
     search = request.args.get('search', '').strip()
     min_capacity = request.args.get('min_capacity', type=int)
+    max_capacity = request.args.get('max_capacity', type=int)
+    min_price = request.args.get('min_price', type=float)
     max_price = request.args.get('max_price', type=float)
     style = request.args.get('style', '').strip()
+    city = request.args.get('city', '').strip()
+    region = request.args.get('region', '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
@@ -38,18 +44,52 @@ def get_venues():
             db.or_(
                 Venue.name.ilike(search_term),
                 Venue.location.ilike(search_term),
+                Venue.address.ilike(search_term),
+                Venue.city.ilike(search_term),
                 Venue.description.ilike(search_term)
             )
         )
     
     if min_capacity:
-        query = query.filter(Venue.capacity >= min_capacity)
+        query = query.filter(
+            db.or_(
+                Venue.capacity_max >= min_capacity,
+                Venue.capacity >= min_capacity
+            )
+        )
+    
+    if max_capacity:
+        query = query.filter(
+            db.or_(
+                Venue.capacity_min <= max_capacity,
+                Venue.capacity <= max_capacity
+            )
+        )
+    
+    if min_price:
+        query = query.filter(
+            db.or_(
+                Venue.price_max >= min_price,
+                Venue.price_min >= min_price
+            )
+        )
+    
+    if max_price:
+        query = query.filter(
+            db.or_(
+                Venue.price_min <= max_price,
+                Venue.price_max <= max_price
+            )
+        )
     
     if style:
         query = query.filter_by(style=style)
     
-    # Note: max_price filtering would require parsing price_range string
-    # For now, we'll skip this or implement a more sophisticated parser
+    if city:
+        query = query.filter(Venue.city.ilike(f'%{city}%'))
+    
+    if region:
+        query = query.filter(Venue.region.ilike(f'%{region}%'))
     
     # Pagination
     pagination = query.order_by(Venue.created_at.desc()).paginate(
@@ -95,20 +135,51 @@ def create_venue():
     else:
         amenities_str = ''
     
+    # Handle available_dates - convert list to JSON string
+    available_dates = data.get('available_dates', [])
+    if isinstance(available_dates, list):
+        available_dates_str = json.dumps(available_dates)
+    else:
+        available_dates_str = ''
+    
+    # Handle images - convert list to JSON string
+    images = data.get('images', [])
+    if isinstance(images, list):
+        images_str = json.dumps(images)
+    else:
+        images_str = ''
+    
     venue = Venue(
         user_id=user_id,
         name=data['name'],
         description=data.get('description'),
-        location=data.get('location'),
-        capacity=data.get('capacity'),
-        price_range=data.get('price_range'),
+        # Location fields
+        address=data.get('address'),
+        city=data.get('city'),
+        region=data.get('region'),
+        location=data.get('location'),  # Keep for backward compatibility
+        # Capacity fields
+        capacity_min=data.get('capacity_min'),
+        capacity_max=data.get('capacity_max'),
+        capacity=data.get('capacity'),  # Keep for backward compatibility
+        # Price fields
+        price_min=data.get('price_min'),
+        price_max=data.get('price_max'),
+        price_range=data.get('price_range'),  # Keep for backward compatibility
+        # Style and amenities
         style=data.get('style'),
         amenities=amenities_str,
+        # Contact information
         contact_name=data.get('contact_name'),
         contact_email=data.get('contact_email'),
         contact_phone=data.get('contact_phone'),
         website=data.get('website'),
+        external_url=data.get('external_url'),
+        # Additional fields
+        available_dates=available_dates_str,
         rating=data.get('rating'),
+        images=images_str,
+        imported_via_scraper=data.get('imported_via_scraper', False),
         notes=data.get('notes')
     )
     
@@ -149,16 +220,39 @@ def update_venue(venue_id):
     
     data = request.get_json()
     
+    # Basic fields
     if 'name' in data:
         venue.name = data['name']
     if 'description' in data:
         venue.description = data.get('description')
+    
+    # Location fields
+    if 'address' in data:
+        venue.address = data.get('address')
+    if 'city' in data:
+        venue.city = data.get('city')
+    if 'region' in data:
+        venue.region = data.get('region')
     if 'location' in data:
         venue.location = data.get('location')
+    
+    # Capacity fields
+    if 'capacity_min' in data:
+        venue.capacity_min = data.get('capacity_min')
+    if 'capacity_max' in data:
+        venue.capacity_max = data.get('capacity_max')
     if 'capacity' in data:
         venue.capacity = data.get('capacity')
+    
+    # Price fields
+    if 'price_min' in data:
+        venue.price_min = data.get('price_min')
+    if 'price_max' in data:
+        venue.price_max = data.get('price_max')
     if 'price_range' in data:
         venue.price_range = data.get('price_range')
+    
+    # Style and amenities
     if 'style' in data:
         venue.style = data.get('style')
     if 'amenities' in data:
@@ -167,6 +261,8 @@ def update_venue(venue_id):
             venue.amenities = json.dumps(amenities)
         else:
             venue.amenities = amenities
+    
+    # Contact information
     if 'contact_name' in data:
         venue.contact_name = data.get('contact_name')
     if 'contact_email' in data:
@@ -175,8 +271,26 @@ def update_venue(venue_id):
         venue.contact_phone = data.get('contact_phone')
     if 'website' in data:
         venue.website = data.get('website')
+    if 'external_url' in data:
+        venue.external_url = data.get('external_url')
+    
+    # Additional fields
+    if 'available_dates' in data:
+        available_dates = data.get('available_dates', [])
+        if isinstance(available_dates, list):
+            venue.available_dates = json.dumps(available_dates)
+        else:
+            venue.available_dates = available_dates
     if 'rating' in data:
         venue.rating = data.get('rating')
+    if 'images' in data:
+        images = data.get('images', [])
+        if isinstance(images, list):
+            venue.images = json.dumps(images)
+        else:
+            venue.images = images
+    if 'imported_via_scraper' in data:
+        venue.imported_via_scraper = data.get('imported_via_scraper', False)
     if 'notes' in data:
         venue.notes = data.get('notes')
     
