@@ -36,6 +36,11 @@ const ContentPage = () => {
       queryClient.invalidateQueries(['content'])
       resetForm()
       setShowForm(false)
+      alert('Content created successfully!')
+    },
+    onError: (error) => {
+      console.error('Error creating content:', error)
+      alert(error.response?.data?.error || 'Failed to create content. Please check all required fields.')
     },
   })
 
@@ -45,6 +50,11 @@ const ContentPage = () => {
       queryClient.invalidateQueries(['content'])
       resetForm()
       setShowForm(false)
+      alert('Content updated successfully!')
+    },
+    onError: (error) => {
+      console.error('Error updating content:', error)
+      alert(error.response?.data?.error || 'Failed to update content. Please check all required fields.')
     },
   })
 

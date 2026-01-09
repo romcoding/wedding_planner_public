@@ -38,6 +38,11 @@ const EventsPage = () => {
       queryClient.invalidateQueries(['events'])
       resetForm()
       setShowForm(false)
+      alert('Event created successfully!')
+    },
+    onError: (error) => {
+      console.error('Error creating event:', error)
+      alert(error.response?.data?.error || 'Failed to create event. Please check all required fields and date formats.')
     },
   })
 
@@ -93,12 +98,23 @@ const EventsPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault()
     
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert('Please enter an event name')
+      return
+    }
+    if (!formData.start_time) {
+      alert('Please enter a start time')
+      return
+    }
+    
     // Convert local datetime to ISO format
     const payload = {
       ...formData,
       start_time: new Date(formData.start_time).toISOString(),
       end_time: formData.end_time ? new Date(formData.end_time).toISOString() : null,
       end_date: formData.end_date || null,
+      order: parseInt(formData.order, 10) || 0,
     }
     
     if (editingId) {

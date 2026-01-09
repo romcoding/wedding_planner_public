@@ -54,6 +54,11 @@ const CostsPage = () => {
       queryClient.invalidateQueries(['cost-analytics'])
       resetForm()
       setShowForm(false)
+      alert('Cost created successfully!')
+    },
+    onError: (error) => {
+      console.error('Error creating cost:', error)
+      alert(error.response?.data?.error || 'Failed to create cost. Please check all required fields and ensure amount is a valid number.')
     },
   })
 
@@ -108,10 +113,26 @@ const CostsPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    
+    // Validate required fields
+    if (!formData.name.trim()) {
+      alert('Please enter a cost name')
+      return
+    }
+    if (!formData.amount || isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
+      alert('Please enter a valid amount (greater than 0)')
+      return
+    }
+    if (!formData.category) {
+      alert('Please select a category')
+      return
+    }
+    
     const payload = {
       ...formData,
-      amount: parseFloat(formData.amount || 0),
+      amount: parseFloat(formData.amount),
       vendor: formData.vendor_name,  // For backward compatibility
+      payment_date: formData.payment_date || null,
     }
     
     if (editingId) {

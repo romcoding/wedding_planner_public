@@ -188,18 +188,40 @@ const SeatingChartPage = () => {
       const table = tables?.find(t => t.id === tableId)
       const seat = table?.assignments?.find(a => a.seat_number === seatNumber)
       
-      if (seat?.guest_id) {
-        // Unassign current guest first
-        if (seat.id) {
-          unassignGuest.mutate(seat.id)
-        }
+      // If seat is already taken by a different guest, unassign first
+      if (seat?.guest_id && seat.guest_id !== guestId) {
+        // Unassign current guest first, then assign new one
+        unassignGuest.mutate(seat.id, {
+          onSuccess: () => {
+            assignGuest.mutate({
+              table_id: tableId,
+              seat_number: seatNumber,
+              guest_id: guestId
+            }, {
+              onError: (error) => {
+                console.error('Error assigning guest:', error)
+                alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
+              }
+            })
+          },
+          onError: (error) => {
+            console.error('Error unassigning guest:', error)
+            alert('Failed to unassign current guest. Please try again.')
+          }
+        })
+      } else {
+        // Seat is empty or same guest, just assign
+        assignGuest.mutate({
+          table_id: tableId,
+          seat_number: seatNumber,
+          guest_id: guestId
+        }, {
+          onError: (error) => {
+            console.error('Error assigning guest:', error)
+            alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
+          }
+        })
       }
-
-      assignGuest.mutate({
-        table_id: tableId,
-        seat_number: seatNumber,
-        guest_id: guestId
-      })
     }
 
     // If dragging a guest from a seat to another seat
@@ -212,19 +234,58 @@ const SeatingChartPage = () => {
 
       if (activeTableId === overTableId && activeSeatNumber === overSeatNumber) return
 
+      // Check if target seat is already taken
+      const overTable = tables?.find(t => t.id === overTableId)
+      const overSeat = overTable?.assignments?.find(a => a.seat_number === overSeatNumber)
+      
       // Unassign from old seat
       const activeTable = tables?.find(t => t.id === activeTableId)
       const activeSeat = activeTable?.assignments?.find(a => a.seat_number === activeSeatNumber)
+      
       if (activeSeat?.id) {
-        unassignGuest.mutate(activeSeat.id)
+        // If target seat is taken by different guest, unassign it first
+        if (overSeat?.guest_id && overSeat.guest_id !== activeGuestId) {
+          unassignGuest.mutate(overSeat.id, {
+            onSuccess: () => {
+              // Then unassign from old seat and assign to new
+              unassignGuest.mutate(activeSeat.id, {
+                onSuccess: () => {
+                  assignGuest.mutate({
+                    table_id: overTableId,
+                    seat_number: overSeatNumber,
+                    guest_id: activeGuestId
+                  }, {
+                    onError: (error) => {
+                      console.error('Error assigning guest:', error)
+                      alert(error.response?.data?.error || 'Failed to move guest. Please try again.')
+                    }
+                  })
+                }
+              })
+            }
+          })
+        } else {
+          // Target seat is empty or same guest, just move
+          unassignGuest.mutate(activeSeat.id, {
+            onSuccess: () => {
+              assignGuest.mutate({
+                table_id: overTableId,
+                seat_number: overSeatNumber,
+                guest_id: activeGuestId
+              }, {
+                onError: (error) => {
+                  console.error('Error assigning guest:', error)
+                  alert(error.response?.data?.error || 'Failed to move guest. Please try again.')
+                }
+              })
+            },
+            onError: (error) => {
+              console.error('Error unassigning guest:', error)
+              alert('Failed to unassign guest. Please try again.')
+            }
+          })
+        }
       }
-
-      // Assign to new seat
-      assignGuest.mutate({
-        table_id: overTableId,
-        seat_number: overSeatNumber,
-        guest_id: activeGuestId
-      })
     }
   }
 

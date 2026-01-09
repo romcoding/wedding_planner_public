@@ -42,6 +42,11 @@ const RSVPRemindersPage = () => {
       queryClient.invalidateQueries(['rsvp-reminders'])
       resetForm()
       setShowForm(false)
+      alert('Reminder updated successfully!')
+    },
+    onError: (error) => {
+      console.error('Error updating reminder:', error)
+      alert(error.response?.data?.error || 'Failed to update reminder. Please check all required fields.')
     },
   })
 

@@ -113,6 +113,23 @@ const TasksPage = () => {
     setShowForm(true)
   }
 
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      priority: 'medium',
+      status: 'todo',
+      due_date: '',
+      category: '',
+      assigned_to: '',
+      estimated_cost: '',
+      actual_cost: '',
+      event_id: '',
+      reminder_date: '',
+    })
+    setEditingTaskId(null)
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!formData.title.trim()) {
