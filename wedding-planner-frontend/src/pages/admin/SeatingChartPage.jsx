@@ -786,7 +786,7 @@ function SeatComponent({ assignment, tableId }) {
             : 'bg-green-100 border-green-400 text-green-800 cursor-move hover:bg-green-200'
           : isOver
           ? 'bg-blue-200 border-blue-500 shadow-lg scale-105'
-          : 'bg-gray-50 border-gray-300 text-gray-500'
+          : 'bg-gray-50 border-gray-300 text-gray-700'
       }`}
     >
       {assignment.guest_id ? (
