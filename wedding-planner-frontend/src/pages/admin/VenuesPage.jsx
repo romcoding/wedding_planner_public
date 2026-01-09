@@ -228,7 +228,13 @@ export default function VenuesPage() {
       
       setShowForm(true)
       setScrapingUrl('')
-      alert('Venue information scraped successfully! Please review and edit as needed.')
+      
+      // Show warning if LLM had issues but basic scraping worked
+      if (data.llm_warning) {
+        alert(`Venue information scraped successfully!\n\nNote: ${data.llm_warning}\n\nBasic scraping data is available. Please review and edit as needed.`)
+      } else {
+        alert('Venue information scraped successfully! Please review and edit as needed.')
+      }
     } catch (error) {
       alert(error.response?.data?.error || 'Failed to scrape venue information')
     } finally {

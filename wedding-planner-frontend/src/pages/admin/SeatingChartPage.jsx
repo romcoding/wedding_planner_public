@@ -3,7 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { 
   DndContext, 
   DragOverlay, 
-  closestCenter, 
+  closestCenter,
+  pointerWithin,
+  rectIntersection,
   KeyboardSensor, 
   PointerSensor, 
   useSensor, 
@@ -436,7 +438,15 @@ const SeatingChartPage = () => {
         <div className="lg:col-span-3">
           <DndContext
             sensors={sensors}
-            collisionDetection={closestCenter}
+            collisionDetection={(args) => {
+              // First try pointer-based detection (more accurate for transformed elements)
+              const pointerCollisions = pointerWithin(args)
+              if (pointerCollisions.length > 0) {
+                return pointerCollisions
+              }
+              // Fallback to rect intersection
+              return rectIntersection(args)
+            }}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}

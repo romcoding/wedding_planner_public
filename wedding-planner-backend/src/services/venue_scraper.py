@@ -621,14 +621,26 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
             
         except ImportError:
             logger.error("❌ OpenAI library import failed. This should not happen if OPENAI_AVAILABLE is True.")
+            venue_data['llm_error'] = 'OpenAI library not available'
             return venue_data
         except json.JSONDecodeError as e:
             logger.error(f"❌ LLM returned invalid JSON: {str(e)}")
             logger.error(f"Response text: {llm_text[:500] if 'llm_text' in locals() else 'N/A'}")
+            venue_data['llm_error'] = 'Invalid response from AI service'
             return venue_data  # Return original data on JSON error
         except Exception as e:
-            logger.error(f"❌ Error enhancing with LLM: {str(e)}")
+            error_msg = str(e)
+            logger.error(f"❌ Error enhancing with LLM: {error_msg}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
+            
+            # Check for specific error types
+            if '429' in error_msg or 'quota' in error_msg.lower() or 'rate limit' in error_msg.lower():
+                venue_data['llm_error'] = 'OpenAI API quota exceeded. Please check your billing or try again later. Basic scraping data is still available.'
+            elif '401' in error_msg or 'unauthorized' in error_msg.lower():
+                venue_data['llm_error'] = 'OpenAI API key is invalid or expired. Please check your API key configuration.'
+            else:
+                venue_data['llm_error'] = f'AI enhancement failed: {error_msg[:100]}'
+            
             return venue_data  # Return original data on error
 

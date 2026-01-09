@@ -474,15 +474,23 @@ def scrape_venue():
     logger.info(f"✅ Basic scraping completed. Found {len(venue_data)} fields: {list(venue_data.keys())}")
     
     # Enhance with LLM if requested
+    llm_error = None
     if use_llm:
         logger.info(f"🤖 LLM enhancement requested. Starting enhancement...")
         venue_data = VenueScraperService.enhance_with_llm(venue_data, url)
+        if 'llm_error' in venue_data:
+            llm_error = venue_data.pop('llm_error')
+            logger.warning(f"⚠️  LLM enhancement had issues: {llm_error}")
         logger.info(f"✅ LLM enhancement completed. Final fields: {list(venue_data.keys())}")
     else:
         logger.info("ℹ️  LLM enhancement not requested (use_llm=False)")
     
     # Mark as imported via scraper
     venue_data['imported_via_scraper'] = True
+    
+    # Include LLM error in response if present
+    if llm_error:
+        venue_data['llm_warning'] = llm_error
     
     logger.info(f"📤 Returning scraped venue data with {len(venue_data)} fields")
     return jsonify(venue_data), 200
