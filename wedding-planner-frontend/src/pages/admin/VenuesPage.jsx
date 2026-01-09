@@ -404,14 +404,14 @@ export default function VenuesPage() {
               placeholder="Enter venue website URL..."
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-400"
             />
-            <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-lg cursor-pointer">
+            <label className="flex items-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-lg cursor-pointer hover:bg-gray-700 transition-colors">
               <input
                 type="checkbox"
                 checked={useLLM}
                 onChange={(e) => setUseLLM(e.target.checked)}
-                className="w-4 h-4"
+                className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500"
               />
-              <span className="text-sm">Use AI (ChatGPT)</span>
+              <span className="text-sm font-medium">Use AI (ChatGPT)</span>
             </label>
             <button
               onClick={handleScrape}

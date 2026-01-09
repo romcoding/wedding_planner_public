@@ -1,94 +1,74 @@
-#!/usr/bin/env python3
 """
-Run all pending database migrations.
-This script checks and adds any missing columns/tables.
+Run all pending migrations in order
+This script runs all migration scripts that haven't been applied yet
 """
+import os
+import sys
+from dotenv import load_dotenv
 
-from src.main import create_app
-from src.models import db
-from sqlalchemy import text, inspect
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+load_dotenv()
 
-def migrate():
-    app = create_app()
+# List of migrations in order (most recent first, but we'll check if they're needed)
+MIGRATIONS = [
+    'migrate_add_rbac_fields.py',
+    'migrate_add_analytics_tables.py',
+    'migrate_add_content_scheduling.py',
+    'migrate_add_rsvp_reminders.py',
+    'migrate_add_seating_chart.py',
+    'migrate_add_cost_receipts.py',
+    'migrate_add_event_task_linking.py',
+    'migrate_add_invitation_tracking.py',
+    'migrate_enhance_venue_model.py',
+]
+
+def run_migration(migration_file):
+    """Run a single migration file"""
+    print(f"\n{'=' * 60}")
+    print(f"Running: {migration_file}")
+    print('=' * 60)
     
-    with app.app_context():
-        print("=" * 60)
-        print("Running Database Migrations")
-        print("=" * 60)
-        print()
+    try:
+        # Import and run the migration
+        migration_path = os.path.join(os.path.dirname(__file__), migration_file)
+        if not os.path.exists(migration_path):
+            print(f"⚠️  Migration file not found: {migration_file}")
+            return False
         
-        inspector = inspect(db.engine)
-        
-        # Check guests table columns
-        if inspector.has_table('guests'):
-            columns = [col['name'] for col in inspector.get_columns('guests')]
-            print(f"Current guests table columns: {', '.join(columns)}")
-            print()
-            
-            # Add music_wish if missing
-            if 'music_wish' not in columns:
-                print("Adding 'music_wish' column to 'guests' table...")
-                try:
-                    db.session.execute(text("ALTER TABLE guests ADD COLUMN music_wish TEXT"))
-                    db.session.commit()
-                    print("✅ Added 'music_wish' column")
-                except Exception as e:
-                    print(f"❌ Error adding music_wish: {e}")
-                    db.session.rollback()
+        # Read and execute the migration
+        with open(migration_path, 'r') as f:
+            code = f.read()
+            # Extract the migrate function
+            exec(compile(code, migration_path, 'exec'))
+            # Call migrate if it exists
+            if 'migrate' in locals() or 'migrate' in globals():
+                migrate()
+                return True
             else:
-                print("✅ 'music_wish' column already exists")
-            
-            # Add username if missing
-            if 'username' not in columns:
-                print("Adding 'username' column to 'guests' table...")
-                try:
-                    db.session.execute(text("ALTER TABLE guests ADD COLUMN username VARCHAR(80) UNIQUE"))
-                    db.session.commit()
-                    print("✅ Added 'username' column")
-                except Exception as e:
-                    print(f"❌ Error adding username: {e}")
-                    db.session.rollback()
-            else:
-                print("✅ 'username' column already exists")
-            
-            # Add password_hash if missing
-            if 'password_hash' not in columns:
-                print("Adding 'password_hash' column to 'guests' table...")
-                try:
-                    db.session.execute(text("ALTER TABLE guests ADD COLUMN password_hash VARCHAR(255)"))
-                    db.session.commit()
-                    print("✅ Added 'password_hash' column")
-                except Exception as e:
-                    print(f"❌ Error adding password_hash: {e}")
-                    db.session.rollback()
-            else:
-                print("✅ 'password_hash' column already exists")
-        else:
-            print("⚠️  'guests' table does not exist. It should be created automatically.")
-        
-        print()
-        
-        # Check and create new tables
-        tables_to_check = [
-            'invitations',
-            'events',
-            'messages',
-            'gift_registry',
-            'guest_photos'
-        ]
-        
-        for table_name in tables_to_check:
-            if not inspector.has_table(table_name):
-                print(f"⚠️  '{table_name}' table does not exist.")
-                print(f"   It will be created automatically on next app start.")
-            else:
-                print(f"✅ '{table_name}' table exists")
-        
-        print()
-        print("=" * 60)
-        print("Migration check complete!")
-        print("=" * 60)
+                print(f"⚠️  No migrate() function found in {migration_file}")
+                return False
+    except Exception as e:
+        print(f"❌ Error running {migration_file}: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 if __name__ == '__main__':
-    migrate()
-
+    print("=" * 60)
+    print("Running All Pending Migrations")
+    print("=" * 60)
+    print()
+    
+    success_count = 0
+    failed_count = 0
+    
+    for migration in MIGRATIONS:
+        if run_migration(migration):
+            success_count += 1
+        else:
+            failed_count += 1
+    
+    print()
+    print("=" * 60)
+    print(f"Migration Summary: {success_count} succeeded, {failed_count} failed")
+    print("=" * 60)
