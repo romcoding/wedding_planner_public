@@ -151,6 +151,33 @@ def upload_document(venue_id):
         return jsonify({'error': f'Failed to upload document: {str(e)}'}), 500
 
 
+@documents_bp.route('/venues/<int:venue_id>/documents/<int:document_id>', methods=['PUT'])
+@jwt_required()
+def update_document(venue_id, document_id):
+    """Update document metadata (notes, etc.)"""
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if not user or user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    document = VenueDocument.query.filter_by(id=document_id, venue_id=venue_id).first()
+    if not document:
+        return jsonify({'error': 'Document not found'}), 404
+    
+    data = request.get_json()
+    if 'notes' in data:
+        document.notes = data.get('notes', '')
+    
+    try:
+        db.session.commit()
+        return jsonify(document.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error updating document: {e}")
+        return jsonify({'error': f'Failed to update document: {str(e)}'}), 500
+
+
 @documents_bp.route('/venues/<int:venue_id>/documents/<int:document_id>', methods=['DELETE'])
 @jwt_required()
 def delete_document(venue_id, document_id):

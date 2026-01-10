@@ -23,6 +23,7 @@ import {
   Calendar
 } from 'lucide-react'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageComponents'
 
 export default function VenuesPage() {
   const queryClient = useQueryClient()
@@ -1197,6 +1198,29 @@ function VenueDetailModal({ venueId, onClose }) {
   const queryClient = useQueryClient()
   const [activeTab, setActiveTab] = useState('details')
   const [showRequestForm, setShowRequestForm] = useState(false)
+  
+  // Handle tab switching from chat citations
+  useEffect(() => {
+    const handleSwitchTab = (event) => {
+      if (event.detail.documentId) {
+        setActiveTab('documents')
+        // Scroll to document after a brief delay
+        setTimeout(() => {
+          const element = document.getElementById(`document-${event.detail.documentId}`)
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+            element.classList.add('ring-4', 'ring-blue-500', 'ring-offset-2')
+            setTimeout(() => {
+              element.classList.remove('ring-4', 'ring-blue-500', 'ring-offset-2')
+            }, 2000)
+          }
+        }, 300)
+      }
+    }
+    window.addEventListener('switchToDocumentsTab', handleSwitchTab)
+    return () => window.removeEventListener('switchToDocumentsTab', handleSwitchTab)
+  }, [])
+  
   const [requestFormData, setRequestFormData] = useState({
     contact_date: new Date().toISOString().split('T')[0],
     status: 'pending',
@@ -1435,6 +1459,21 @@ function VenueDetailModal({ venueId, onClose }) {
               </div>
             )}
           </div>
+          )}
+
+          {/* Offers Tab */}
+          {activeTab === 'offers' && (
+            <VenueOffersTab venueId={venueId} />
+          )}
+
+          {/* Documents Tab */}
+          {activeTab === 'documents' && (
+            <VenueDocumentsTab venueId={venueId} />
+          )}
+
+          {/* Chat Tab */}
+          {activeTab === 'chat' && (
+            <VenueChatTab venueId={venueId} />
           )}
 
           {/* Requests Tab */}
