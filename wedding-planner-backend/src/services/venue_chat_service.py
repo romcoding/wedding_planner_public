@@ -80,7 +80,7 @@ def generate_chat_response(
     venue_id: int,
     user_query: str,
     conversation_history: Optional[List[Dict]] = None,
-    model: str = "gpt-4o"  # Latest GPT-4o model for best performance
+    model: str = "gpt-5-mini"  # Latest GPT-5-mini model (best balance of performance and cost)
 ) -> Dict:
     """
     Generate chat response using RAG
@@ -153,14 +153,30 @@ Please provide a helpful answer and cite relevant documents using [Document X] n
         
         messages.append({"role": "user", "content": user_message})
         
-        # Call OpenAI API
+        # Call OpenAI API with fallback to gpt-4o if GPT-5 not available
         client = openai.OpenAI(api_key=api_key)
-        response = client.chat.completions.create(
-            model=model,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=1000
-        )
+        
+        # Try GPT-5 model first, fallback to gpt-4o if not available
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1000
+            )
+        except Exception as e:
+            # If GPT-5 model not available, fallback to gpt-4o
+            if model.startswith('gpt-5'):
+                logger.warning(f"GPT-5 model {model} not available, falling back to gpt-4o: {e}")
+                model = "gpt-4o"
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=1000
+                )
+            else:
+                raise
         
         assistant_message = response.choices[0].message.content
         tokens_used = response.usage.total_tokens if response.usage else 0

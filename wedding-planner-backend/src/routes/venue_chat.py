@@ -35,7 +35,7 @@ def chat(venue_id):
     
     user_message = data['message']
     session_id = data.get('session_id')
-    model = data.get('model', 'gpt-4o')  # Use latest GPT-4o model
+    model = data.get('model', 'gpt-5-mini')  # Use latest GPT-5-mini model (best balance)
     
     try:
         # Get conversation history if session_id provided

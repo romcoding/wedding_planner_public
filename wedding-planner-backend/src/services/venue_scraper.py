@@ -514,18 +514,41 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
             
             logger.info("📡 Calling OpenAI API...")
             client = openai.OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model="gpt-4o",  # Use latest GPT-4o model
-                messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
-                    },
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,  # Lower temperature for more deterministic, accurate responses
-                max_tokens=2000  # Increased for more detailed extraction
-            )
+            
+            # Try GPT-5-mini first, fallback to gpt-4o if not available
+            model = "gpt-5-mini"
+            try:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {
+                            "role": "system", 
+                            "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
+                        },
+                        {"role": "user", "content": prompt}
+                    ],
+                    temperature=0.1,  # Lower temperature for more deterministic, accurate responses
+                    max_tokens=2000  # Increased for more detailed extraction
+                )
+            except Exception as e:
+                # Fallback to gpt-4o if GPT-5 not available
+                if model.startswith('gpt-5'):
+                    logger.warning(f"GPT-5 model {model} not available, falling back to gpt-4o: {e}")
+                    model = "gpt-4o"
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {
+                                "role": "system", 
+                                "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
+                            },
+                            {"role": "user", "content": prompt}
+                        ],
+                        temperature=0.1,
+                        max_tokens=2000
+                    )
+                else:
+                    raise
             tokens_used = response.usage.total_tokens if hasattr(response, 'usage') and response.usage else 'unknown'
             logger.info(f"✅ OpenAI API call successful. Tokens used: {tokens_used}")
             if hasattr(response, 'usage') and response.usage:
