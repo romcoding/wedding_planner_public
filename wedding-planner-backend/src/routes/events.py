@@ -102,9 +102,15 @@ def create_event():
         return jsonify(event.to_dict()), 201
     except IntegrityError as e:
         db.session.rollback()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"IntegrityError creating event: {e}", exc_info=True)
         return jsonify({'error': 'Failed to create event', 'details': str(e)}), 500
     except Exception as e:
         db.session.rollback()
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error creating event: {e}", exc_info=True)
         return jsonify({'error': 'Failed to create event', 'details': str(e)}), 500
 
 @events_bp.route('/<int:event_id>', methods=['PUT'])

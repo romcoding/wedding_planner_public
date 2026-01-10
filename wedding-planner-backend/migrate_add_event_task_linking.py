@@ -99,6 +99,21 @@ def migrate():
                         db.session.rollback()
                 else:
                     print("✓ 'dress_code' column already exists in events table.")
+                
+                if 'end_date' not in columns:
+                    print("Adding 'end_date' column to 'events' table...")
+                    try:
+                        with db.engine.connect() as conn:
+                            conn.execute(text("ALTER TABLE events ADD COLUMN end_date DATE"))
+                            conn.commit()
+                        print("✅ Added 'end_date' column to events table.")
+                    except Exception as e:
+                        print(f"❌ Error adding end_date: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        db.session.rollback()
+                else:
+                    print("✓ 'end_date' column already exists in events table.")
 
             print()
             print("=" * 60)
