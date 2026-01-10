@@ -513,11 +513,14 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
 """
             
             logger.info("📡 Calling OpenAI API...")
+            logger.info(f"🔑 API Key configured: {api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else '***'} (length: {len(api_key)})")
+            
             client = openai.OpenAI(api_key=api_key)
             
             # Try GPT-5-mini first, fallback to gpt-4o if not available
             model = "gpt-5-mini"
             try:
+                logger.info(f"🤖 Attempting to use model: {model}")
                 response = client.chat.completions.create(
                     model=model,
                     messages=[
@@ -530,23 +533,59 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
                     temperature=0.1,  # Lower temperature for more deterministic, accurate responses
                     max_tokens=2000  # Increased for more detailed extraction
                 )
+                logger.info(f"✅ Successfully used model: {model}")
+            except openai.RateLimitError as e:
+                # Check if it's a quota issue
+                error_msg = str(e)
+                if 'insufficient_quota' in error_msg or 'quota' in error_msg.lower():
+                    logger.error(f"❌ OpenAI API Quota Exceeded: {error_msg}")
+                    logger.error("💡 Possible causes:")
+                    logger.error("   1. API key has no credits/billing not set up")
+                    logger.error("   2. Monthly quota limit reached")
+                    logger.error("   3. API key is incorrect or expired")
+                    logger.error("   4. Account needs payment method added")
+                    raise
+                else:
+                    # Rate limit (too many requests), try fallback
+                    logger.warning(f"⚠️  Rate limit hit for {model}, trying fallback: {e}")
+                    if model.startswith('gpt-5'):
+                        model = "gpt-4o"
+                        logger.info(f"🔄 Falling back to model: {model}")
+                        response = client.chat.completions.create(
+                            model=model,
+                            messages=[
+                                {
+                                    "role": "system", 
+                                    "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
+                                },
+                                {"role": "user", "content": prompt}
+                            ],
+                            temperature=0.1,
+                            max_tokens=2000
+                        )
+                    else:
+                        raise
             except Exception as e:
                 # Fallback to gpt-4o if GPT-5 not available
                 if model.startswith('gpt-5'):
-                    logger.warning(f"GPT-5 model {model} not available, falling back to gpt-4o: {e}")
+                    logger.warning(f"⚠️  GPT-5 model {model} not available, falling back to gpt-4o: {e}")
                     model = "gpt-4o"
-                    response = client.chat.completions.create(
-                        model=model,
-                        messages=[
-                            {
-                                "role": "system", 
-                                "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
-                            },
-                            {"role": "user", "content": prompt}
-                        ],
-                        temperature=0.1,
-                        max_tokens=2000
-                    )
+                    try:
+                        response = client.chat.completions.create(
+                            model=model,
+                            messages=[
+                                {
+                                    "role": "system", 
+                                    "content": "You are an expert wedding venue data extraction specialist. Extract comprehensive, structured information from wedding venue websites. Return ONLY valid JSON with no markdown, no code blocks, no explanations. Be thorough but accurate - include all available information while ensuring data quality."
+                                },
+                                {"role": "user", "content": prompt}
+                            ],
+                            temperature=0.1,
+                            max_tokens=2000
+                        )
+                    except Exception as fallback_error:
+                        logger.error(f"❌ Fallback model also failed: {fallback_error}")
+                        raise
                 else:
                     raise
             tokens_used = response.usage.total_tokens if hasattr(response, 'usage') and response.usage else 'unknown'

@@ -96,12 +96,16 @@ def generate_chat_response(
     
     api_key = os.getenv('OPENAI_API_KEY')
     if not api_key:
+        logger.error("❌ OPENAI_API_KEY environment variable is not set")
         return {
             'message': 'OpenAI API key is not configured.',
             'citations': [],
             'tokens_used': 0,
             'model_used': None
         }
+    
+    # Log API key info (masked for security)
+    logger.info(f"🔑 API Key configured: {api_key[:10]}...{api_key[-4:] if len(api_key) > 14 else '***'} (length: {len(api_key)})")
     
     try:
         # Retrieve relevant chunks
@@ -157,6 +161,7 @@ Please provide a helpful answer and cite relevant documents using [Document X] n
         client = openai.OpenAI(api_key=api_key)
         
         # Try GPT-5 model first, fallback to gpt-4o if not available
+        logger.info(f"🤖 Attempting to use model: {model}")
         try:
             response = client.chat.completions.create(
                 model=model,
@@ -164,22 +169,57 @@ Please provide a helpful answer and cite relevant documents using [Document X] n
                 temperature=0.7,
                 max_tokens=1000
             )
+            logger.info(f"✅ Successfully used model: {model}")
+        except openai.RateLimitError as e:
+            # Check if it's a quota issue
+            error_msg = str(e)
+            if 'insufficient_quota' in error_msg or 'quota' in error_msg.lower():
+                logger.error(f"❌ OpenAI API Quota Exceeded: {error_msg}")
+                logger.error("💡 Possible causes:")
+                logger.error("   1. API key has no credits/billing not set up")
+                logger.error("   2. Monthly quota limit reached")
+                logger.error("   3. API key is incorrect or expired")
+                logger.error("   4. Account needs payment method added")
+                raise
+            else:
+                # Rate limit (too many requests), try fallback
+                logger.warning(f"⚠️  Rate limit hit for {model}, trying fallback: {e}")
+                if model.startswith('gpt-5'):
+                    model = "gpt-4o"
+                    logger.info(f"🔄 Falling back to model: {model}")
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=1000
+                    )
+                else:
+                    raise
         except Exception as e:
             # If GPT-5 model not available, fallback to gpt-4o
             if model.startswith('gpt-5'):
-                logger.warning(f"GPT-5 model {model} not available, falling back to gpt-4o: {e}")
+                logger.warning(f"⚠️  GPT-5 model {model} not available, falling back to gpt-4o: {e}")
                 model = "gpt-4o"
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=0.7,
-                    max_tokens=1000
-                )
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        temperature=0.7,
+                        max_tokens=1000
+                    )
+                except Exception as fallback_error:
+                    logger.error(f"❌ Fallback model also failed: {fallback_error}")
+                    raise
             else:
                 raise
         
         assistant_message = response.choices[0].message.content
         tokens_used = response.usage.total_tokens if response.usage else 0
+        
+        # Log token usage for debugging
+        if response.usage:
+            logger.info(f"📊 Token usage - Prompt: {response.usage.prompt_tokens}, Completion: {response.usage.completion_tokens}, Total: {tokens_used}")
+            logger.info(f"💰 Estimated cost: ${(response.usage.prompt_tokens * 0.00001 + response.usage.completion_tokens * 0.00003):.6f} (approx)")
         
         return {
             'message': assistant_message,
