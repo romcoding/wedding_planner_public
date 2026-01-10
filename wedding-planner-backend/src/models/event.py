@@ -34,25 +34,32 @@ class Event(db.Model):
     user = db.relationship('User', backref=db.backref('events', lazy=True))
     
     def to_dict(self, include_tasks=False):
-        """Convert event to dictionary"""
+        """Convert event to dictionary with safe handling of missing columns"""
+        # Safely get attribute values with defaults
+        def safe_get(attr, default=None):
+            try:
+                return getattr(self, attr, default) if hasattr(self, attr) else default
+            except:
+                return default
+        
         result = {
             'id': self.id,
             'user_id': self.user_id,
-            'name': self.name,
-            'description': self.description,
-            'location': self.location,
+            'name': safe_get('name', ''),
+            'description': safe_get('description'),
+            'location': safe_get('location'),
             'start_time': self.start_time.isoformat() if self.start_time else None,
-            'end_time': self.end_time.isoformat() if self.end_time else None,
-            'end_date': self.end_date.isoformat() if self.end_date else None,
-            'order': self.order,
-            'is_public': self.is_public,
-            'is_active': self.is_active,
-            'dress_code': self.dress_code,
-            'notes': self.notes,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'end_time': safe_get('end_time').isoformat() if safe_get('end_time') else None,
+            'end_date': safe_get('end_date').isoformat() if safe_get('end_date') else None,
+            'order': safe_get('order', 0),
+            'is_public': safe_get('is_public', True),
+            'is_active': safe_get('is_active', True),
+            'dress_code': safe_get('dress_code'),
+            'notes': safe_get('notes'),
+            'created_at': self.created_at.isoformat() if hasattr(self, 'created_at') and self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if hasattr(self, 'updated_at') and self.updated_at else None,
         }
-        if include_tasks and self.tasks:
+        if include_tasks and hasattr(self, 'tasks') and self.tasks:
             result['tasks'] = [task.to_dict() for task in self.tasks]
         return result
 
