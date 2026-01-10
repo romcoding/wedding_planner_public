@@ -39,8 +39,11 @@ def get_documents(venue_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     venue = Venue.query.get(venue_id)
-    if not venue or venue.user_id != user_id:
+    if not venue:
         return jsonify({'error': 'Venue not found'}), 404
+    # Allow admin to access any venue
+    if venue.user_id != user_id and user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     documents = VenueDocument.query.filter_by(venue_id=venue_id).order_by(VenueDocument.created_at.desc()).all()
     return jsonify([doc.to_dict() for doc in documents]), 200
@@ -57,8 +60,11 @@ def upload_document(venue_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     venue = Venue.query.get(venue_id)
-    if not venue or venue.user_id != user_id:
+    if not venue:
         return jsonify({'error': 'Venue not found'}), 404
+    # Allow admin to access any venue
+    if venue.user_id != user_id and user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400

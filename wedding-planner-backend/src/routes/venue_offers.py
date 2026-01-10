@@ -21,8 +21,11 @@ def get_categories(venue_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     venue = Venue.query.get(venue_id)
-    if not venue or venue.user_id != user_id:
+    if not venue:
         return jsonify({'error': 'Venue not found'}), 404
+    # Allow admin to access any venue
+    if venue.user_id != user_id and user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     categories = VenueOfferCategory.query.filter_by(venue_id=venue_id).order_by(VenueOfferCategory.order).all()
     return jsonify([cat.to_dict(include_offers=True) for cat in categories]), 200
@@ -39,8 +42,11 @@ def create_category(venue_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     venue = Venue.query.get(venue_id)
-    if not venue or venue.user_id != user_id:
+    if not venue:
         return jsonify({'error': 'Venue not found'}), 404
+    # Allow admin to access any venue
+    if venue.user_id != user_id and user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.get_json()
     if not data or not data.get('name'):

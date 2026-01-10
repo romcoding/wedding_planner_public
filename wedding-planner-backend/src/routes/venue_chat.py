@@ -23,8 +23,11 @@ def chat(venue_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     venue = Venue.query.get(venue_id)
-    if not venue or venue.user_id != user_id:
+    if not venue:
         return jsonify({'error': 'Venue not found'}), 404
+    # Allow admin to access any venue
+    if venue.user_id != user_id and user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.get_json()
     if not data or not data.get('message'):
@@ -32,7 +35,7 @@ def chat(venue_id):
     
     user_message = data['message']
     session_id = data.get('session_id')
-    model = data.get('model', 'gpt-4o-mini')
+    model = data.get('model', 'gpt-4o')  # Use latest GPT-4o model
     
     try:
         # Get conversation history if session_id provided
@@ -102,8 +105,11 @@ def get_chat_history(venue_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     venue = Venue.query.get(venue_id)
-    if not venue or venue.user_id != user_id:
+    if not venue:
         return jsonify({'error': 'Venue not found'}), 404
+    # Allow admin to access any venue
+    if venue.user_id != user_id and user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
     
     session_id = request.args.get('session_id')
     limit = request.args.get('limit', type=int, default=50)

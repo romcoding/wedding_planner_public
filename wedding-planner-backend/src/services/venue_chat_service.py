@@ -80,7 +80,7 @@ def generate_chat_response(
     venue_id: int,
     user_query: str,
     conversation_history: Optional[List[Dict]] = None,
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-4o"  # Latest GPT-4o model for best performance
 ) -> Dict:
     """
     Generate chat response using RAG

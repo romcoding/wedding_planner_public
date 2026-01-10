@@ -515,7 +515,7 @@ Return ONLY valid JSON. No markdown, no explanations, no code blocks. Example st
             logger.info("📡 Calling OpenAI API...")
             client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model="gpt-4o",  # Use latest GPT-4o model
                 messages=[
                     {
                         "role": "system", 
