@@ -977,10 +977,13 @@ export function VenueDocumentsTab({ venueId }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center mb-4">
         <div>
-          <h3 className="text-lg font-semibold text-gray-900">Documents</h3>
-          <p className="text-sm text-gray-600">Upload PDF or DOCX files for AI-powered chat features</p>
+          <h3 className="text-lg font-semibold text-gray-900">Venue Documents</h3>
+          <p className="text-sm text-gray-600">
+            Upload PDF or DOCX files (e.g., venue brochures, pricing sheets, contracts) to enable AI-powered chat.
+            Documents are automatically processed and embedded for semantic search.
+          </p>
         </div>
       </div>
 
@@ -998,15 +1001,18 @@ export function VenueDocumentsTab({ venueId }) {
       >
         <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
         <p className="text-gray-700 font-medium mb-2">
-          Drag and drop files here, or click to browse
+          Drag and drop PDF or DOCX files here, or click to browse
         </p>
-        <p className="text-sm text-gray-500 mb-4">
+        <p className="text-sm text-gray-500 mb-2">
           Supported formats: PDF, DOCX (Max 10MB per file)
+        </p>
+        <p className="text-xs text-gray-400 mb-4">
+          💡 Documents are automatically parsed, chunked, and embedded for AI chat. Processing may take a few moments.
         </p>
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.docx,.doc"
+          accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
           onChange={handleFileInput}
           className="hidden"
           id="document-upload"
@@ -1016,7 +1022,7 @@ export function VenueDocumentsTab({ venueId }) {
           htmlFor="document-upload"
           className="inline-block px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 cursor-pointer font-medium"
         >
-          Select Files
+          Select PDF or DOCX Files
         </label>
       </div>
 
