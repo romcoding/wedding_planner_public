@@ -38,6 +38,9 @@ def create_app():
         force=True  # Force reconfiguration
     )
     
+    # Get logger after configuration
+    logger = logging.getLogger(__name__)
+    
     # Configuration
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
