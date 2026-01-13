@@ -47,6 +47,7 @@ export function VenueOffersTab({ venueId }) {
   const { data: categories, isLoading } = useQuery({
     queryKey: ['venue-offers', venueId],
     queryFn: () => api.get(`/venues/${venueId}/categories`).then(res => res.data),
+    enabled: !!venueId, // Only run query if venueId is defined
   })
 
   const createCategory = useMutation({
@@ -859,6 +860,7 @@ export function VenueDocumentsTab({ venueId }) {
   const { data: documents, isLoading } = useQuery({
     queryKey: ['venue-documents', venueId],
     queryFn: () => api.get(`/venues/${venueId}/documents`).then(res => res.data),
+    enabled: !!venueId, // Only run query if venueId is defined
   })
 
   const uploadDocument = useMutation({

@@ -57,11 +57,32 @@ def create_app():
     
     # CORS configuration
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    # Build list of allowed origins
+    allowed_origins = [frontend_url]
+    
+    # Add Vercel deployment URL if provided
+    vercel_url = os.getenv('VERCEL_URL')
+    if vercel_url and not vercel_url.startswith('http'):
+        vercel_url = f'https://{vercel_url}'
+    if vercel_url and vercel_url not in allowed_origins:
+        allowed_origins.append(vercel_url)
+    
+    # Always allow the production Vercel domain
+    production_vercel = 'https://weddingplanner-mu.vercel.app'
+    if production_vercel not in allowed_origins:
+        allowed_origins.append(production_vercel)
+    
+    # Remove duplicates and None values
+    allowed_origins = list(set([origin for origin in allowed_origins if origin]))
+    
+    logger.info(f"CORS allowed origins: {allowed_origins}")
+    
     CORS(app, 
-         origins=[frontend_url], 
+         origins=allowed_origins, 
          supports_credentials=True,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-         allow_headers=['Content-Type', 'Authorization'])
+         allow_headers=['Content-Type', 'Authorization'],
+         expose_headers=['Content-Length', 'Content-Type'])
     
     # Initialize extensions
     db.init_app(app)
