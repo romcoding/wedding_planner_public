@@ -85,7 +85,8 @@ def create_app():
          supports_credentials=True,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization'],
-         expose_headers=['Content-Length', 'Content-Type'])
+         expose_headers=['Content-Length', 'Content-Type'],
+         always_send=True)  # Always send CORS headers, even on errors
     
     # Initialize extensions
     db.init_app(app)

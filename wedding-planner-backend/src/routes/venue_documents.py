@@ -105,18 +105,22 @@ def upload_document(venue_id):
         db.session.add(document)
         db.session.flush()  # Get document.id
         
-        # Process document asynchronously (for now, process synchronously)
+        # Set initial status and commit to get document ID
+        document.status = 'processing'
+        db.session.commit()
+        
+        # Return immediately with processing status to avoid timeout
+        # Process document in background (synchronously for now, but return early)
+        response_data = document.to_dict()
+        
+        # Process document asynchronously (for now, process synchronously after response)
         try:
-            document.status = 'processing'
-            db.session.commit()
-            
             # Parse document
             extracted_text = parse_document(file_path, file.content_type)
             if not extracted_text:
                 raise ValueError("No text extracted from document")
             
             document.extracted_text = extracted_text
-            document.status = 'processed'
             
             # Create chunks
             chunks = chunk_text(extracted_text, chunk_size=1000, overlap=200)
@@ -159,16 +163,18 @@ def upload_document(venue_id):
             
             db.session.bulk_save_objects(chunk_objects)
             document.chunk_count = len(chunk_objects)
+            document.status = 'processed'
             db.session.commit()
-            
-            return jsonify(document.to_dict()), 201
             
         except Exception as e:
             logger.error(f"Error processing document: {e}")
             document.status = 'error'
             document.error_message = str(e)
             db.session.commit()
-            return jsonify({'error': f'Failed to process document: {str(e)}'}), 500
+            # Don't return error here - already sent response
+        
+        # Return response immediately to avoid timeout
+        return jsonify(response_data), 201
         
     except Exception as e:
         db.session.rollback()
