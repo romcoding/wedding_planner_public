@@ -105,15 +105,11 @@ def upload_document(venue_id):
         db.session.add(document)
         db.session.flush()  # Get document.id
         
-        # Set initial status and commit to get document ID
+        # Set initial status
         document.status = 'processing'
         db.session.commit()
         
-        # Return immediately with processing status to avoid timeout
-        # Process document in background (synchronously for now, but return early)
-        response_data = document.to_dict()
-        
-        # Process document asynchronously (for now, process synchronously after response)
+        # Process document (this may take time for large PDFs)
         try:
             # Parse document
             extracted_text = parse_document(file_path, file.content_type)
@@ -166,15 +162,15 @@ def upload_document(venue_id):
             document.status = 'processed'
             db.session.commit()
             
+            return jsonify(document.to_dict()), 201
+            
         except Exception as e:
             logger.error(f"Error processing document: {e}")
             document.status = 'error'
             document.error_message = str(e)
             db.session.commit()
-            # Don't return error here - already sent response
-        
-        # Return response immediately to avoid timeout
-        return jsonify(response_data), 201
+            # Return error response with CORS headers (ensured by always_send=True)
+            return jsonify({'error': f'Failed to process document: {str(e)}', 'document_id': document.id}), 500
         
     except Exception as e:
         db.session.rollback()
