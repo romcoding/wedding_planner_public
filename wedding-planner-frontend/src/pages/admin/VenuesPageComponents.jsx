@@ -863,29 +863,18 @@ export function VenueDocumentsTab({ venueId }) {
 
   const uploadDocument = useMutation({
     mutationFn: (formData) => {
-      return new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100
-            setUploadProgress(prev => ({ ...prev, [formData.get('file').name]: percentComplete }))
+      const fileName = formData.get('file').name
+      return api.post(`/venues/${venueId}/documents`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentComplete = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+            setUploadProgress(prev => ({ ...prev, [fileName]: percentComplete }))
           }
-        })
-        xhr.addEventListener('load', () => {
-          if (xhr.status === 201) {
-            resolve(JSON.parse(xhr.responseText))
-          } else {
-            reject(new Error(xhr.responseText))
-          }
-        })
-        xhr.addEventListener('error', () => reject(new Error('Upload failed')))
-        xhr.open('POST', `${import.meta.env.VITE_API_URL}/venues/${venueId}/documents`)
-        const token = localStorage.getItem('token')
-        if (token) {
-          xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-        }
-        xhr.send(formData)
-      })
+        },
+      }).then(response => response.data)
     },
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['venue-documents', venueId])
@@ -904,7 +893,8 @@ export function VenueDocumentsTab({ venueId }) {
         delete newProgress[fileName]
         return newProgress
       })
-      alert(`Failed to upload ${fileName}: ${error.message}`)
+      const errorMessage = error.response?.data?.error || error.message || 'Upload failed'
+      alert(`Failed to upload ${fileName}: ${errorMessage}`)
     },
   })
 
