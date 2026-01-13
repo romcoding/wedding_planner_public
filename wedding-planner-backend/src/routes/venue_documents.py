@@ -121,25 +121,44 @@ def upload_document(venue_id):
             # Create chunks
             chunks = chunk_text(extracted_text, chunk_size=1000, overlap=200)
             
+            if not chunks or len(chunks) == 0:
+                raise ValueError("No chunks created from document text")
+            
             # Get embeddings for chunks
             chunk_texts = [chunk[1] for chunk in chunks]
+            if not chunk_texts:
+                raise ValueError("No chunk texts extracted")
+            
             embeddings = get_embeddings_batch(chunk_texts)
             
             # Create chunk records
             chunk_objects = []
-            for i, (chunk_index, chunk_text) in enumerate(chunks):
+            for i, chunk_tuple in enumerate(chunks):
+                if not isinstance(chunk_tuple, tuple) or len(chunk_tuple) != 2:
+                    logger.warning(f"Invalid chunk format at index {i}: {chunk_tuple}")
+                    continue
+                
+                chunk_index, chunk_text_content = chunk_tuple
+                
+                if not chunk_text_content or not isinstance(chunk_text_content, str):
+                    logger.warning(f"Invalid chunk text at index {i}")
+                    continue
+                
                 embedding = embeddings[i] if i < len(embeddings) and embeddings[i] else None
                 chunk = DocumentChunk(
                     document_id=document.id,
                     chunk_index=chunk_index,
-                    text=chunk_text,
-                    text_length=len(chunk_text),
+                    text=chunk_text_content,
+                    text_length=len(chunk_text_content),
                     embedding=json.dumps(embedding) if embedding else None
                 )
                 chunk_objects.append(chunk)
             
+            if not chunk_objects:
+                raise ValueError("No valid chunks created from document")
+            
             db.session.bulk_save_objects(chunk_objects)
-            document.chunk_count = len(chunks)
+            document.chunk_count = len(chunk_objects)
             db.session.commit()
             
             return jsonify(document.to_dict()), 201
