@@ -28,6 +28,8 @@ import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageCom
 export default function VenuesPage() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
+  const [wizardStep, setWizardStep] = useState(1)
   const [editingId, setEditingId] = useState(null)
   const [selectedVenues, setSelectedVenues] = useState([])
   const [showCompare, setShowCompare] = useState(false)
@@ -35,9 +37,21 @@ export default function VenuesPage() {
   const [scrapingUrl, setScrapingUrl] = useState('')
   const [isScraping, setIsScraping] = useState(false)
   const [useLLM, setUseLLM] = useState(false)
+  const [skipScrape, setSkipScrape] = useState(false)
   const fileInputRef = useRef(null)
   const csvFileInputRef = useRef(null)
   const [imagePreviews, setImagePreviews] = useState([])
+  const [wizardData, setWizardData] = useState({
+    // Step 1: Basic info (scraped or manual)
+    basicInfo: null,
+    // Step 2: Venue details
+    venueDetails: null,
+    // Step 3: Documents (will be uploaded)
+    documents: [],
+    // Step 4: Offers (will be added)
+    offers: [],
+    // Step 5: Review
+  })
   
   // Filters
   const [searchTerm, setSearchTerm] = useState('')
