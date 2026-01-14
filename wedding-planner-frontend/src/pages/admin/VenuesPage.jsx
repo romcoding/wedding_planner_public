@@ -20,7 +20,8 @@ import {
   X,
   Loader,
   Image as ImageIcon,
-  Calendar
+  Calendar,
+  Check
 } from 'lucide-react'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageComponents'
@@ -429,9 +430,17 @@ export default function VenuesPage() {
           <button
             onClick={() => {
               resetForm()
-              setShowForm(true)
+              setShowWizard(true)
+              setWizardStep(1)
+              setWizardData({
+                basicInfo: null,
+                venueDetails: null,
+                documents: [],
+                offers: [],
+              })
+              setSkipScrape(false)
             }}
-            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
           >
             <PlusCircle className="h-5 w-5" />
             Add Venue
