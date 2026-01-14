@@ -397,8 +397,8 @@ const SeatingChartPage = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Seating Chart</h1>
-          <p className="text-gray-600 mt-1">Drag tables to arrange them, drag guests to assign seats</p>
+          <h1 className="text-3xl font-bold text-gray-900">Seating Chart</h1>
+          <p className="text-gray-700 mt-1">Drag tables to arrange them, drag guests to assign seats</p>
         </div>
         <div className="flex gap-2">
           <button
