@@ -133,7 +133,7 @@ export default function WeddingManagement() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Not Staying Overnight</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900">
                 {overview?.guests?.attendance_breakdown?.no_overnight_stay || 0}
               </span>
             </div>
@@ -149,19 +149,19 @@ export default function WeddingManagement() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">With Restrictions</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900">
                 {dietary?.summary?.guests_with_restrictions || 0}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">With Allergies</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900">
                 {dietary?.summary?.guests_with_allergies || 0}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Special Requests</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900">
                 {dietary?.summary?.guests_with_special_requests || 0}
               </span>
             </div>
@@ -177,7 +177,7 @@ export default function WeddingManagement() {
           <div className="space-y-4">
             <div className="flex justify-between items-center pb-3 border-b">
               <span className="text-gray-600">Planned</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900">
                 ${budget?.costs?.total_planned?.toLocaleString() || '0'}
               </span>
             </div>

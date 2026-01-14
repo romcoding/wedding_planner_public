@@ -103,7 +103,7 @@ export default function AdminDashboard() {
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Planned</span>
-              <span className="font-semibold">
+              <span className="font-semibold text-gray-900">
                 ${budget?.costs?.total_planned?.toLocaleString() || '0'}
               </span>
             </div>
