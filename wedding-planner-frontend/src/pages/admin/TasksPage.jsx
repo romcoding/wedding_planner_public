@@ -123,34 +123,49 @@ function TaskCard({ task, onEdit, onDelete }) {
 
 // Kanban Column Component
 function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
-  const { setNodeRef, isOver } = useDroppable({ id })
+  const { setNodeRef, isOver } = useDroppable({ 
+    id,
+    data: {
+      type: 'column',
+      status: id
+    }
+  })
 
   return (
     <div
       ref={setNodeRef}
-      className={`flex-1 min-w-[280px] bg-gray-50 rounded-lg p-4 ${
-        isOver ? 'bg-blue-50 ring-2 ring-blue-400' : ''
+      className={`flex-1 min-w-[280px] rounded-lg overflow-hidden ${
+        isOver ? 'ring-2 ring-blue-400 ring-offset-2' : ''
       }`}
     >
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="font-semibold text-gray-900 text-lg">{title}</h2>
-        <span className="bg-gray-200 text-gray-700 text-xs font-medium px-2 py-1 rounded-full">
-          {tasks.length}
-        </span>
-      </div>
-      <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-2 min-h-[200px]">
-          {tasks.length === 0 ? (
-            <div className="text-center py-8 text-gray-400 text-sm">
-              No tasks
-            </div>
-          ) : (
-            tasks.map((task) => (
-              <TaskCard key={task.id} task={task} onEdit={onEdit} onDelete={onDelete} />
-            ))
-          )}
+      {/* Column Header */}
+      <div className="bg-gray-100 border-b-2 border-gray-300 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 text-lg">{title}</h2>
+          <span className="bg-gray-300 text-gray-800 text-xs font-bold px-2.5 py-1 rounded-full">
+            {tasks.length}
+          </span>
         </div>
-      </SortableContext>
+      </div>
+      
+      {/* Column Content Area with grayish background */}
+      <div className={`bg-gray-50 min-h-[400px] p-3 transition-colors ${
+        isOver ? 'bg-blue-50' : ''
+      }`}>
+        <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+          <div className="space-y-2">
+            {tasks.length === 0 ? (
+              <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+                Drop tasks here
+              </div>
+            ) : (
+              tasks.map((task) => (
+                <TaskCard key={task.id} task={task} onEdit={onEdit} onDelete={onDelete} />
+              ))
+            )}
+          </div>
+        </SortableContext>
+      </div>
     </div>
   )
 }
@@ -336,13 +351,33 @@ const TasksPage = () => {
     const { active, over } = event
     setActiveId(null)
 
-    if (!over || active.id === over.id) return
+    if (!over) return
 
     const taskId = active.id
-    const newStatus = over.id // The column ID is the status
+    
+    // Check if dropped on a column (status) or another task
+    let newStatus = null
+    
+    // If over.id is a status column, use it directly
+    if (['todo', 'in_progress', 'completed', 'cancelled'].includes(over.id)) {
+      newStatus = over.id
+    } else {
+      // If dropped on another task, find which column it's in
+      const targetTask = tasks?.find(t => t.id === over.id)
+      if (targetTask) {
+        newStatus = targetTask.status
+      } else {
+        // Try to get status from the droppable data
+        const overData = over.data?.current
+        if (overData?.status) {
+          newStatus = overData.status
+        }
+      }
+    }
 
-    // Only update if moving to a different status column
-    if (['todo', 'in_progress', 'completed', 'cancelled'].includes(newStatus)) {
+    // Only update if status changed and is valid
+    const currentTask = tasks?.find(t => t.id === taskId)
+    if (newStatus && currentTask && currentTask.status !== newStatus) {
       handleUpdate(taskId, 'status', newStatus)
     }
   }
@@ -663,7 +698,7 @@ const TasksPage = () => {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 min-h-[500px]">
             <KanbanColumn
               id="todo"
               title="To Do"
