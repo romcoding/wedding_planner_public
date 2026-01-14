@@ -2,9 +2,11 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Mail, X, CheckCircle, Clock, AlertCircle } from 'lucide-react'
+import { useToast } from '../../components/ui/Toast'
 
 const InvitationsPage = () => {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({
     email: '',
@@ -14,6 +16,7 @@ const InvitationsPage = () => {
     expires_days: 30,
     send_email: true,
   })
+  const [fieldErrors, setFieldErrors] = useState({})
 
   const { data: invitations, isLoading } = useQuery({
     queryKey: ['invitations'],
@@ -26,9 +29,14 @@ const InvitationsPage = () => {
       queryClient.invalidateQueries(['invitations'])
       resetForm()
       setShowForm(false)
+      setFieldErrors({})
+      toast.success('Invitation created successfully!')
     },
     onError: (error) => {
-      alert(error.response?.data?.error || 'Failed to create invitation')
+      const errorData = error.response?.data
+      const errorMsg = errorData?.error || 'Failed to create invitation'
+      setFieldErrors({ general: errorMsg })
+      toast.error(errorMsg)
     },
   })
 
@@ -67,15 +75,39 @@ const InvitationsPage = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    setFieldErrors({})
+    
+    // Validate required fields
+    const errors = {}
+    if (!formData.email || !formData.email.trim()) {
+      errors.email = 'Email address is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+    
     createInvitation.mutate(formData)
   }
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
+    // Update only the changed field, preserve others
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : type === 'number' ? parseInt(value) || 0 : value,
     }))
+    // Clear field error when user starts typing
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const newErrors = { ...prev }
+        delete newErrors[name]
+        return newErrors
+      })
+    }
   }
 
   const getStatusIcon = (status) => {
@@ -132,10 +164,27 @@ const InvitationsPage = () => {
 
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Create New Invitation</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">Create New Invitation</h2>
+            <button
+              onClick={() => {
+                resetForm()
+                setShowForm(false)
+                setFieldErrors({})
+              }}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="h-6 w-6" />
+            </button>
+          </div>
+          {fieldErrors.general && (
+            <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+              {fieldErrors.general}
+            </div>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1 text-gray-900">
                 Email Address *
               </label>
               <input
@@ -143,13 +192,19 @@ const InvitationsPage = () => {
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
+                onBlur={(e) => e.stopPropagation()}
                 required
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={`w-full px-3 py-2 border-2 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 ${
+                  fieldErrors.email ? 'border-red-500' : 'border-gray-400'
+                }`}
               />
+              {fieldErrors.email && (
+                <p className="text-red-600 text-sm mt-1">{fieldErrors.email}</p>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1 text-gray-900">
                 Guest Name (Optional)
               </label>
               <input
@@ -157,8 +212,9 @@ const InvitationsPage = () => {
                 name="guest_name"
                 value={formData.guest_name}
                 onChange={handleChange}
+                onBlur={(e) => e.stopPropagation()}
                 placeholder="e.g., John & Jane"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
 
@@ -185,9 +241,10 @@ const InvitationsPage = () => {
                   name="plus_one_count"
                   value={formData.plus_one_count}
                   onChange={handleChange}
+                  onBlur={(e) => e.stopPropagation()}
                   min="0"
                   max="10"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 />
               </div>
             )}
@@ -201,9 +258,10 @@ const InvitationsPage = () => {
                 name="expires_days"
                 value={formData.expires_days}
                 onChange={handleChange}
+                onBlur={(e) => e.stopPropagation()}
                 min="1"
                 max="365"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
 
@@ -223,17 +281,19 @@ const InvitationsPage = () => {
             <div className="flex gap-2">
               <button
                 type="submit"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                disabled={createInvitation.isPending}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
               >
-                Create Invitation
+                {createInvitation.isPending ? 'Creating...' : 'Create Invitation'}
               </button>
               <button
                 type="button"
                 onClick={() => {
                   resetForm()
                   setShowForm(false)
+                  setFieldErrors({})
                 }}
-                className="bg-gray-200 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-300 font-medium"
+                className="px-4 py-2 border-2 border-gray-400 text-gray-900 rounded-lg hover:bg-gray-100 font-medium"
               >
                 Cancel
               </button>

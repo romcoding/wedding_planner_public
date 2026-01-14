@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, AlertTriangle, Upload, FileText } from 'lucide-react'
+import { PlusCircle, Trash, Edit, AlertTriangle, Upload, FileText, X } from 'lucide-react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { useToast } from '../../components/ui/Toast'
 
 const CATEGORIES = [
   'Venue',
@@ -22,6 +23,7 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'
 
 const CostsPage = () => {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [formData, setFormData] = useState({
@@ -60,7 +62,7 @@ const CostsPage = () => {
       resetForm()
       setShowForm(false)
       setFieldErrors({})
-      alert('Cost created successfully!')
+      toast.success('Cost created successfully!')
     },
     onError: (error) => {
       console.error('Error creating cost:', error)
@@ -68,7 +70,9 @@ const CostsPage = () => {
       if (errorData?.errors) {
         setFieldErrors(errorData.errors)
       } else {
-        setFieldErrors({ general: errorData?.error || 'Failed to create cost. Please check all required fields and ensure amount is a valid number.' })
+        const errorMsg = errorData?.error || 'Failed to create cost. Please check all required fields and ensure amount is a valid number.'
+        setFieldErrors({ general: errorMsg })
+        toast.error(errorMsg)
       }
     },
   })
@@ -78,6 +82,17 @@ const CostsPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['costs'])
       queryClient.invalidateQueries(['cost-analytics'])
+      resetForm()
+      setShowForm(false)
+      setFieldErrors({})
+      toast.success('Cost updated successfully!')
+    },
+    onError: (error) => {
+      console.error('Error updating cost:', error)
+      const errorData = error.response?.data
+      const errorMsg = errorData?.error || 'Failed to update cost. Please try again.'
+      setFieldErrors({ general: errorMsg })
+      toast.error(errorMsg)
     },
   })
 
@@ -289,12 +304,36 @@ const CostsPage = () => {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              resetForm()
+              setShowForm(false)
+            }
+          }}
+        >
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
-              <h2 className="text-xl font-semibold mb-4">
-                {editingId ? 'Edit Cost' : 'Add New Cost'}
-              </h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {editingId ? 'Edit Cost' : 'Add New Cost'}
+                </h2>
+                <button
+                  onClick={() => {
+                    resetForm()
+                    setShowForm(false)
+                  }}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+              {fieldErrors.general && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded">
+                  {fieldErrors.general}
+                </div>
+              )}
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -375,8 +414,13 @@ const CostsPage = () => {
                     <input
                       type="date"
                       value={formData.payment_date}
-                      onChange={(e) => setFormData({ ...formData, payment_date: e.target.value })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      onChange={(e) => {
+                        // Prevent event from bubbling and preserve other form fields
+                        e.stopPropagation()
+                        setFormData(prev => ({ ...prev, payment_date: e.target.value }))
+                      }}
+                      onFocus={(e) => e.stopPropagation()}
+                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     />
                     <p className="text-xs text-gray-500 mt-1">Date when payment was/will be made</p>
                   </div>
@@ -469,9 +513,10 @@ const CostsPage = () => {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                    disabled={createCost.isPending || updateCost.isPending}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
-                    {editingId ? 'Update' : 'Create'} Cost
+                    {createCost.isPending || updateCost.isPending ? 'Saving...' : (editingId ? 'Update' : 'Create') + ' Cost'}
                   </button>
                 </div>
               </form>

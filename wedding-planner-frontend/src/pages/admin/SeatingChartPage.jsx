@@ -178,11 +178,6 @@ const SeatingChartPage = () => {
       return
     }
 
-    setActiveId(null)
-    setDraggedTableId(null)
-
-    if (!over) return
-
     const overData = over.data.current
 
     // If dragging a guest to a seat
@@ -216,8 +211,8 @@ const SeatingChartPage = () => {
             alert('Failed to unassign current guest. Please try again.')
           }
         })
-      } else {
-        // Seat is empty or same guest, just assign
+      } else if (!seat?.guest_id) {
+        // Seat is empty, just assign
         assignGuest.mutate({
           table_id: tableId,
           seat_number: seatNumber,
@@ -229,6 +224,27 @@ const SeatingChartPage = () => {
           }
         })
       }
+      setActiveId(null)
+      setDraggedTableId(null)
+      return
+    }
+
+    // If dragging a guest to unassigned zone
+    if (activeData?.type === 'guest' && overData?.type === 'unassigned') {
+      // Find the current assignment for this guest
+      const guestId = activeData.guestId
+      const table = tables?.find(t => 
+        t.assignments?.some(a => a.guest_id === guestId)
+      )
+      if (table) {
+        const assignment = table.assignments.find(a => a.guest_id === guestId)
+        if (assignment) {
+          unassignGuest.mutate(assignment.id)
+        }
+      }
+      setActiveId(null)
+      setDraggedTableId(null)
+      return
     }
 
     // If dragging a guest from a seat to another seat
@@ -618,7 +634,9 @@ function GuestCard({ guest, isDragging }) {
       style={style}
       {...listeners}
       {...attributes}
-      className={`bg-blue-50 border-2 border-blue-300 rounded-lg p-3 cursor-move hover:bg-blue-100 transition-colors ${isDragging ? 'opacity-50' : ''}`}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+      className={`bg-blue-50 border-2 border-blue-300 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors ${isDragging ? 'opacity-50' : ''}`}
     >
       <p className="font-medium text-sm text-gray-900">
         {guest.first_name} {guest.last_name}
@@ -641,7 +659,8 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
       type: 'table',
       tableId: table.id,
       table: table
-    }
+    },
+    disabled: false // Always allow table dragging via handle
   })
 
   const style = {
@@ -668,12 +687,13 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
         }
       }}
     >
-      {/* Drag handle */}
+      {/* Drag handle - only for table movement */}
       <div
         {...listeners}
         {...attributes}
-        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move"
+        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move z-10"
         onClick={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <Move className="w-4 h-4" />
       </div>
@@ -712,13 +732,17 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
       </div>
       
       {/* Seats Grid */}
-      <div className={`grid gap-2 ${
-        table.shape === 'round' 
-          ? 'grid-cols-4' 
-          : table.shape === 'rectangular'
-          ? 'grid-cols-4'
-          : 'grid-cols-3'
-      }`}>
+      <div 
+        className={`seat-container grid gap-2 ${
+          table.shape === 'round' 
+            ? 'grid-cols-4' 
+            : table.shape === 'rectangular'
+            ? 'grid-cols-4'
+            : 'grid-cols-3'
+        }`}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
         {assignments.map((assignment) => (
           <SeatComponent
             key={assignment.id || `seat-${assignment.seat_number}`}
@@ -777,6 +801,13 @@ function SeatComponent({ assignment, tableId }) {
       style={style}
       {...(assignment.guest_id ? listeners : {})}
       {...(assignment.guest_id ? attributes : {})}
+      onClick={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        // Only stop propagation if this is a draggable seat (has guest)
+        if (assignment.guest_id) {
+          e.stopPropagation()
+        }
+      }}
       className={`min-w-[60px] min-h-[60px] rounded border-2 flex flex-col items-center justify-center text-xs font-medium transition-all ${
         assignment.guest_id
           ? isOver
