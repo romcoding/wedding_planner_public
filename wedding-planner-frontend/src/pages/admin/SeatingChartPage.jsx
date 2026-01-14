@@ -183,8 +183,22 @@ const SeatingChartPage = () => {
     // If dragging a guest to a seat
     if (activeData?.type === 'guest' && overData?.type === 'seat') {
       const guestId = activeData.guestId
+      if (!guestId) {
+        console.error('Guest ID not found in active data:', activeData)
+        setActiveId(null)
+        setDraggedTableId(null)
+        return
+      }
+      
       const tableId = overData.tableId
       const seatNumber = overData.seatNumber
+      
+      if (!tableId || !seatNumber) {
+        console.error('Table ID or seat number not found in over data:', overData)
+        setActiveId(null)
+        setDraggedTableId(null)
+        return
+      }
 
       // Check if seat is already taken
       const table = tables?.find(t => t.id === tableId)
@@ -798,7 +812,8 @@ function SeatComponent({ assignment, tableId }) {
   }, [setDroppableRef, setDraggableRef, assignment.guest_id])
 
   const style = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
+    transition: transform ? 'none' : undefined,
   }
 
   return (
