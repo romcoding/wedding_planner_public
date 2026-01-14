@@ -1336,7 +1336,7 @@ function VenueDetailModal({ venueId, onClose }) {
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">{venue.name}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{venue.name}</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
               <X className="h-6 w-6" />
             </button>
@@ -1694,38 +1694,6 @@ function VenueDetailModal({ venueId, onClose }) {
           )}
         </div>
       </div>
-
-      {/* Venue Setup Wizard */}
-      {showWizard && (
-        <VenueSetupWizard
-          wizardStep={wizardStep}
-          setWizardStep={setWizardStep}
-          wizardData={wizardData}
-          setWizardData={setWizardData}
-          skipScrape={skipScrape}
-          setSkipScrape={setSkipScrape}
-          scrapingUrl={scrapingUrl}
-          setScrapingUrl={setScrapingUrl}
-          isScraping={isScraping}
-          setIsScraping={setIsScraping}
-          useLLM={useLLM}
-          setUseLLM={setUseLLM}
-          scrapeVenue={scrapeVenue}
-          createVenue={createVenue}
-          onClose={() => {
-            setShowWizard(false)
-            setWizardStep(1)
-            setWizardData({
-              basicInfo: null,
-              venueDetails: null,
-              documents: [],
-              offers: [],
-            })
-            setScrapingUrl('')
-            setImagePreviews([])
-          }}
-        />
-      )}
     </div>
   )
 }
