@@ -672,10 +672,6 @@ function GuestCard({ guest, isDragging }) {
       {...attributes}
       {...listeners}
       className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none select-none"
-      onMouseDown={(e) => {
-        // Ensure drag starts immediately
-        e.stopPropagation()
-      }}
     >
       <p className="font-medium text-sm text-gray-900 pointer-events-none">
         {guest.first_name} {guest.last_name}
@@ -736,99 +732,203 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
   }
 
   const tableDimensions = getTableDimensions()
+  
+  // Calculate seat positions around the table perimeter
+  const calculateSeatPositions = () => {
+    const seatSize = 60 // Size of each seat
+    const seatOffset = 10 // Distance from table edge
+    const positions = []
+    const capacity = table.capacity
+    
+    if (table.shape === 'round') {
+      // Circular arrangement
+      const radius = parseInt(tableDimensions.width) / 2 + seatSize / 2 + seatOffset
+      const centerX = parseInt(tableDimensions.width) / 2
+      const centerY = parseInt(tableDimensions.height) / 2
+      
+      for (let i = 0; i < capacity; i++) {
+        const angle = (2 * Math.PI * i) / capacity - Math.PI / 2 // Start from top
+        const x = centerX + radius * Math.cos(angle) - seatSize / 2
+        const y = centerY + radius * Math.sin(angle) - seatSize / 2
+        positions.push({ x, y })
+      }
+    } else if (table.shape === 'rectangular') {
+      // Rectangular arrangement - seats around perimeter
+      const tableWidth = parseInt(tableDimensions.width)
+      const tableHeight = parseInt(tableDimensions.height)
+      const perimeter = 2 * (tableWidth + tableHeight)
+      const seatSpacing = perimeter / capacity
+      let currentDistance = 0
+      
+      for (let i = 0; i < capacity; i++) {
+        let x, y
+        
+        // Top edge
+        if (currentDistance < tableWidth) {
+          x = currentDistance - seatSize / 2
+          y = -seatSize - seatOffset
+        }
+        // Right edge
+        else if (currentDistance < tableWidth + tableHeight) {
+          x = tableWidth + seatOffset
+          y = (currentDistance - tableWidth) - seatSize / 2
+        }
+        // Bottom edge
+        else if (currentDistance < 2 * tableWidth + tableHeight) {
+          x = tableWidth - (currentDistance - tableWidth - tableHeight) - seatSize / 2
+          y = tableHeight + seatOffset
+        }
+        // Left edge
+        else {
+          x = -seatSize - seatOffset
+          y = tableHeight - (currentDistance - 2 * tableWidth - tableHeight) - seatSize / 2
+        }
+        
+        positions.push({ x, y })
+        currentDistance += seatSpacing
+      }
+    } else {
+      // Square arrangement - similar to rectangular but equal sides
+      const tableSize = parseInt(tableDimensions.width)
+      const perimeter = 4 * tableSize
+      const seatSpacing = perimeter / capacity
+      let currentDistance = 0
+      
+      for (let i = 0; i < capacity; i++) {
+        let x, y
+        
+        // Top edge
+        if (currentDistance < tableSize) {
+          x = currentDistance - seatSize / 2
+          y = -seatSize - seatOffset
+        }
+        // Right edge
+        else if (currentDistance < 2 * tableSize) {
+          x = tableSize + seatOffset
+          y = (currentDistance - tableSize) - seatSize / 2
+        }
+        // Bottom edge
+        else if (currentDistance < 3 * tableSize) {
+          x = tableSize - (currentDistance - 2 * tableSize) - seatSize / 2
+          y = tableSize + seatOffset
+        }
+        // Left edge
+        else {
+          x = -seatSize - seatOffset
+          y = tableSize - (currentDistance - 3 * tableSize) - seatSize / 2
+        }
+        
+        positions.push({ x, y })
+        currentDistance += seatSpacing
+      }
+    }
+    
+    return positions
+  }
+
+  const seatPositions = calculateSeatPositions()
 
   return (
     <div
-      ref={setNodeRef}
       style={{
-        ...style,
         position: 'absolute',
         left: `${table.position_x}px`,
         top: `${table.position_y}px`,
         zIndex: isSelected ? 10 : 1,
-        width: tableDimensions.width,
-        height: tableDimensions.height,
-        borderRadius: tableDimensions.borderRadius,
-      }}
-      className={`bg-white border-2 ${isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-300'} p-4 shadow-lg transition-all ${
-        isTableDragging ? 'cursor-grabbing' : ''
-      }`}
-      onClick={(e) => {
-        // Don't select if clicking on drag handle or seats
-        if (!isTableDragging && !e.target.closest('.drag-handle') && !e.target.closest('.seat-container')) {
-          onSelect(table.id)
-        }
-      }}
-      onMouseDown={(e) => {
-        // Only allow table dragging via handle
-        if (!e.target.closest('.drag-handle')) {
-          e.stopPropagation()
-        }
       }}
     >
-      {/* Drag handle - only way to move table */}
+      {/* Table Container */}
       <div
-        {...listeners}
-        {...attributes}
-        className="drag-handle absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move z-10"
-        onClick={(e) => e.stopPropagation()}
-        onMouseDown={(e) => e.stopPropagation()}
+        ref={setNodeRef}
+        style={{
+          ...style,
+          width: tableDimensions.width,
+          height: tableDimensions.height,
+          borderRadius: tableDimensions.borderRadius,
+          position: 'relative',
+        }}
+        className={`bg-white border-2 ${isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-300'} p-4 shadow-lg transition-all ${
+          isTableDragging ? 'cursor-grabbing' : ''
+        }`}
+        onClick={(e) => {
+          // Don't select if clicking on drag handle or seats
+          if (!isTableDragging && !e.target.closest('.drag-handle') && !e.target.closest('.seat-wrapper')) {
+            onSelect(table.id)
+          }
+        }}
+        onMouseDown={(e) => {
+          // Only allow table dragging via handle
+          if (!e.target.closest('.drag-handle')) {
+            e.stopPropagation()
+          }
+        }}
       >
-        <Move className="w-4 h-4" />
-      </div>
-
-      <div className="flex justify-between items-start mb-3 pr-6">
-        <div>
-          <h4 className="font-semibold text-gray-900">{table.name}</h4>
-          <p className="text-xs text-gray-600">
-            {occupiedSeats} / {table.capacity} seats
-          </p>
+        {/* Drag handle - only way to move table */}
+        <div
+          {...listeners}
+          {...attributes}
+          className="drag-handle absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move z-10"
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Move className="w-4 h-4" />
         </div>
-        <div className="flex gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(table)
-            }}
-            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-            title="Edit table"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              if (window.confirm(`Delete ${table.name}?`)) {
-                onDelete(table.id)
-              }
-            }}
-            className="p-1 text-red-600 hover:bg-red-50 rounded"
-            title="Delete table"
-          >
-            <Trash className="w-4 h-4" />
-          </button>
+
+        <div className="flex justify-between items-start mb-3 pr-6">
+          <div>
+            <h4 className="font-semibold text-gray-900">{table.name}</h4>
+            <p className="text-xs text-gray-600">
+              {occupiedSeats} / {table.capacity} seats
+            </p>
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(table)
+              }}
+              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+              title="Edit table"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm(`Delete ${table.name}?`)) {
+                  onDelete(table.id)
+                }
+              }}
+              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              title="Delete table"
+            >
+              <Trash className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
       
-      {/* Seats Grid */}
-      <div 
-        className={`seat-container grid gap-2 ${
-          table.shape === 'round' 
-            ? 'grid-cols-4' 
-            : table.shape === 'rectangular'
-            ? 'grid-cols-4'
-            : 'grid-cols-3'
-        }`}
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {assignments.map((assignment) => (
-          <SeatComponent
-            key={assignment.id || `seat-${assignment.seat_number}`}
-            assignment={assignment}
-            tableId={table.id}
-          />
-        ))}
+      {/* Seats positioned around table */}
+      <div className="seat-wrapper absolute inset-0 pointer-events-none">
+        {assignments.map((assignment, index) => {
+          const position = seatPositions[assignment.seat_number - 1] || { x: 0, y: 0 }
+          return (
+            <div
+              key={assignment.id || `seat-${assignment.seat_number}`}
+              style={{
+                position: 'absolute',
+                left: `${position.x}px`,
+                top: `${position.y}px`,
+                pointerEvents: 'auto',
+              }}
+            >
+              <SeatComponent
+                assignment={assignment}
+                tableId={table.id}
+              />
+            </div>
+          )
+        })}
       </div>
     </div>
   )
