@@ -679,19 +679,26 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
         zIndex: isSelected ? 10 : 1,
       }}
       className={`bg-white border-2 ${isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-300'} rounded-lg p-4 shadow-lg transition-all ${
-        isTableDragging ? 'cursor-grabbing' : 'cursor-move'
+        isTableDragging ? 'cursor-grabbing' : ''
       }`}
       onClick={(e) => {
-        if (!isTableDragging) {
+        // Don't select if clicking on drag handle or seats
+        if (!isTableDragging && !e.target.closest('.drag-handle') && !e.target.closest('.seat-container')) {
           onSelect(table.id)
         }
       }}
+      onMouseDown={(e) => {
+        // Only allow table dragging via handle
+        if (!e.target.closest('.drag-handle')) {
+          e.stopPropagation()
+        }
+      }}
     >
-      {/* Drag handle - only for table movement */}
+      {/* Drag handle - only way to move table */}
       <div
         {...listeners}
         {...attributes}
-        className="absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move z-10"
+        className="drag-handle absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move z-10"
         onClick={(e) => e.stopPropagation()}
         onMouseDown={(e) => e.stopPropagation()}
       >
