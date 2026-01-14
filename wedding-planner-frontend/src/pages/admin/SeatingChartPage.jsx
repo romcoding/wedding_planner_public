@@ -147,15 +147,25 @@ const SeatingChartPage = () => {
   const handleDragEnd = (event) => {
     const { active, over, delta } = event
     const activeData = active.data.current
+    const overData = over?.data.current
 
     console.log('🔵 Drag End:', { 
       activeId: active.id, 
       activeType: activeData?.type,
       overId: over?.id,
-      overType: over?.data.current?.type,
+      overType: overData?.type,
       activeData,
-      overData: over?.data.current
+      overData,
+      hasOver: !!over
     })
+    
+    // If no drop target, log and return early
+    if (!over) {
+      console.warn('⚠️ No drop target detected')
+      setActiveId(null)
+      setDraggedTableId(null)
+      return
+    }
 
     // Handle table dragging - must check this first to prevent seat assignment
     if (activeData?.type === 'table') {
@@ -180,14 +190,7 @@ const SeatingChartPage = () => {
       return
     }
 
-    // If no drop target, reset and return
-    if (!over) {
-      setActiveId(null)
-      setDraggedTableId(null)
-      return
-    }
-
-    const overData = over.data.current
+    // overData already defined above
 
     // If dragging a guest to a seat
     if (activeData?.type === 'guest' && overData?.type === 'seat') {
@@ -691,21 +694,31 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
   
   // Create seat assignments for ALL capacity, not just existing assignments
   // This ensures empty seats are also droppable
+  // IMPORTANT: Backend should return all assignments, but if some are missing, create placeholders
   const allSeats = []
   for (let seatNum = 1; seatNum <= table.capacity; seatNum++) {
     const existingAssignment = assignments.find(a => a.seat_number === seatNum)
     if (existingAssignment) {
       allSeats.push(existingAssignment)
     } else {
-      // Create a placeholder assignment for empty seats
+      // Create a placeholder assignment for empty seats that don't have backend records yet
       allSeats.push({
         id: `temp-${table.id}-${seatNum}`,
         seat_number: seatNum,
         guest_id: null,
-        guest: null
+        guest: null,
+        table_id: table.id
       })
     }
   }
+  
+  console.log('🪑 Table seats:', { 
+    tableName: table.name, 
+    capacity: table.capacity, 
+    assignmentsCount: assignments.length,
+    allSeatsCount: allSeats.length,
+    allSeats 
+  })
 
   const { attributes, listeners, setNodeRef, transform, isDragging: isTableDragging } = useDraggable({
     id: `table-${table.id}`,
@@ -995,6 +1008,17 @@ function SeatComponent({ assignment, tableId }) {
     transition: transform ? 'none' : undefined,
   }
 
+  // Debug logging
+  React.useEffect(() => {
+    console.log(`🪑 Seat ${assignment.seat_number} at table ${tableId}:`, {
+      seatId: `seat-${tableId}-${assignment.seat_number}`,
+      hasGuest: !!assignment.guest_id,
+      isOver,
+      isDragging,
+      assignmentId: assignment.id
+    })
+  }, [assignment.seat_number, tableId, assignment.guest_id, isOver, isDragging, assignment.id])
+
   return (
     <div
       ref={combinedRef}
@@ -1010,9 +1034,12 @@ function SeatComponent({ assignment, tableId }) {
             ? 'bg-green-100 border-green-400 opacity-50'
             : 'bg-green-100 border-green-400 text-green-800 cursor-move hover:bg-green-200'
           : isOver
-          ? 'bg-blue-200 border-blue-500 shadow-lg scale-105'
+          ? 'bg-blue-200 border-blue-500 shadow-lg scale-105 z-50'
           : 'bg-gray-50 border-gray-300 text-gray-700 cursor-pointer'
       }`}
+      data-seat-id={`seat-${tableId}-${assignment.seat_number}`}
+      data-seat-number={assignment.seat_number}
+      data-table-id={tableId}
     >
       {assignment.guest_id ? (
         <div className="text-center px-1">

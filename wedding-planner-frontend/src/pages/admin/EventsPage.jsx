@@ -449,12 +449,6 @@ const EventsPage = () => {
             defaultDate={new Date()}
             defaultView="month"
             views={['month', 'week', 'day', 'agenda']}
-            formats={{
-              dayHeaderFormat: 'dddd',
-              dayFormat: 'D',
-              monthHeaderFormat: 'MMMM YYYY',
-              weekdayFormat: 'ddd',
-            }}
             culture="en"
             messages={{
               next: 'Next',
@@ -464,6 +458,16 @@ const EventsPage = () => {
               week: 'Week',
               day: 'Day',
               agenda: 'Agenda',
+            }}
+            components={{
+              dateCellWrapper: ({ children, value }) => (
+                <div className="rbc-date-cell">
+                  <div className="rbc-date-cell-content">
+                    {moment(value).format('D')}
+                  </div>
+                  {children}
+                </div>
+              ),
             }}
           />
         </div>
