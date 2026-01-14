@@ -132,12 +132,7 @@ function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
   })
 
   return (
-    <div
-      ref={setNodeRef}
-      className={`flex-1 min-w-[280px] rounded-lg overflow-hidden ${
-        isOver ? 'ring-2 ring-blue-400 ring-offset-2' : ''
-      }`}
-    >
+    <div className="flex-1 min-w-[280px] rounded-lg overflow-hidden bg-gray-50 border-2 border-gray-200">
       {/* Column Header */}
       <div className="bg-gray-100 border-b-2 border-gray-300 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -148,14 +143,19 @@ function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
         </div>
       </div>
       
-      {/* Column Content Area with grayish background */}
-      <div className={`bg-gray-50 min-h-[400px] p-3 transition-colors ${
-        isOver ? 'bg-blue-50' : ''
-      }`}>
+      {/* Column Content Area with grayish background - entire column */}
+      <div
+        ref={setNodeRef}
+        className={`bg-gray-50 min-h-[500px] p-3 transition-colors ${
+          isOver ? 'bg-blue-100 ring-2 ring-blue-400' : ''
+        }`}
+      >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {tasks.length === 0 ? (
-              <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-300 rounded-lg">
+              <div className={`text-center py-12 text-gray-400 text-sm border-2 border-dashed rounded-lg transition-colors ${
+                isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+              }`}>
                 Drop tasks here
               </div>
             ) : (
@@ -354,30 +354,33 @@ const TasksPage = () => {
     if (!over) return
 
     const taskId = active.id
+    const currentTask = tasks?.find(t => t.id === taskId)
+    if (!currentTask) return
     
     // Check if dropped on a column (status) or another task
     let newStatus = null
     
-    // If over.id is a status column, use it directly
-    if (['todo', 'in_progress', 'completed', 'cancelled'].includes(over.id)) {
+    // Get the over data to check type
+    const overData = over.data?.current
+    
+    // If dropped directly on a column (empty column or column area)
+    if (overData?.type === 'column' && overData?.status) {
+      newStatus = overData.status
+    }
+    // If over.id is a status column ID, use it directly
+    else if (['todo', 'in_progress', 'completed', 'cancelled'].includes(over.id)) {
       newStatus = over.id
-    } else {
-      // If dropped on another task, find which column it's in
+    }
+    // If dropped on another task, find which column it's in
+    else {
       const targetTask = tasks?.find(t => t.id === over.id)
       if (targetTask) {
         newStatus = targetTask.status
-      } else {
-        // Try to get status from the droppable data
-        const overData = over.data?.current
-        if (overData?.status) {
-          newStatus = overData.status
-        }
       }
     }
 
     // Only update if status changed and is valid
-    const currentTask = tasks?.find(t => t.id === taskId)
-    if (newStatus && currentTask && currentTask.status !== newStatus) {
+    if (newStatus && currentTask.status !== newStatus) {
       handleUpdate(taskId, 'status', newStatus)
     }
   }
