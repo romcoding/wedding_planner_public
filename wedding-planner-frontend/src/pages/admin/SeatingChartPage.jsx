@@ -995,11 +995,16 @@ function SeatComponent({ assignment, tableId }) {
     disabled: !assignment.guest_id
   })
 
-  // Combine refs properly
+  // Combine refs properly - ALWAYS set droppable ref, conditionally set draggable
   const combinedRef = React.useCallback((node) => {
-    setDroppableRef(node)
-    if (assignment.guest_id) {
-      setDraggableRef(node)
+    if (node) {
+      setDroppableRef(node)
+      if (assignment.guest_id) {
+        setDraggableRef(node)
+      } else {
+        // For empty seats, ensure draggable ref is cleared
+        setDraggableRef(null)
+      }
     }
   }, [setDroppableRef, setDraggableRef, assignment.guest_id])
 
