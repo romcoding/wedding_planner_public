@@ -15,7 +15,8 @@ import {
   Check,
   AlertCircle,
   Download,
-  Eye
+  Eye,
+  DollarSign
 } from 'lucide-react'
 
 // Venue Offers Tab Component with inline editing
@@ -23,6 +24,8 @@ export function VenueOffersTab({ venueId }) {
   const queryClient = useQueryClient()
   const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [showOfferForm, setShowOfferForm] = useState(false)
+  const [showCostForm, setShowCostForm] = useState(false)
+  const [costFormOffer, setCostFormOffer] = useState(null)
   const [editingCategory, setEditingCategory] = useState(null)
   const [editingOffer, setEditingOffer] = useState(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState(null)
@@ -43,6 +46,17 @@ export function VenueOffersTab({ venueId }) {
     notes: ''
   })
   const [fieldErrors, setFieldErrors] = useState({})
+  const [costFormData, setCostFormData] = useState({
+    name: '',
+    description: '',
+    amount: '',
+    currency: 'EUR',
+    category: 'Venue',
+    status: 'planned',
+    vendor_name: '',
+    vendor_contact: '',
+    notes: ''
+  })
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['venue-offers', venueId],
@@ -136,6 +150,58 @@ export function VenueOffersTab({ venueId }) {
       queryClient.invalidateQueries(['venue-offers', venueId])
     },
   })
+
+  const createCost = useMutation({
+    mutationFn: (payload) => api.post('/costs', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['costs'])
+      queryClient.invalidateQueries(['cost-analytics'])
+      setShowCostForm(false)
+      setCostFormOffer(null)
+      setCostFormData({
+        name: '',
+        description: '',
+        amount: '',
+        currency: 'EUR',
+        category: 'Venue',
+        status: 'planned',
+        vendor_name: '',
+        vendor_contact: '',
+        notes: ''
+      })
+      alert('Cost added successfully! You can view it in the Costs & Budget section.')
+    },
+    onError: (error) => {
+      console.error('Error creating cost:', error)
+      const errorData = error.response?.data
+      alert(errorData?.error || 'Failed to create cost. Please try again.')
+    },
+  })
+
+  const handleAddToCosts = (offer, category) => {
+    setCostFormOffer(offer)
+    setCostFormData({
+      name: offer.name || '',
+      description: offer.description || '',
+      amount: offer.price ? parseFloat(offer.price).toString() : '',
+      currency: offer.currency || 'EUR',
+      category: 'Venue',
+      status: 'planned',
+      vendor_name: '',
+      vendor_contact: '',
+      notes: `From venue offer: ${category.name || 'Venue Offer'}`
+    })
+    setShowCostForm(true)
+  }
+
+  const handleCostSubmit = (e) => {
+    e.preventDefault()
+    const payload = {
+      ...costFormData,
+      amount: parseFloat(costFormData.amount) || 0,
+    }
+    createCost.mutate(payload)
+  }
 
   const handleInlineEdit = (offer, field, value) => {
     setEditingOfferId(offer.id)
@@ -838,6 +904,205 @@ export function VenueOffersTab({ venueId }) {
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
                 >
                   {editingOffer ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add to Costs Form Modal */}
+      {showCostForm && costFormOffer && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Add to Costs & Budget
+              </h3>
+              <button 
+                onClick={() => {
+                  setShowCostForm(false)
+                  setCostFormOffer(null)
+                  setCostFormData({
+                    name: '',
+                    description: '',
+                    amount: '',
+                    currency: 'EUR',
+                    category: 'Venue',
+                    status: 'planned',
+                    vendor_name: '',
+                    vendor_contact: '',
+                    notes: ''
+                  })
+                }}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-gray-700">
+                <strong>From Offer:</strong> {costFormOffer.name}
+                {costFormOffer.price && ` - ${costFormOffer.currency} ${parseFloat(costFormOffer.price).toFixed(2)}`}
+              </p>
+            </div>
+            <form onSubmit={handleCostSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-900">
+                  Cost Name *
+                </label>
+                <input
+                  type="text"
+                  value={costFormData.name}
+                  onChange={(e) => setCostFormData({ ...costFormData, name: e.target.value })}
+                  required
+                  className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-900">
+                  Description
+                </label>
+                <textarea
+                  value={costFormData.description}
+                  onChange={(e) => setCostFormData({ ...costFormData, description: e.target.value })}
+                  rows="3"
+                  className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-900">
+                    Amount *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={costFormData.amount}
+                    onChange={(e) => setCostFormData({ ...costFormData, amount: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-900">
+                    Currency
+                  </label>
+                  <select
+                    value={costFormData.currency}
+                    onChange={(e) => setCostFormData({ ...costFormData, currency: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  >
+                    <option value="EUR">EUR</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="CHF">CHF</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-900">
+                    Category *
+                  </label>
+                  <select
+                    value={costFormData.category}
+                    onChange={(e) => setCostFormData({ ...costFormData, category: e.target.value })}
+                    required
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  >
+                    <option value="Venue">Venue</option>
+                    <option value="Catering">Catering</option>
+                    <option value="Dress">Dress</option>
+                    <option value="Photography">Photography</option>
+                    <option value="Music">Music</option>
+                    <option value="Décor">Décor</option>
+                    <option value="Flowers">Flowers</option>
+                    <option value="Transportation">Transportation</option>
+                    <option value="Hair & Makeup">Hair & Makeup</option>
+                    <option value="Invitations">Invitations</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-900">
+                    Status
+                  </label>
+                  <select
+                    value={costFormData.status}
+                    onChange={(e) => setCostFormData({ ...costFormData, status: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  >
+                    <option value="planned">Planned</option>
+                    <option value="pending">Pending</option>
+                    <option value="paid">Paid</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-900">
+                    Vendor Name
+                  </label>
+                  <input
+                    type="text"
+                    value={costFormData.vendor_name}
+                    onChange={(e) => setCostFormData({ ...costFormData, vendor_name: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold mb-1 text-gray-900">
+                    Vendor Contact
+                  </label>
+                  <input
+                    type="text"
+                    value={costFormData.vendor_contact}
+                    onChange={(e) => setCostFormData({ ...costFormData, vendor_contact: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1 text-gray-900">
+                  Notes
+                </label>
+                <textarea
+                  value={costFormData.notes}
+                  onChange={(e) => setCostFormData({ ...costFormData, notes: e.target.value })}
+                  rows="2"
+                  className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowCostForm(false)
+                    setCostFormOffer(null)
+                    setCostFormData({
+                      name: '',
+                      description: '',
+                      amount: '',
+                      currency: 'EUR',
+                      category: 'Venue',
+                      status: 'planned',
+                      vendor_name: '',
+                      vendor_contact: '',
+                      notes: ''
+                    })
+                  }}
+                  className="px-4 py-2 border-2 border-gray-400 text-gray-900 rounded-lg hover:bg-gray-100 font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createCost.isPending}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium disabled:opacity-50"
+                >
+                  {createCost.isPending ? 'Adding...' : 'Add to Costs'}
                 </button>
               </div>
             </form>

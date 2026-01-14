@@ -227,17 +227,22 @@ const SeatingChartPage = () => {
         })
       } else if (!seat?.guest_id) {
         // Seat is empty, just assign
+        console.log('Assigning guest', guestId, 'to seat', seatNumber, 'at table', tableId)
         assignGuest.mutate({
           table_id: tableId,
           seat_number: seatNumber,
           guest_id: guestId
         }, {
-          onSuccess: () => {
-            console.log('Guest assigned successfully')
+          onSuccess: (response) => {
+            console.log('Guest assigned successfully:', response.data)
+            // Force refresh of tables and unassigned guests
+            queryClient.invalidateQueries(['seating-tables'])
+            queryClient.invalidateQueries(['unassigned-guests'])
           },
           onError: (error) => {
             console.error('Error assigning guest:', error)
             console.error('Error response:', error.response?.data)
+            console.error('Request payload:', { table_id: tableId, seat_number: seatNumber, guest_id: guestId })
             alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
           }
         })
