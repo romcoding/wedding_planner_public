@@ -47,7 +47,9 @@ const SeatingChartPage = () => {
         distance: 0, // No distance constraint - drag starts immediately
       },
     }),
-    useSensor(KeyboardSensor)
+    useSensor(KeyboardSensor, {
+      coordinateGetter: undefined,
+    })
   )
 
   const { data: tables, isLoading: tablesLoading } = useQuery({
@@ -559,13 +561,36 @@ const SeatingChartPage = () => {
         </div>
       )}
 
+      <DndContext
+            sensors={sensors}
+            collisionDetection={(args) => {
+              // Use closestCenter as primary - it's more reliable for drag and drop
+              const collisions = closestCenter(args)
+              
+              // If dragging a guest, prioritize seats
+              if (args.active.data.current?.type === 'guest' && collisions.length > 0) {
+                return collisions.sort((a, b) => {
+                  const aData = a.data.current
+                  const bData = b.data.current
+                  // Always prefer seats over anything else
+                  if (aData?.type === 'seat' && bData?.type !== 'seat') return -1
+                  if (bData?.type === 'seat' && aData?.type !== 'seat') return 1
+                  return 0
+                })
+              }
+              
+              return collisions
+            }}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={handleDragCancel}
+          >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Unassigned Guests Sidebar */}
         <UnassignedGuestsDropZone guests={unassignedGuests} activeId={activeId} />
 
         {/* Seating Chart Canvas */}
         <div className="lg:col-span-3">
-          <DndContext
             sensors={sensors}
             collisionDetection={(args) => {
               // Use closestCenter as primary - it's more reliable for drag and drop
@@ -644,9 +669,9 @@ const SeatingChartPage = () => {
                 </div>
               )}
             </DragOverlay>
-          </DndContext>
         </div>
       </div>
+      </DndContext>
     </div>
   )
 }
@@ -676,6 +701,13 @@ function GuestCard({ guest, isDragging }) {
       {...attributes}
       {...listeners}
       className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none select-none"
+      onMouseDown={(e) => {
+        console.log('🖱️ Guest card mouse down:', { guestId: guest.id, guestName: `${guest.first_name} ${guest.last_name}` })
+        // Don't prevent default - let dnd-kit handle it
+      }}
+      onDragStart={(e) => {
+        console.log('🔄 Native drag start (should not fire with dnd-kit):', e)
+      }}
     >
       <p className="font-medium text-sm text-gray-900 pointer-events-none">
         {guest.first_name} {guest.last_name}

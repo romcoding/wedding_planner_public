@@ -28,21 +28,30 @@ body {
   min-height: 100vh;
 }
 
-/* React Big Calendar - Ensure dates are visible */
+/* React Big Calendar - Ensure dates are visible with strong contrast */
 .rbc-date-cell {
   min-height: 40px;
   padding: 4px;
 }
 
-.rbc-date-cell > a {
+.rbc-date-cell > a,
+.rbc-date-cell > a.rbc-day-bg,
+.rbc-date-cell a {
   display: block !important;
-  color: #333 !important;
-  font-weight: 500;
-  text-decoration: none;
+  color: #000000 !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .rbc-date-cell > a:hover {
   text-decoration: underline;
+  color: #0066cc !important;
+}
+
+.rbc-off-range-bg .rbc-date-cell > a {
+  color: #999999 !important;
 }
 
 .rbc-off-range-bg {
@@ -51,6 +60,11 @@ body {
 
 .rbc-today {
   background-color: #e6f3ff;
+}
+
+.rbc-today .rbc-date-cell > a {
+  color: #0066cc !important;
+  font-weight: 700 !important;
 }
 
 .rbc-day-bg {
@@ -65,4 +79,14 @@ body {
   border-bottom: 2px solid #ddd;
   padding: 8px;
   font-weight: 600;
+  color: #000000 !important;
+}
+
+/* Ensure all calendar text is visible */
+.rbc-calendar {
+  color: #000000 !important;
+}
+
+.rbc-month-row {
+  color: #000000 !important;
 }
