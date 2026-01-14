@@ -3,9 +3,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Calendar, momentLocalizer } from 'react-big-calendar'
 import moment from 'moment'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
+import 'moment/locale/en'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Calendar as CalendarIcon, MapPin, X, List, Grid } from 'lucide-react'
 
+// Set moment locale
+moment.locale('en')
 const localizer = momentLocalizer(moment)
 
 const EventsPage = () => {
@@ -458,16 +461,6 @@ const EventsPage = () => {
               week: 'Week',
               day: 'Day',
               agenda: 'Agenda',
-            }}
-            components={{
-              dateCellWrapper: ({ children, value }) => (
-                <div className="rbc-date-cell">
-                  <div className="rbc-date-cell-content">
-                    {moment(value).format('D')}
-                  </div>
-                  {children}
-                </div>
-              ),
             }}
           />
         </div>
