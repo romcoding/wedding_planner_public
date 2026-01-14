@@ -44,7 +44,7 @@ const SeatingChartPage = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 3, // Reduced from 8 to make dragging easier
       },
     }),
     useSensor(KeyboardSensor)
@@ -662,6 +662,7 @@ function GuestCard({ guest, isDragging }) {
     transform: CSS.Transform.toString(transform),
     transition: transform ? 'none' : undefined,
     opacity: isSortableDragging ? 0.5 : 1,
+    cursor: isSortableDragging ? 'grabbing' : 'grab',
   }
 
   return (
@@ -670,13 +671,17 @@ function GuestCard({ guest, isDragging }) {
       style={style}
       {...attributes}
       {...listeners}
-      className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none"
+      className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none select-none"
+      onMouseDown={(e) => {
+        // Ensure drag starts immediately
+        e.stopPropagation()
+      }}
     >
-      <p className="font-medium text-sm text-gray-900">
+      <p className="font-medium text-sm text-gray-900 pointer-events-none">
         {guest.first_name} {guest.last_name}
       </p>
       {guest.number_of_guests > 1 && (
-        <p className="text-xs text-gray-600">+{guest.number_of_guests - 1} guest(s)</p>
+        <p className="text-xs text-gray-600 pointer-events-none">+{guest.number_of_guests - 1} guest(s)</p>
       )}
     </div>
   )
@@ -712,8 +717,16 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
         top: `${table.position_y}px`,
         zIndex: isSelected ? 10 : 1,
       }}
-      className={`bg-white border-2 ${isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-300'} rounded-lg p-4 shadow-lg transition-all ${
+      className={`bg-white border-2 ${isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-300'} p-4 shadow-lg transition-all ${
         isTableDragging ? 'cursor-grabbing' : ''
+      } ${
+        table.shape === 'round' 
+          ? 'rounded-full' 
+          : table.shape === 'rectangular'
+          ? 'rounded-lg'
+          : table.shape === 'square'
+          ? 'rounded-lg'
+          : 'rounded-lg'
       }`}
       onClick={(e) => {
         // Don't select if clicking on drag handle or seats
