@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageComponents'
+import VenueSetupWizard from './VenueSetupWizard'
 
 export default function VenuesPage() {
   const queryClient = useQueryClient()
@@ -1693,6 +1694,37 @@ function VenueDetailModal({ venueId, onClose }) {
           )}
         </div>
       </div>
+
+      {/* Venue Setup Wizard */}
+      {showWizard && (
+        <VenueSetupWizard
+          wizardStep={wizardStep}
+          setWizardStep={setWizardStep}
+          wizardData={wizardData}
+          setWizardData={setWizardData}
+          skipScrape={skipScrape}
+          setSkipScrape={setSkipScrape}
+          scrapingUrl={scrapingUrl}
+          setScrapingUrl={setScrapingUrl}
+          isScraping={isScraping}
+          setIsScraping={setIsScraping}
+          useLLM={useLLM}
+          setUseLLM={setUseLLM}
+          scrapeVenue={scrapeVenue}
+          createVenue={createVenue}
+          onClose={() => {
+            setShowWizard(false)
+            setWizardStep(1)
+            setWizardData({
+              basicInfo: null,
+              venueDetails: null,
+              documents: [],
+              offers: [],
+            })
+            resetForm()
+          }}
+        />
+      )}
     </div>
   )
 }
