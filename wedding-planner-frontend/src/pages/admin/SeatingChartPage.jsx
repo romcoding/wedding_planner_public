@@ -995,12 +995,6 @@ function SeatComponent({ assignment, tableId }) {
       {...(assignment.guest_id ? listeners : {})}
       {...(assignment.guest_id ? attributes : {})}
       onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => {
-        // Only stop propagation if this is a draggable seat (has guest)
-        if (assignment.guest_id) {
-          e.stopPropagation()
-        }
-      }}
       className={`min-w-[60px] min-h-[60px] rounded border-2 flex flex-col items-center justify-center text-xs font-medium transition-all ${
         assignment.guest_id
           ? isOver
@@ -1010,7 +1004,7 @@ function SeatComponent({ assignment, tableId }) {
             : 'bg-green-100 border-green-400 text-green-800 cursor-move hover:bg-green-200'
           : isOver
           ? 'bg-blue-200 border-blue-500 shadow-lg scale-105'
-          : 'bg-gray-50 border-gray-300 text-gray-700'
+          : 'bg-gray-50 border-gray-300 text-gray-700 cursor-pointer'
       }`}
     >
       {assignment.guest_id ? (

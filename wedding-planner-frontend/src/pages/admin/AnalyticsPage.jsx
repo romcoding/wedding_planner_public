@@ -28,8 +28,26 @@ const AnalyticsPage = () => {
     visits: item.count
   })) || []
 
+  // Map page paths to friendly names
+  const getPageName = (path) => {
+    if (path.includes('/admin/venues')) return 'Venues'
+    if (path.includes('/admin/seating')) return 'Seating Chart'
+    if (path.includes('/admin/wedding') || path.includes('/admin/events') || path.includes('/admin/timeline')) return 'Timeline'
+    if (path.includes('/admin/costs')) return 'Costs'
+    if (path.includes('/admin/tasks')) return 'Tasks'
+    if (path.includes('/admin/guests')) return 'Guests'
+    if (path.includes('/admin/invitations')) return 'Invitations'
+    if (path.includes('/admin/content')) return 'Content'
+    if (path.includes('/admin/analytics')) return 'Analytics'
+    if (path.includes('/admin/users')) return 'Users'
+    if (path.includes('/admin/rsvp')) return 'RSVP Reminders'
+    // Fallback: extract last part of path
+    const parts = path.split('/').filter(p => p)
+    return parts[parts.length - 1] || path
+  }
+
   const topPagesData = siteStats?.top_pages?.slice(0, 5).map(page => ({
-    path: page.path.length > 30 ? page.path.substring(0, 30) + '...' : page.path,
+    path: getPageName(page.path),
     views: page.views
   })) || []
 

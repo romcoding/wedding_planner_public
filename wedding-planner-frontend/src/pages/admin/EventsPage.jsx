@@ -446,6 +446,15 @@ const EventsPage = () => {
             onSelectEvent={handleSelectEvent}
             style={{ height: '100%' }}
             popup
+            defaultDate={new Date()}
+            defaultView="month"
+            views={['month', 'week', 'day', 'agenda']}
+            formats={{
+              dayHeaderFormat: 'dddd',
+              dayFormat: 'D',
+              monthHeaderFormat: 'MMMM YYYY',
+              weekdayFormat: 'ddd',
+            }}
           />
         </div>
       )}
