@@ -488,7 +488,7 @@ const SeatingChartPage = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-xl font-semibold text-gray-900">
                   {editingTable ? 'Edit Table' : 'Add New Table'}
                 </h2>
                 <button

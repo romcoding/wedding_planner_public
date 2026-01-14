@@ -585,7 +585,7 @@ export default function VenuesPage() {
           <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">{editingId ? 'Edit Venue' : 'Add New Venue'}</h2>
+                <h2 className="text-2xl font-bold text-gray-900">{editingId ? 'Edit Venue' : 'Add New Venue'}</h2>
                 <button
                   onClick={() => {
                     resetForm()
@@ -1150,7 +1150,7 @@ function CompareVenuesModal({ venueIds, venues, onClose }) {
       <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold">Compare Venues</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Compare Venues</h2>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
               <X className="h-6 w-6" />
             </button>

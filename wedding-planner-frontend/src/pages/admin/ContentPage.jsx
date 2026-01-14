@@ -172,7 +172,7 @@ const ContentPage = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto z-[10000]">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-xl font-semibold text-gray-900">
                   {editingId ? 'Edit Content' : 'Create New Content'}
                 </h2>
                 <button

@@ -162,7 +162,7 @@ const InvitationsPage = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Invitation Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Invitation Management</h1>
         <button
           onClick={() => {
             resetForm()

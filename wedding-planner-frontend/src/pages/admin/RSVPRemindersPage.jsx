@@ -156,7 +156,7 @@ const RSVPRemindersPage = () => {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold">RSVP Reminders</h1>
+          <h1 className="text-3xl font-bold text-gray-900">RSVP Reminders</h1>
           <p className="text-gray-600 mt-1">Automatically remind guests to RSVP</p>
         </div>
         <button
@@ -177,7 +177,7 @@ const RSVPRemindersPage = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-xl font-semibold text-gray-900">
                   {editingId ? 'Edit Reminder' : 'Create New Reminder'}
                 </h2>
                 <button

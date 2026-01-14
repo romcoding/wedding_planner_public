@@ -204,7 +204,7 @@ const EventsPage = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Wedding Timeline</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Wedding Timeline</h1>
         <div className="flex gap-2">
           <div className="flex bg-gray-100 rounded-lg p-1">
             <button
@@ -249,7 +249,7 @@ const EventsPage = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold">
+                <h2 className="text-xl font-semibold text-gray-900">
                   {editingId ? 'Edit Event' : 'Add New Event'}
                 </h2>
                 <button
