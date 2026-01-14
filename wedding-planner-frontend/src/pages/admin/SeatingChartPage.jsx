@@ -214,6 +214,10 @@ const SeatingChartPage = () => {
               seat_number: seatNumber,
               guest_id: guestId
             }, {
+              onSuccess: () => {
+                queryClient.invalidateQueries(['seating-tables'])
+                queryClient.invalidateQueries(['unassigned-guests'])
+              },
               onError: (error) => {
                 console.error('Error assigning guest:', error)
                 alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
@@ -225,8 +229,8 @@ const SeatingChartPage = () => {
             alert('Failed to unassign current guest. Please try again.')
           }
         })
-      } else if (!seat?.guest_id) {
-        // Seat is empty, just assign
+      } else if (!seat?.guest_id || seat.guest_id === guestId) {
+        // Seat is empty or same guest, just assign/update
         console.log('Assigning guest', guestId, 'to seat', seatNumber, 'at table', tableId)
         assignGuest.mutate({
           table_id: tableId,
@@ -463,7 +467,7 @@ const SeatingChartPage = () => {
 
       {/* Table Form Modal */}
       {showTableForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-gray-200 bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">

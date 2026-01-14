@@ -210,9 +210,32 @@ export default function VenuesPage() {
       return
     }
     
+    // Validate URL format
+    try {
+      new URL(scrapingUrl)
+    } catch {
+      alert('Invalid URL format. Please enter a valid URL starting with http:// or https://')
+      return
+    }
+    
     setIsScraping(true)
     try {
       const data = await scrapeVenue.mutateAsync({ url: scrapingUrl, useLLM })
+      
+      // Check for errors in response
+      if (data.error) {
+        let errorMsg = data.error
+        if (errorMsg.includes('timeout')) {
+          errorMsg = 'The website took too long to respond. Please try again or enter the information manually.'
+        } else if (errorMsg.includes('Connection') || errorMsg.includes('reach')) {
+          errorMsg = 'Could not reach the website. Please check the URL and your internet connection, or enter the information manually.'
+        } else if (errorMsg.includes('HTTP error')) {
+          errorMsg = `Could not access the website: ${errorMsg}. Please check the URL or enter the information manually.`
+        }
+        alert(`Scraping failed: ${errorMsg}`)
+        setIsScraping(false)
+        return
+      }
       
       // Populate form with scraped data
       setFormData({
@@ -251,7 +274,13 @@ export default function VenuesPage() {
         alert('Venue information scraped successfully! Please review and edit as needed.')
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to scrape venue information')
+      let errorMsg = error.response?.data?.error || error.message || 'Failed to scrape venue information'
+      if (errorMsg.includes('timeout')) {
+        errorMsg = 'The website took too long to respond. Please try again or enter the information manually.'
+      } else if (errorMsg.includes('Connection') || errorMsg.includes('reach')) {
+        errorMsg = 'Could not reach the website. Please check the URL and your internet connection, or enter the information manually.'
+      }
+      alert(`Scraping failed: ${errorMsg}`)
     } finally {
       setIsScraping(false)
     }
@@ -542,7 +571,7 @@ export default function VenuesPage() {
 
       {/* Form Modal */}
       {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-gray-200 bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
@@ -1506,7 +1535,7 @@ function VenueDetailModal({ venueId, onClose }) {
 
               {/* Request Form Modal */}
               {showRequestForm && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-gray-200 bg-opacity-75 flex items-center justify-center z-50 p-4">
                   <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="text-lg font-semibold">Add Venue Request</h3>
