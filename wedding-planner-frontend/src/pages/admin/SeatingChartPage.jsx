@@ -624,7 +624,8 @@ function GuestCard({ guest, isDragging }) {
   })
 
   const style = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
+    transition: transform ? 'none' : undefined,
     opacity: isSortableDragging ? 0.5 : 1,
   }
 
@@ -632,11 +633,9 @@ function GuestCard({ guest, isDragging }) {
     <div
       ref={setNodeRef}
       style={style}
-      {...listeners}
       {...attributes}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      className={`bg-blue-50 border-2 border-blue-300 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors ${isDragging ? 'opacity-50' : ''}`}
+      {...listeners}
+      className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none"
     >
       <p className="font-medium text-sm text-gray-900">
         {guest.first_name} {guest.last_name}
