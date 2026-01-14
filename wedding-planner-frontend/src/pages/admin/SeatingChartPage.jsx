@@ -565,46 +565,22 @@ const SeatingChartPage = () => {
           <DndContext
             sensors={sensors}
             collisionDetection={(args) => {
-              // Use pointerWithin for better accuracy with transformed/scaled elements
-              // This works better when the room is zoomed or panned
-              const pointerCollisions = pointerWithin(args)
+              // Use closestCenter as primary - it's more reliable for drag and drop
+              const collisions = closestCenter(args)
               
-              // If we have pointer collisions, prefer them
-              if (pointerCollisions.length > 0) {
-                // Sort by distance to pointer (closest first) and prioritize seats
-                return pointerCollisions.sort((a, b) => {
+              // If dragging a guest, prioritize seats
+              if (args.active.data.current?.type === 'guest' && collisions.length > 0) {
+                return collisions.sort((a, b) => {
                   const aData = a.data.current
                   const bData = b.data.current
-                  
-                  // When dragging a guest, prioritize seats
-                  if (args.active.data.current?.type === 'guest') {
-                    if (aData?.type === 'seat' && bData?.type !== 'seat') return -1
-                    if (bData?.type === 'seat' && aData?.type !== 'seat') return 1
-                  }
-                  
-                  // Prefer seats over tables in general
-                  if (aData?.type === 'seat' && bData?.type !== 'seat') return -1
-                  if (bData?.type === 'seat' && aData?.type !== 'seat') return 1
-                  
-                  return 0
-                })
-              }
-              
-              // Fallback to rect intersection
-              const rectCollisions = rectIntersection(args)
-              
-              // Also prioritize seats in rect intersection
-              if (rectCollisions.length > 0 && args.active.data.current?.type === 'guest') {
-                return rectCollisions.sort((a, b) => {
-                  const aData = a.data.current
-                  const bData = b.data.current
+                  // Always prefer seats over anything else
                   if (aData?.type === 'seat' && bData?.type !== 'seat') return -1
                   if (bData?.type === 'seat' && aData?.type !== 'seat') return 1
                   return 0
                 })
               }
               
-              return rectCollisions
+              return collisions
             }}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
