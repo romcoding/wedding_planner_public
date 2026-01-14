@@ -35,9 +35,14 @@ body {
 }
 
 .rbc-date-cell > a {
-  display: block;
-  color: #333;
+  display: block !important;
+  color: #333 !important;
   font-weight: 500;
+  text-decoration: none;
+}
+
+.rbc-date-cell > a:hover {
+  text-decoration: underline;
 }
 
 .rbc-off-range-bg {
@@ -46,4 +51,18 @@ body {
 
 .rbc-today {
   background-color: #e6f3ff;
+}
+
+.rbc-day-bg {
+  border: 1px solid #ddd;
+}
+
+.rbc-month-view {
+  border: 1px solid #ddd;
+}
+
+.rbc-header {
+  border-bottom: 2px solid #ddd;
+  padding: 8px;
+  font-weight: 600;
 }
