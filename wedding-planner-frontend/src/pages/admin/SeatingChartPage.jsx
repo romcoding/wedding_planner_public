@@ -591,29 +591,6 @@ const SeatingChartPage = () => {
 
         {/* Seating Chart Canvas */}
         <div className="lg:col-span-3">
-            sensors={sensors}
-            collisionDetection={(args) => {
-              // Use closestCenter as primary - it's more reliable for drag and drop
-              const collisions = closestCenter(args)
-              
-              // If dragging a guest, prioritize seats
-              if (args.active.data.current?.type === 'guest' && collisions.length > 0) {
-                return collisions.sort((a, b) => {
-                  const aData = a.data.current
-                  const bData = b.data.current
-                  // Always prefer seats over anything else
-                  if (aData?.type === 'seat' && bData?.type !== 'seat') return -1
-                  if (bData?.type === 'seat' && aData?.type !== 'seat') return 1
-                  return 0
-                })
-              }
-              
-              return collisions
-            }}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={handleDragCancel}
-          >
             <div 
               ref={roomRef}
               className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border-2 border-gray-300 overflow-hidden relative"
