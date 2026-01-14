@@ -462,6 +462,9 @@ const EventsPage = () => {
               day: 'Day',
               agenda: 'Agenda',
             }}
+            showMultiDayTimes
+            step={60}
+            timeslots={1}
           />
         </div>
       )}
