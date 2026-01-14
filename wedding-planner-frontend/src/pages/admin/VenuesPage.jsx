@@ -1721,7 +1721,8 @@ function VenueDetailModal({ venueId, onClose }) {
               documents: [],
               offers: [],
             })
-            resetForm()
+            setScrapingUrl('')
+            setImagePreviews([])
           }}
         />
       )}

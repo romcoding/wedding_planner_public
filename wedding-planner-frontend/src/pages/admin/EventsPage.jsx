@@ -450,10 +450,20 @@ const EventsPage = () => {
             defaultView="month"
             views={['month', 'week', 'day', 'agenda']}
             formats={{
-              dayHeaderFormat: 'dddd',
-              dayFormat: 'D',
-              monthHeaderFormat: 'MMMM YYYY',
-              weekdayFormat: 'ddd',
+              dayHeaderFormat: (date, culture, localizer) => localizer.format(date, 'dddd', culture),
+              dayFormat: (date, culture, localizer) => localizer.format(date, 'D', culture),
+              monthHeaderFormat: (date, culture, localizer) => localizer.format(date, 'MMMM YYYY', culture),
+              weekdayFormat: (date, culture, localizer) => localizer.format(date, 'ddd', culture),
+            }}
+            culture="en"
+            messages={{
+              next: 'Next',
+              previous: 'Back',
+              today: 'Today',
+              month: 'Month',
+              week: 'Week',
+              day: 'Day',
+              agenda: 'Agenda',
             }}
           />
         </div>
