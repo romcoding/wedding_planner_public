@@ -50,11 +50,13 @@ function TaskCard({ task, onEdit, onDelete }) {
     <div
       ref={setNodeRef}
       style={style}
+      {...attributes}
+      {...listeners}
       className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 mb-3 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-start gap-2 flex-1">
-          <div {...attributes} {...listeners} className="mt-1 cursor-grab active:cursor-grabbing">
+          <div className="mt-1">
             <GripVertical className="h-4 w-4 text-gray-400" />
           </div>
           <div className="flex-1 min-w-0">
@@ -99,19 +101,25 @@ function TaskCard({ task, onEdit, onDelete }) {
 
       <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-gray-100">
         <button
-          onClick={() => onEdit(task)}
-          className="text-blue-600 hover:text-blue-800 p-1"
+          onClick={(e) => {
+            e.stopPropagation()
+            onEdit(task)
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          className="text-blue-600 hover:text-blue-800 p-1 cursor-pointer"
           title="Edit task"
         >
           <Edit className="h-4 w-4" />
         </button>
         <button
-          onClick={() => {
+          onClick={(e) => {
+            e.stopPropagation()
             if (window.confirm('Are you sure you want to delete this task?')) {
               onDelete(task.id)
             }
           }}
-          className="text-red-600 hover:text-red-800 p-1"
+          onMouseDown={(e) => e.stopPropagation()}
+          className="text-red-600 hover:text-red-800 p-1 cursor-pointer"
           title="Delete task"
         >
           <Trash className="h-4 w-4" />
@@ -123,17 +131,28 @@ function TaskCard({ task, onEdit, onDelete }) {
 
 // Kanban Column Component
 function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
-  const { setNodeRef, isOver } = useDroppable({ 
-    id,
+  const { setNodeRef: setColumnRef, isOver: isColumnOver } = useDroppable({ 
+    id: `column-${id}`,
     data: {
       type: 'column',
       status: id
     }
   })
 
+  // Also make the content area droppable for better empty column detection
+  const { setNodeRef: setContentRef, isOver: isContentOver } = useDroppable({
+    id: id, // Use the status as ID for compatibility
+    data: {
+      type: 'column',
+      status: id
+    }
+  })
+
+  const isOver = isColumnOver || isContentOver
+
   return (
     <div 
-      ref={setNodeRef}
+      ref={setColumnRef}
       className={`flex-1 min-w-[280px] rounded-lg overflow-hidden bg-gray-50 border-2 transition-all ${
         isOver ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-200'
       }`}
@@ -149,9 +168,12 @@ function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
       </div>
       
       {/* Column Content Area - grayish background extends entire column */}
-      <div className="bg-gray-50 min-h-[500px] p-3">
+      <div 
+        ref={setContentRef}
+        className="bg-gray-50 min-h-[500px] p-3"
+      >
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2">
+          <div className="space-y-2 min-h-[400px]">
             {tasks.length === 0 ? (
               <div className={`text-center py-12 text-gray-400 text-sm border-2 border-dashed rounded-lg transition-colors ${
                 isOver ? 'border-blue-400 bg-blue-100' : 'border-gray-300'
@@ -363,15 +385,15 @@ const TasksPage = () => {
     // Get the over data to check type
     const overData = over.data?.current
     
-    // If dropped directly on a column (empty column or column area)
+    // Priority 1: If dropped directly on a column (empty column or column area)
     if (overData?.type === 'column' && overData?.status) {
       newStatus = overData.status
     }
-    // If over.id is a status column ID, use it directly
+    // Priority 2: If over.id is a status column ID (for empty columns)
     else if (['todo', 'in_progress', 'completed', 'cancelled'].includes(over.id)) {
       newStatus = over.id
     }
-    // If dropped on another task, find which column it's in
+    // Priority 3: If dropped on another task, find which column it's in
     else {
       const targetTask = tasks?.find(t => t.id === over.id)
       if (targetTask) {
