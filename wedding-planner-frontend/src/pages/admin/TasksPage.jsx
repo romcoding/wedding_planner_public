@@ -239,7 +239,12 @@ const TasksPage = () => {
       setEditingTaskId(null)
       resetForm()
       setFieldErrors({})
-      alert('Task created successfully!')
+      // Use toast instead of alert
+      if (window.toast) {
+        window.toast.success('Task created successfully!')
+      } else {
+        alert('Task created successfully!')
+      }
     },
     onError: (error) => {
       console.error('Error creating task:', error)
@@ -532,22 +537,29 @@ const TasksPage = () => {
               <input
                 type="text"
                 value={formData.title}
-                onChange={(e) =>
-                  setFormData({ ...formData, title: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  e.stopPropagation()
+                  setFormData(prev => ({ ...prev, title: e.target.value }))
+                }}
+                onBlur={(e) => e.stopPropagation()}
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 required
               />
+              {fieldErrors.title && (
+                <p className="text-red-600 text-sm mt-1">{fieldErrors.title}</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">Due Date</label>
               <input
                 type="date"
                 value={formData.due_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, due_date: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onChange={(e) => {
+                  e.stopPropagation()
+                  setFormData(prev => ({ ...prev, due_date: e.target.value }))
+                }}
+                onBlur={(e) => e.stopPropagation()}
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -557,7 +569,7 @@ const TasksPage = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, priority: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               >
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -572,7 +584,7 @@ const TasksPage = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, status: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               >
                 <option value="todo">To Do</option>
                 <option value="in_progress">In Progress</option>
@@ -588,7 +600,7 @@ const TasksPage = () => {
                   setFormData({ ...formData, description: e.target.value })
                 }
                 rows="3"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -600,7 +612,7 @@ const TasksPage = () => {
                   setFormData({ ...formData, category: e.target.value })
                 }
                 placeholder="e.g., Venue, Catering"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -612,7 +624,7 @@ const TasksPage = () => {
                   setFormData({ ...formData, assigned_to: e.target.value })
                 }
                 placeholder="Name or email"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -629,7 +641,7 @@ const TasksPage = () => {
                     estimated_cost: e.target.value,
                   })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -643,7 +655,7 @@ const TasksPage = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, actual_cost: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
             <div>
@@ -655,7 +667,7 @@ const TasksPage = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, event_id: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               >
                 <option value="">None</option>
                 {events?.map((event) => (
@@ -675,7 +687,7 @@ const TasksPage = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, reminder_date: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
               />
             </div>
           </div>
@@ -754,19 +766,16 @@ const TasksPage = () => {
             />
           </div>
           <DragOverlay>
-            {activeId ? (
-              <div className="bg-white rounded-lg shadow-lg border-2 border-blue-400 p-4 w-64 opacity-90">
-                {(() => {
-                  const task = tasks?.find(t => t.id === activeId)
-                  return task ? (
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-sm mb-1">{task.title}</h3>
-                      <span className="text-xs text-gray-600">{task.priority}</span>
-                    </div>
-                  ) : null
-                })()}
-              </div>
-            ) : null}
+            {activeId ? (() => {
+              const task = tasks?.find(t => t.id === activeId)
+              if (!task) return null
+              return (
+                <div className="bg-white rounded-lg shadow-lg border-2 border-blue-400 p-4 w-64 opacity-90 rotate-2">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1">{task.title}</h3>
+                  <span className="text-xs text-gray-600">{task.priority}</span>
+                </div>
+              )
+            })() : null}
           </DragOverlay>
         </DndContext>
       )}

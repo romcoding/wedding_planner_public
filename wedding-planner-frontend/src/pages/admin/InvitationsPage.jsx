@@ -25,17 +25,30 @@ const InvitationsPage = () => {
 
   const createInvitation = useMutation({
     mutationFn: (payload) => api.post('/invitations', payload),
-    onSuccess: () => {
+    onSuccess: (response) => {
       queryClient.invalidateQueries(['invitations'])
       resetForm()
       setShowForm(false)
       setFieldErrors({})
-      toast.success('Invitation created successfully!')
+      toast.success(response.data?.message || 'Invitation created successfully!')
     },
     onError: (error) => {
       const errorData = error.response?.data
-      const errorMsg = errorData?.error || 'Failed to create invitation'
-      setFieldErrors({ general: errorMsg })
+      let errorMsg = 'Failed to create invitation'
+      
+      if (errorData) {
+        if (errorData.error) {
+          errorMsg = errorData.error
+        } else if (errorData.errors) {
+          // Handle field-specific errors
+          setFieldErrors(errorData.errors)
+          errorMsg = 'Please fix the errors below'
+        } else if (errorData.message) {
+          errorMsg = errorData.message
+        }
+      }
+      
+      setFieldErrors(prev => ({ ...prev, general: errorMsg }))
       toast.error(errorMsg)
     },
   })

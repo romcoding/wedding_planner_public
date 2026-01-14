@@ -232,8 +232,12 @@ const SeatingChartPage = () => {
           seat_number: seatNumber,
           guest_id: guestId
         }, {
+          onSuccess: () => {
+            console.log('Guest assigned successfully')
+          },
           onError: (error) => {
             console.error('Error assigning guest:', error)
+            console.error('Error response:', error.response?.data)
             alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
           }
         })
