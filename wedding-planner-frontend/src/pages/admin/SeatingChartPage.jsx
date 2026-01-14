@@ -148,6 +148,15 @@ const SeatingChartPage = () => {
     const { active, over, delta } = event
     const activeData = active.data.current
 
+    console.log('🔵 Drag End:', { 
+      activeId: active.id, 
+      activeType: activeData?.type,
+      overId: over?.id,
+      overType: over?.data.current?.type,
+      activeData,
+      overData: over?.data.current
+    })
+
     // Handle table dragging - must check this first to prevent seat assignment
     if (activeData?.type === 'table') {
       const tableId = activeData.tableId
@@ -182,9 +191,10 @@ const SeatingChartPage = () => {
 
     // If dragging a guest to a seat
     if (activeData?.type === 'guest' && overData?.type === 'seat') {
+      console.log('✅ Guest to seat drop detected!', { activeData, overData })
       const guestId = activeData.guestId
       if (!guestId) {
-        console.error('Guest ID not found in active data:', activeData)
+        console.error('❌ Guest ID not found in active data:', activeData)
         setActiveId(null)
         setDraggedTableId(null)
         return
@@ -194,11 +204,13 @@ const SeatingChartPage = () => {
       const seatNumber = overData.seatNumber
       
       if (!tableId || !seatNumber) {
-        console.error('Table ID or seat number not found in over data:', overData)
+        console.error('❌ Table ID or seat number not found in over data:', overData)
         setActiveId(null)
         setDraggedTableId(null)
         return
       }
+      
+      console.log('✅ Proceeding with assignment:', { guestId, tableId, seatNumber })
 
       // Check if seat is already taken
       const table = tables?.find(t => t.id === tableId)
@@ -700,6 +712,24 @@ function GuestCard({ guest, isDragging }) {
 function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragging }) {
   const assignments = table.assignments || []
   const occupiedSeats = assignments.filter(a => a.guest_id).length
+  
+  // Create seat assignments for ALL capacity, not just existing assignments
+  // This ensures empty seats are also droppable
+  const allSeats = []
+  for (let seatNum = 1; seatNum <= table.capacity; seatNum++) {
+    const existingAssignment = assignments.find(a => a.seat_number === seatNum)
+    if (existingAssignment) {
+      allSeats.push(existingAssignment)
+    } else {
+      // Create a placeholder assignment for empty seats
+      allSeats.push({
+        id: `temp-${table.id}-${seatNum}`,
+        seat_number: seatNum,
+        guest_id: null,
+        guest: null
+      })
+    }
+  }
 
   const { attributes, listeners, setNodeRef, transform, isDragging: isTableDragging } = useDraggable({
     id: `table-${table.id}`,
@@ -923,16 +953,17 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
       
       {/* Seats positioned around table */}
       <div className="seat-wrapper absolute inset-0 pointer-events-none">
-        {assignments.map((assignment, index) => {
+        {allSeats.map((assignment, index) => {
           const position = seatPositions[assignment.seat_number - 1] || { x: 0, y: 0 }
           return (
             <div
-              key={assignment.id || `seat-${assignment.seat_number}`}
+              key={assignment.id || `seat-${table.id}-${assignment.seat_number}`}
               style={{
                 position: 'absolute',
                 left: `${position.x}px`,
                 top: `${position.y}px`,
                 pointerEvents: 'auto',
+                zIndex: assignment.guest_id ? 5 : 4,
               }}
             >
               <SeatComponent
