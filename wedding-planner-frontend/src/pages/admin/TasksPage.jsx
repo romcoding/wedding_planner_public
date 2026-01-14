@@ -132,7 +132,12 @@ function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
   })
 
   return (
-    <div className="flex-1 min-w-[280px] rounded-lg overflow-hidden bg-gray-50 border-2 border-gray-200">
+    <div 
+      ref={setNodeRef}
+      className={`flex-1 min-w-[280px] rounded-lg overflow-hidden bg-gray-50 border-2 transition-all ${
+        isOver ? 'border-blue-400 bg-blue-50 ring-2 ring-blue-300' : 'border-gray-200'
+      }`}
+    >
       {/* Column Header */}
       <div className="bg-gray-100 border-b-2 border-gray-300 px-4 py-3">
         <div className="flex items-center justify-between">
@@ -143,18 +148,13 @@ function KanbanColumn({ id, title, tasks, onEdit, onDelete }) {
         </div>
       </div>
       
-      {/* Column Content Area with grayish background - entire column */}
-      <div
-        ref={setNodeRef}
-        className={`bg-gray-50 min-h-[500px] p-3 transition-colors ${
-          isOver ? 'bg-blue-100 ring-2 ring-blue-400' : ''
-        }`}
-      >
+      {/* Column Content Area - grayish background extends entire column */}
+      <div className="bg-gray-50 min-h-[500px] p-3">
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2">
             {tasks.length === 0 ? (
               <div className={`text-center py-12 text-gray-400 text-sm border-2 border-dashed rounded-lg transition-colors ${
-                isOver ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                isOver ? 'border-blue-400 bg-blue-100' : 'border-gray-300'
               }`}>
                 Drop tasks here
               </div>
