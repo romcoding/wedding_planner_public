@@ -44,7 +44,7 @@ const SeatingChartPage = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 3, // Reduced from 8 to make dragging easier
+        distance: 0, // No distance constraint - drag starts immediately
       },
     }),
     useSensor(KeyboardSensor)
@@ -707,6 +707,36 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
     opacity: isTableDragging ? 0.7 : 1,
   }
 
+  // Calculate table dimensions based on shape
+  const getTableDimensions = () => {
+    if (table.shape === 'round') {
+      return {
+        width: '250px',
+        height: '250px',
+        borderRadius: '50%'
+      }
+    } else if (table.shape === 'rectangular') {
+      return {
+        width: '300px',
+        height: '225px',
+        borderRadius: '8px'
+      }
+    } else if (table.shape === 'square') {
+      return {
+        width: '250px',
+        height: '250px',
+        borderRadius: '8px'
+      }
+    }
+    return {
+      width: '250px',
+      height: '250px',
+      borderRadius: '8px'
+    }
+  }
+
+  const tableDimensions = getTableDimensions()
+
   return (
     <div
       ref={setNodeRef}
@@ -716,17 +746,12 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
         left: `${table.position_x}px`,
         top: `${table.position_y}px`,
         zIndex: isSelected ? 10 : 1,
+        width: tableDimensions.width,
+        height: tableDimensions.height,
+        borderRadius: tableDimensions.borderRadius,
       }}
       className={`bg-white border-2 ${isSelected ? 'border-blue-500 shadow-xl' : 'border-gray-300'} p-4 shadow-lg transition-all ${
         isTableDragging ? 'cursor-grabbing' : ''
-      } ${
-        table.shape === 'round' 
-          ? 'rounded-full' 
-          : table.shape === 'rectangular'
-          ? 'rounded-lg'
-          : table.shape === 'square'
-          ? 'rounded-lg'
-          : 'rounded-lg'
       }`}
       onClick={(e) => {
         // Don't select if clicking on drag handle or seats
