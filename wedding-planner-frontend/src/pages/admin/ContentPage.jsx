@@ -1,9 +1,18 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import ReactQuill from 'react-quill'
-import 'react-quill/dist/quill.snow.css'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X, Eye } from 'lucide-react'
+
+// Lazy load ReactQuill to avoid findDOMNode issues with React 19
+let ReactQuill = null
+const loadReactQuill = async () => {
+  if (!ReactQuill) {
+    const module = await import('react-quill')
+    ReactQuill = module.default
+    await import('react-quill/dist/quill.snow.css')
+  }
+  return ReactQuill
+}
 
 const ContentPage = () => {
   const queryClient = useQueryClient()
@@ -13,6 +22,18 @@ const ContentPage = () => {
   const [activeTab, setActiveTab] = useState('en')
   const [autoTranslate, setAutoTranslate] = useState(false)
   const [sourceLanguage, setSourceLanguage] = useState('en')
+  const [quillLoaded, setQuillLoaded] = useState(false)
+  
+  // Load ReactQuill when form is shown
+  useEffect(() => {
+    if (showForm && !quillLoaded) {
+      loadReactQuill().then(() => {
+        setQuillLoaded(true)
+      }).catch(err => {
+        console.error('Failed to load ReactQuill:', err)
+      })
+    }
+  }, [showForm, quillLoaded])
   const [formData, setFormData] = useState({
     key: '',
     title: '',
@@ -285,13 +306,17 @@ const ContentPage = () => {
                     Content ({activeTab === 'en' ? 'English' : activeTab === 'de' ? 'Deutsch' : 'Français'}) *
                   </label>
                   <div className="border border-gray-300 rounded-lg overflow-hidden">
-                    <ReactQuill
-                      theme="snow"
-                      value={formData[`content_${activeTab}`]}
-                      onChange={handleContentChange}
-                      modules={quillModules}
-                      style={{ minHeight: '300px' }}
-                    />
+                    {quillLoaded && ReactQuill ? (
+                      <ReactQuill
+                        theme="snow"
+                        value={formData[`content_${activeTab}`]}
+                        onChange={handleContentChange}
+                        modules={quillModules}
+                        style={{ minHeight: '300px' }}
+                      />
+                    ) : (
+                      <div className="p-4 text-center text-gray-500">Loading editor...</div>
+                    )}
                   </div>
                 </div>
 
@@ -300,13 +325,17 @@ const ContentPage = () => {
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <label className="block text-sm font-medium mb-1 text-gray-700">English</label>
                     <div className="border border-gray-300 rounded-lg overflow-hidden">
-                      <ReactQuill
-                        theme="snow"
-                        value={formData.content_en}
-                        onChange={(value) => setFormData({ ...formData, content_en: value })}
-                        modules={quillModules}
-                        style={{ minHeight: '200px' }}
-                      />
+                      {quillLoaded && ReactQuill ? (
+                        <ReactQuill
+                          theme="snow"
+                          value={formData.content_en}
+                          onChange={(value) => setFormData({ ...formData, content_en: value })}
+                          modules={quillModules}
+                          style={{ minHeight: '200px' }}
+                        />
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">Loading editor...</div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -314,13 +343,17 @@ const ContentPage = () => {
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <label className="block text-sm font-medium mb-1 text-gray-700">Deutsch</label>
                     <div className="border border-gray-300 rounded-lg overflow-hidden">
-                      <ReactQuill
-                        theme="snow"
-                        value={formData.content_de}
-                        onChange={(value) => setFormData({ ...formData, content_de: value })}
-                        modules={quillModules}
-                        style={{ minHeight: '200px' }}
-                      />
+                      {quillLoaded && ReactQuill ? (
+                        <ReactQuill
+                          theme="snow"
+                          value={formData.content_de}
+                          onChange={(value) => setFormData({ ...formData, content_de: value })}
+                          modules={quillModules}
+                          style={{ minHeight: '200px' }}
+                        />
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">Loading editor...</div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -328,13 +361,17 @@ const ContentPage = () => {
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <label className="block text-sm font-medium mb-1 text-gray-700">Français</label>
                     <div className="border border-gray-300 rounded-lg overflow-hidden">
-                      <ReactQuill
-                        theme="snow"
-                        value={formData.content_fr}
-                        onChange={(value) => setFormData({ ...formData, content_fr: value })}
-                        modules={quillModules}
-                        style={{ minHeight: '200px' }}
-                      />
+                      {quillLoaded && ReactQuill ? (
+                        <ReactQuill
+                          theme="snow"
+                          value={formData.content_fr}
+                          onChange={(value) => setFormData({ ...formData, content_fr: value })}
+                          modules={quillModules}
+                          style={{ minHeight: '200px' }}
+                        />
+                      ) : (
+                        <div className="p-4 text-center text-gray-500">Loading editor...</div>
+                      )}
                     </div>
                   </div>
                 )}

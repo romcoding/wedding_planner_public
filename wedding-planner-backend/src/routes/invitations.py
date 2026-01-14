@@ -30,7 +30,33 @@ def get_invitations():
     
     invitations = query.order_by(Invitation.created_at.desc()).all()
     
-    return jsonify([inv.to_dict(include_template=True) for inv in invitations]), 200
+    try:
+        result = []
+        for inv in invitations:
+            try:
+                result.append(inv.to_dict(include_template=True))
+            except Exception as e:
+                # If template serialization fails, try without template
+                import traceback
+                print(f"Error serializing invitation {inv.id}: {e}")
+                print(traceback.format_exc())
+                try:
+                    result.append(inv.to_dict(include_template=False))
+                except Exception as e2:
+                    print(f"Error serializing invitation {inv.id} without template: {e2}")
+                    # Last resort: basic dict
+                    result.append({
+                        'id': inv.id,
+                        'email': inv.email,
+                        'status': inv.status,
+                        'error': 'Serialization error'
+                    })
+        return jsonify(result), 200
+    except Exception as e:
+        import traceback
+        print(f"Error in get_invitations: {e}")
+        print(traceback.format_exc())
+        return jsonify({'error': 'Failed to retrieve invitations', 'details': str(e)}), 500
 
 @invitations_bp.route('', methods=['POST'])
 @jwt_required()
