@@ -36,9 +36,8 @@ def migrate():
             if 'vendor_name' not in columns:
                 print("Adding 'vendor_name' column to 'costs' table...")
                 try:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE costs ADD COLUMN vendor_name VARCHAR(200)"))
-                        conn.commit()
+                    db.session.execute(text("ALTER TABLE costs ADD COLUMN vendor_name VARCHAR(200)"))
+                    db.session.commit()
                     print("✅ Added 'vendor_name' column.")
                 except Exception as e:
                     print(f"❌ Error adding vendor_name: {e}")
@@ -50,9 +49,8 @@ def migrate():
             if 'vendor_contact' not in columns:
                 print("Adding 'vendor_contact' column to 'costs' table...")
                 try:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE costs ADD COLUMN vendor_contact VARCHAR(500)"))
-                        conn.commit()
+                    db.session.execute(text("ALTER TABLE costs ADD COLUMN vendor_contact VARCHAR(500)"))
+                    db.session.commit()
                     print("✅ Added 'vendor_contact' column.")
                 except Exception as e:
                     print(f"❌ Error adding vendor_contact: {e}")
@@ -64,9 +62,8 @@ def migrate():
             if 'receipt_url' not in columns:
                 print("Adding 'receipt_url' column to 'costs' table...")
                 try:
-                    with db.engine.connect() as conn:
-                        conn.execute(text("ALTER TABLE costs ADD COLUMN receipt_url VARCHAR(500)"))
-                        conn.commit()
+                    db.session.execute(text("ALTER TABLE costs ADD COLUMN receipt_url VARCHAR(500)"))
+                    db.session.commit()
                     print("✅ Added 'receipt_url' column.")
                 except Exception as e:
                     print(f"❌ Error adding receipt_url: {e}")
@@ -78,16 +75,16 @@ def migrate():
             if 'vendor_name' in columns and 'vendor' in columns:
                 print("\nMigrating existing vendor data to vendor_name...")
                 try:
-                    with db.engine.connect() as conn:
-                        result = conn.execute(text("""
-                            UPDATE costs 
-                            SET vendor_name = vendor 
-                            WHERE vendor_name IS NULL AND vendor IS NOT NULL
-                        """))
-                        conn.commit()
-                        print(f"✅ Migrated {result.rowcount} vendor values to vendor_name.")
+                    result = db.session.execute(text("""
+                        UPDATE costs 
+                        SET vendor_name = vendor 
+                        WHERE vendor_name IS NULL AND vendor IS NOT NULL
+                    """))
+                    db.session.commit()
+                    print(f"✅ Migrated {result.rowcount} vendor values to vendor_name.")
                 except Exception as e:
                     print(f"❌ Error migrating vendor data: {e}")
+                    db.session.rollback()
 
             print()
             print("=" * 60)
