@@ -489,7 +489,7 @@ const TasksPage = () => {
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-2xl font-bold">Task Templates</h2>
+                <h2 className="text-2xl font-bold text-gray-900">Task Templates</h2>
                 <button
                   onClick={() => setShowTemplates(false)}
                   className="text-gray-500 hover:text-gray-700"
@@ -528,7 +528,7 @@ const TasksPage = () => {
 
       {showForm && (
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
             {editingTaskId ? 'Edit Task' : 'Create New Task'}
           </h2>
           <div className="grid grid-cols-2 gap-4">

@@ -149,7 +149,7 @@ export default function GuestsPage() {
       {/* Create Guest Form */}
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Create New Guest</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Guest</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>

@@ -225,7 +225,7 @@ const ImagesPage = () => {
 
       {showForm && (
         <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
             {editingId ? 'Edit Image Position' : 'Add New Image'}
           </h2>
           <form onSubmit={handleSubmit} className="space-y-4">
