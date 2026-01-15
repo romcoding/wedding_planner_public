@@ -46,6 +46,14 @@ def create_app():
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
     app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False  # Set to timedelta(hours=24) for production
     
+    # Upload limits (Render free tier can 502 if requests run too long; keep uploads reasonable)
+    # Default 25MB; can override via MAX_UPLOAD_MB env var.
+    try:
+        max_upload_mb = int(os.getenv('MAX_UPLOAD_MB', '25'))
+    except ValueError:
+        max_upload_mb = 25
+    app.config['MAX_CONTENT_LENGTH'] = max_upload_mb * 1024 * 1024
+    
     # Database configuration
     database_url = os.getenv('DATABASE_URL')
     if database_url:

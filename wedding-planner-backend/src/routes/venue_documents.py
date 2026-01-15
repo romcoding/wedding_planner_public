@@ -3,11 +3,11 @@ Routes for venue document upload and management
 """
 import os
 import json
-from flask import Blueprint, request, jsonify, send_file
+import threading
+from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from src.models import db, Venue, VenueDocument, DocumentChunk, User
-from src.utils.jwt_helpers import get_admin_id
 from src.services.document_parser import parse_document, chunk_text
 from src.services.embedding_service import get_embeddings_batch
 import logging
@@ -19,6 +19,10 @@ documents_bp = Blueprint('venue_documents', __name__)
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'pdf', 'docx', 'doc'}
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'uploads', 'documents')
+MAX_FILE_SIZE_MB = int(os.getenv('MAX_VENUE_DOC_MB', '25'))
+MAX_EXTRACTED_CHARS = int(os.getenv('MAX_VENUE_DOC_EXTRACTED_CHARS', '300000'))
+MAX_CHUNKS = int(os.getenv('MAX_VENUE_DOC_CHUNKS', '300'))
+EMBEDDING_BATCH_SIZE = int(os.getenv('VENUE_DOC_EMBEDDING_BATCH_SIZE', '50'))
 
 # Ensure upload directory exists
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -26,6 +30,84 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _process_document_in_background(app, document_id: int, file_path: str, mime_type: str):
+    """
+    Heavy processing (pdf/docx parse + chunk + embeddings) in a background thread.
+    This avoids Render request timeouts/502s during upload.
+    """
+    with app.app_context():
+        try:
+            document = VenueDocument.query.get(document_id)
+            if not document:
+                logger.error(f"Background processing: document {document_id} not found")
+                return
+
+            # Parse document
+            extracted_text = parse_document(file_path, mime_type)
+            if not extracted_text:
+                raise ValueError("No text extracted from document")
+
+            # Cap extracted text to keep processing bounded
+            if len(extracted_text) > MAX_EXTRACTED_CHARS:
+                extracted_text = extracted_text[:MAX_EXTRACTED_CHARS]
+                document.error_message = (document.error_message or "") + f" Extracted text truncated to {MAX_EXTRACTED_CHARS} chars."
+
+            document.extracted_text = extracted_text
+
+            # Chunk
+            chunks = chunk_text(extracted_text, chunk_size=1000, overlap=200)
+            if not chunks:
+                raise ValueError("No chunks created from document text")
+
+            if len(chunks) > MAX_CHUNKS:
+                chunks = chunks[:MAX_CHUNKS]
+                document.error_message = (document.error_message or "") + f" Chunks truncated to {MAX_CHUNKS}."
+
+            chunk_texts = [chunk_text_content for _, chunk_text_content in chunks]
+
+            # Embeddings in bounded batches
+            embeddings: list = []
+            for i in range(0, len(chunk_texts), EMBEDDING_BATCH_SIZE):
+                batch = chunk_texts[i:i + EMBEDDING_BATCH_SIZE]
+                embeddings.extend(get_embeddings_batch(batch))
+
+            # Replace old chunks if any (re-upload/reprocess)
+            DocumentChunk.query.filter_by(document_id=document.id).delete()
+            db.session.flush()
+
+            chunk_objects = []
+            for i, (chunk_index, chunk_text_content) in enumerate(chunks):
+                embedding = embeddings[i] if i < len(embeddings) else None
+                chunk_objects.append(DocumentChunk(
+                    document_id=document.id,
+                    chunk_index=chunk_index,
+                    text=chunk_text_content,
+                    text_length=len(chunk_text_content),
+                    embedding=json.dumps(embedding) if embedding else None
+                ))
+
+            db.session.bulk_save_objects(chunk_objects)
+            document.chunk_count = len(chunk_objects)
+            document.status = 'processed'
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Background document processing failed: {e}")
+            try:
+                document = VenueDocument.query.get(document_id)
+                if document:
+                    document.status = 'error'
+                    document.error_message = str(e)
+                    db.session.commit()
+            except Exception as inner:
+                logger.error(f"Failed to persist background error status: {inner}")
+                db.session.rollback()
+        finally:
+            try:
+                db.session.remove()
+            except Exception:
+                pass
 
 
 @documents_bp.route('/venues/<int:venue_id>/documents', methods=['GET'])
@@ -88,6 +170,13 @@ def upload_document(venue_id):
         
         # Get file size
         file_size = os.path.getsize(file_path)
+        if file_size > MAX_FILE_SIZE_MB * 1024 * 1024:
+            # Clean up saved file
+            try:
+                os.remove(file_path)
+            except Exception:
+                pass
+            return jsonify({'error': f'File too large. Max {MAX_FILE_SIZE_MB}MB.'}), 413
         
         # Create document record
         document = VenueDocument(
@@ -108,69 +197,18 @@ def upload_document(venue_id):
         # Set initial status
         document.status = 'processing'
         db.session.commit()
-        
-        # Process document (this may take time for large PDFs)
-        try:
-            # Parse document
-            extracted_text = parse_document(file_path, file.content_type)
-            if not extracted_text:
-                raise ValueError("No text extracted from document")
-            
-            document.extracted_text = extracted_text
-            
-            # Create chunks
-            chunks = chunk_text(extracted_text, chunk_size=1000, overlap=200)
-            
-            if not chunks or len(chunks) == 0:
-                raise ValueError("No chunks created from document text")
-            
-            # Get embeddings for chunks
-            chunk_texts = [chunk[1] for chunk in chunks]
-            if not chunk_texts:
-                raise ValueError("No chunk texts extracted")
-            
-            embeddings = get_embeddings_batch(chunk_texts)
-            
-            # Create chunk records
-            chunk_objects = []
-            for i, chunk_tuple in enumerate(chunks):
-                if not isinstance(chunk_tuple, tuple) or len(chunk_tuple) != 2:
-                    logger.warning(f"Invalid chunk format at index {i}: {chunk_tuple}")
-                    continue
-                
-                chunk_index, chunk_text_content = chunk_tuple
-                
-                if not chunk_text_content or not isinstance(chunk_text_content, str):
-                    logger.warning(f"Invalid chunk text at index {i}")
-                    continue
-                
-                embedding = embeddings[i] if i < len(embeddings) and embeddings[i] else None
-                chunk = DocumentChunk(
-                    document_id=document.id,
-                    chunk_index=chunk_index,
-                    text=chunk_text_content,
-                    text_length=len(chunk_text_content),
-                    embedding=json.dumps(embedding) if embedding else None
-                )
-                chunk_objects.append(chunk)
-            
-            if not chunk_objects:
-                raise ValueError("No valid chunks created from document")
-            
-            db.session.bulk_save_objects(chunk_objects)
-            document.chunk_count = len(chunk_objects)
-            document.status = 'processed'
-            db.session.commit()
-            
-            return jsonify(document.to_dict()), 201
-            
-        except Exception as e:
-            logger.error(f"Error processing document: {e}")
-            document.status = 'error'
-            document.error_message = str(e)
-            db.session.commit()
-            # Return error response with CORS headers (ensured by always_send=True)
-            return jsonify({'error': f'Failed to process document: {str(e)}', 'document_id': document.id}), 500
+
+        # Process async to avoid request timeouts / 502 from Render proxy
+        app_obj = current_app._get_current_object()
+        thread = threading.Thread(
+            target=_process_document_in_background,
+            args=(app_obj, document.id, file_path, file.content_type),
+            daemon=True
+        )
+        thread.start()
+
+        # Return immediately; frontend can poll GET /documents for status updates
+        return jsonify(document.to_dict()), 202
         
     except Exception as e:
         db.session.rollback()
