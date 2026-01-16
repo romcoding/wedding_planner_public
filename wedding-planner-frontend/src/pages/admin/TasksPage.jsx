@@ -28,6 +28,7 @@ function TaskCard({ task, onEdit, onDelete }) {
     attributes,
     listeners,
     setNodeRef,
+    setActivatorNodeRef,
     transform,
     transition,
     isDragging,
@@ -50,15 +51,21 @@ function TaskCard({ task, onEdit, onDelete }) {
     <div
       ref={setNodeRef}
       style={style}
-      {...attributes}
-      {...listeners}
-      className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 mb-3 hover:shadow-md transition-shadow cursor-grab active:cursor-grabbing"
+      className="bg-white rounded-lg shadow-sm border-2 border-gray-200 p-4 mb-3 hover:shadow-md transition-shadow"
     >
       <div className="flex items-start justify-between mb-2">
         <div className="flex items-start gap-2 flex-1">
-          <div className="mt-1">
+          <button
+            type="button"
+            ref={setActivatorNodeRef}
+            {...attributes}
+            {...listeners}
+            className="mt-0.5 p-1 rounded hover:bg-gray-100 cursor-grab active:cursor-grabbing touch-none"
+            title="Drag to reorder"
+            onClick={(e) => e.preventDefault()}
+          >
             <GripVertical className="h-4 w-4 text-gray-400" />
-          </div>
+          </button>
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">{task.title}</h3>
             {task.description && (
@@ -101,24 +108,26 @@ function TaskCard({ task, onEdit, onDelete }) {
 
       <div className="flex items-center justify-end gap-2 mt-3 pt-2 border-t border-gray-100">
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation()
             onEdit(task)
           }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDownCapture={(e) => e.stopPropagation()}
           className="text-blue-600 hover:text-blue-800 p-1 cursor-pointer"
           title="Edit task"
         >
           <Edit className="h-4 w-4" />
         </button>
         <button
+          type="button"
           onClick={(e) => {
             e.stopPropagation()
             if (window.confirm('Are you sure you want to delete this task?')) {
               onDelete(task.id)
             }
           }}
-          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDownCapture={(e) => e.stopPropagation()}
           className="text-red-600 hover:text-red-800 p-1 cursor-pointer"
           title="Delete task"
         >
@@ -200,7 +209,9 @@ const TasksPage = () => {
   const [activeId, setActiveId] = useState(null)
   
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 }, // prevent clicks from being interpreted as drags
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
