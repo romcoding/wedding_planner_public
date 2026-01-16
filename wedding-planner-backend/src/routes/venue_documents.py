@@ -7,9 +7,10 @@ import threading
 from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
-from src.models import db, Venue, VenueDocument, DocumentChunk, User
+from src.models import db, Venue, VenueDocument, DocumentChunk, User, VenueOfferCategory, VenueOffer
 from src.services.document_parser import parse_document, chunk_text
 from src.services.embedding_service import get_embeddings_batch
+from src.services.offer_extractor import extract_offers_from_text
 import logging
 
 logger = logging.getLogger(__name__)
@@ -55,6 +56,73 @@ def _process_document_in_background(app, document_id: int, file_path: str, mime_
                 document.error_message = (document.error_message or "") + f" Extracted text truncated to {MAX_EXTRACTED_CHARS} chars."
 
             document.extracted_text = extracted_text
+
+            # Offer extraction (cheap heuristic) -> upsert into a dedicated category
+            try:
+                extracted_offers = extract_offers_from_text(extracted_text)
+                if extracted_offers:
+                    category_name = 'Extracted from Documents'
+                    category = VenueOfferCategory.query.filter_by(
+                        venue_id=document.venue_id,
+                        name=category_name
+                    ).first()
+                    if not category:
+                        category = VenueOfferCategory(
+                            venue_id=document.venue_id,
+                            name=category_name,
+                            description='Auto-detected offers from uploaded documents',
+                            order=999
+                        )
+                        db.session.add(category)
+                        db.session.flush()
+
+                    for idx, offer_data in enumerate(extracted_offers):
+                        name = offer_data.get('name')
+                        if not name:
+                            continue
+
+                        # Avoid spamming duplicates for the same document
+                        existing = VenueOffer.query.filter_by(
+                            venue_id=document.venue_id,
+                            category_id=category.id,
+                            name=name
+                        ).first()
+
+                        notes = (
+                            f"Auto-detected from document '{document.original_filename}' "
+                            f"(doc_id={document.id}).\nSource: {offer_data.get('source_line')}"
+                        )
+
+                        if existing:
+                            # Only fill missing fields / refresh price if empty
+                            if existing.price is None:
+                                existing.price = offer_data.get('price')
+                            if not existing.currency:
+                                existing.currency = offer_data.get('currency', 'EUR')
+                            if not existing.unit and offer_data.get('unit'):
+                                existing.unit = offer_data.get('unit')
+                            if not existing.price_type:
+                                existing.price_type = offer_data.get('price_type', 'fixed')
+                            if not existing.notes:
+                                existing.notes = notes
+                        else:
+                            db.session.add(VenueOffer(
+                                category_id=category.id,
+                                venue_id=document.venue_id,
+                                name=name,
+                                description=None,
+                                price=offer_data.get('price'),
+                                price_type=offer_data.get('price_type', 'fixed'),
+                                currency=offer_data.get('currency', 'EUR'),
+                                unit=offer_data.get('unit'),
+                                order=idx,
+                                is_available=True,
+                                notes=notes
+                            ))
+                    db.session.flush()
+            except Exception as e:
+                # Don't fail document processing if extraction fails
+                logger.warning(f"Offer extraction failed for document {document_id}: {e}")
 
             # Chunk
             chunks = chunk_text(extracted_text, chunk_size=1000, overlap=200)
