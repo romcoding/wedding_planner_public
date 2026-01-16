@@ -44,7 +44,7 @@ const SeatingChartPage = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 0, // No distance constraint - drag starts immediately
+        distance: 6, // Small threshold to avoid accidental drags on click
       },
     }),
     useSensor(KeyboardSensor, {
@@ -151,19 +151,8 @@ const SeatingChartPage = () => {
     const activeData = active.data.current
     const overData = over?.data.current
 
-    console.log('🔵 Drag End:', { 
-      activeId: active.id, 
-      activeType: activeData?.type,
-      overId: over?.id,
-      overType: overData?.type,
-      activeData,
-      overData,
-      hasOver: !!over
-    })
-    
     // If no drop target, log and return early
     if (!over) {
-      console.warn('⚠️ No drop target detected')
       setActiveId(null)
       setDraggedTableId(null)
       return
@@ -196,10 +185,8 @@ const SeatingChartPage = () => {
 
     // If dragging a guest to a seat
     if (activeData?.type === 'guest' && overData?.type === 'seat') {
-      console.log('✅ Guest to seat drop detected!', { activeData, overData })
       const guestId = activeData.guestId
       if (!guestId) {
-        console.error('❌ Guest ID not found in active data:', activeData)
         setActiveId(null)
         setDraggedTableId(null)
         return
@@ -209,13 +196,10 @@ const SeatingChartPage = () => {
       const seatNumber = overData.seatNumber
       
       if (!tableId || !seatNumber) {
-        console.error('❌ Table ID or seat number not found in over data:', overData)
         setActiveId(null)
         setDraggedTableId(null)
         return
       }
-      
-      console.log('✅ Proceeding with assignment:', { guestId, tableId, seatNumber })
 
       // Check if seat is already taken
       const table = tables?.find(t => t.id === tableId)
@@ -248,22 +232,17 @@ const SeatingChartPage = () => {
         })
       } else if (!seat?.guest_id || seat.guest_id === guestId) {
         // Seat is empty or same guest, just assign/update
-        console.log('Assigning guest', guestId, 'to seat', seatNumber, 'at table', tableId)
         assignGuest.mutate({
           table_id: tableId,
           seat_number: seatNumber,
           guest_id: guestId
         }, {
           onSuccess: (response) => {
-            console.log('Guest assigned successfully:', response.data)
             // Force refresh of tables and unassigned guests
             queryClient.invalidateQueries(['seating-tables'])
             queryClient.invalidateQueries(['unassigned-guests'])
           },
           onError: (error) => {
-            console.error('Error assigning guest:', error)
-            console.error('Error response:', error.response?.data)
-            console.error('Request payload:', { table_id: tableId, seat_number: seatNumber, guest_id: guestId })
             alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
           }
         })
@@ -678,13 +657,6 @@ function GuestCard({ guest, isDragging }) {
       {...attributes}
       {...listeners}
       className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none select-none"
-      onMouseDown={(e) => {
-        console.log('🖱️ Guest card mouse down:', { guestId: guest.id, guestName: `${guest.first_name} ${guest.last_name}` })
-        // Don't prevent default - let dnd-kit handle it
-      }}
-      onDragStart={(e) => {
-        console.log('🔄 Native drag start (should not fire with dnd-kit):', e)
-      }}
     >
       <p className="font-medium text-sm text-gray-900 pointer-events-none">
         {guest.first_name} {guest.last_name}
@@ -721,14 +693,6 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
     }
   }
   
-  console.log('🪑 Table seats:', { 
-    tableName: table.name, 
-    capacity: table.capacity, 
-    assignmentsCount: assignments.length,
-    allSeatsCount: allSeats.length,
-    allSeats 
-  })
-
   const { attributes, listeners, setNodeRef, transform, isDragging: isTableDragging } = useDraggable({
     id: `table-${table.id}`,
     data: {
@@ -1021,17 +985,6 @@ function SeatComponent({ assignment, tableId }) {
     transform: CSS.Transform.toString(transform),
     transition: transform ? 'none' : undefined,
   }
-
-  // Debug logging
-  React.useEffect(() => {
-    console.log(`🪑 Seat ${assignment.seat_number} at table ${tableId}:`, {
-      seatId: `seat-${tableId}-${assignment.seat_number}`,
-      hasGuest: !!assignment.guest_id,
-      isOver,
-      isDragging,
-      assignmentId: assignment.id
-    })
-  }, [assignment.seat_number, tableId, assignment.guest_id, isOver, isDragging, assignment.id])
 
   return (
     <div
