@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { useToast } from '../../components/ui/Toast'
 import { 
   PlusCircle, 
   Trash, 
@@ -22,6 +23,7 @@ import {
 // Venue Offers Tab Component with inline editing
 export function VenueOffersTab({ venueId }) {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const [showCategoryForm, setShowCategoryForm] = useState(false)
   const [showOfferForm, setShowOfferForm] = useState(false)
   const [showCostForm, setShowCostForm] = useState(false)
@@ -62,6 +64,13 @@ export function VenueOffersTab({ venueId }) {
     queryKey: ['venue-offers', venueId],
     queryFn: () => api.get(`/venues/${venueId}/categories`).then(res => res.data),
     enabled: !!venueId, // Only run query if venueId is defined
+  })
+
+  // Reuse VenueDetailModal cache (same queryKey) to prefill vendor details for costs
+  const { data: venue } = useQuery({
+    queryKey: ['venue', venueId],
+    queryFn: () => api.get(`/venues/${venueId}`).then((res) => res.data),
+    enabled: !!venueId,
   })
 
   const createCategory = useMutation({
@@ -156,6 +165,9 @@ export function VenueOffersTab({ venueId }) {
     onSuccess: () => {
       queryClient.invalidateQueries(['costs'])
       queryClient.invalidateQueries(['cost-analytics'])
+      // Also refresh budget widgets that depend on costs
+      queryClient.invalidateQueries(['analytics', 'budget'])
+      queryClient.invalidateQueries(['analytics', 'overview'])
       setShowCostForm(false)
       setCostFormOffer(null)
       setCostFormData({
@@ -169,17 +181,19 @@ export function VenueOffersTab({ venueId }) {
         vendor_contact: '',
         notes: ''
       })
-      alert('Cost added successfully! You can view it in the Costs & Budget section.')
+      toast.success('Added to Costs & Budget')
     },
     onError: (error) => {
       console.error('Error creating cost:', error)
       const errorData = error.response?.data
-      alert(errorData?.error || 'Failed to create cost. Please try again.')
+      toast.error(errorData?.error || 'Failed to create cost. Please try again.')
     },
   })
 
   const handleAddToCosts = (offer, category) => {
     setCostFormOffer(offer)
+    const contactParts = [venue?.contact_email, venue?.contact_phone].filter(Boolean)
+    const vendorContact = contactParts.join(' · ')
     setCostFormData({
       name: offer.name || '',
       description: offer.description || '',
@@ -187,18 +201,31 @@ export function VenueOffersTab({ venueId }) {
       currency: offer.currency || 'EUR',
       category: 'Venue',
       status: 'planned',
-      vendor_name: '',
-      vendor_contact: '',
-      notes: `From venue offer: ${category.name || 'Venue Offer'}`
+      vendor_name: venue?.contact_name || venue?.name || '',
+      vendor_contact: vendorContact,
+      notes: `Imported from venue: ${venue?.name || 'Venue'} · Offer: ${category?.name || 'Venue Offer'}`
     })
     setShowCostForm(true)
   }
 
   const handleCostSubmit = (e) => {
     e.preventDefault()
+    const amountNum = parseFloat(costFormData.amount)
+    if (!costFormData.name?.trim()) {
+      toast.error('Cost name is required')
+      return
+    }
+    if (!Number.isFinite(amountNum) || amountNum <= 0) {
+      toast.error('Amount must be greater than 0')
+      return
+    }
+    if (!costFormData.category?.trim()) {
+      toast.error('Category is required')
+      return
+    }
     const payload = {
       ...costFormData,
-      amount: parseFloat(costFormData.amount) || 0,
+      amount: amountNum,
     }
     createCost.mutate(payload)
   }
