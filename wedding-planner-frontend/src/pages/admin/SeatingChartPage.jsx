@@ -868,47 +868,46 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
           }
         }}
       >
-        {/* Drag handle - only way to move table */}
-        <div
-          {...listeners}
-          {...attributes}
-          className="drag-handle absolute top-2 right-2 p-1 text-gray-400 hover:text-gray-600 cursor-move z-10"
-          onClick={(e) => e.stopPropagation()}
-          onMouseDown={(e) => e.stopPropagation()}
-        >
-          <Move className="w-4 h-4" />
-        </div>
-
-        {/* Edit/Delete (kept separate from centered label so it never overlaps seats) */}
-        <div className="absolute top-2 left-2 z-10 flex gap-1">
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onEdit(table)
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-            title="Edit table"
-          >
-            <Edit className="w-4 h-4" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              if (window.confirm(`Delete ${table.name}?`)) {
-                onDelete(table.id)
-              }
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-            className="p-1 text-red-600 hover:bg-red-50 rounded"
-            title="Delete table"
-          >
-            <Trash className="w-4 h-4" />
-          </button>
-        </div>
-
-        {/* Centered label */}
+        {/* Centered label + toolbar (so it fits round tables and doesn't overlap seats) */}
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-10">
+          {/* Toolbar */}
+          <div className="flex items-center gap-2 mb-2 pointer-events-auto">
+            <button
+              {...listeners}
+              {...attributes}
+              className="drag-handle p-1 text-gray-500 hover:bg-gray-100 rounded cursor-move"
+              title="Move table"
+              onClick={(e) => e.stopPropagation()}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <Move className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(table)
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+              title="Edit table"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                if (window.confirm(`Delete ${table.name}?`)) {
+                  onDelete(table.id)
+                }
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              title="Delete table"
+            >
+              <Trash className="w-4 h-4" />
+            </button>
+          </div>
+
           <h4 className="font-semibold text-gray-900 leading-tight max-w-full truncate">
             {table.name}
           </h4>
