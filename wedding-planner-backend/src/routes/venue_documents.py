@@ -92,6 +92,22 @@ def _process_document_in_background(app, document_id: int, file_path: str, mime_
             document.chunk_count = len(chunk_objects)
             document.status = 'processed'
             db.session.commit()
+        except MemoryError as e:
+            # Be explicit — Render may still kill the process, but if it doesn't,
+            # we at least persist a clear error.
+            logger.error(f"Background document processing OOM: {e}")
+            try:
+                document = VenueDocument.query.get(document_id)
+                if document:
+                    document.status = 'error'
+                    document.error_message = (
+                        'Out of memory while processing document. '
+                        'Try a smaller PDF or reduce MAX_PDF_PAGES.'
+                    )
+                    db.session.commit()
+            except Exception as inner:
+                logger.error(f"Failed to persist background OOM status: {inner}")
+                db.session.rollback()
         except Exception as e:
             logger.error(f"Background document processing failed: {e}")
             try:
@@ -99,16 +115,6 @@ def _process_document_in_background(app, document_id: int, file_path: str, mime_
                 if document:
                     document.status = 'error'
                     document.error_message = str(e)
-                    db.session.commit()
-        except MemoryError as e:
-            # Be explicit — Render will likely still kill the process, but if it doesn't,
-            # we at least persist a clear error.
-            logger.error(f"Background document processing OOM: {e}")
-            try:
-                document = VenueDocument.query.get(document_id)
-                if document:
-                    document.status = 'error'
-                    document.error_message = 'Out of memory while processing document. Try a smaller PDF or reduce MAX_PDF_PAGES.'
                     db.session.commit()
             except Exception as inner:
                 logger.error(f"Failed to persist background error status: {inner}")
