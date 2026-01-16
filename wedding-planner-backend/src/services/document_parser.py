@@ -4,6 +4,7 @@ Document parsing service for PDF and DOCX files
 import os
 import logging
 from typing import Optional, List, Tuple
+import os as _os
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,26 @@ def parse_pdf(file_path: str) -> Optional[str]:
         raise ImportError("pdfminer.six is not installed. Install with: pip install pdfminer.six")
     
     try:
-        text = pdf_extract_text(file_path)
+        # Hard limits to avoid OOM on small Render instances.
+        # pdfminer can be memory-hungry depending on PDF structure (fonts/images/layout).
+        try:
+            max_pages = int(_os.getenv('MAX_PDF_PAGES', '25'))
+        except ValueError:
+            max_pages = 25
+        caching = _os.getenv('PDFMINER_CACHING', 'false').lower() in ('1', 'true', 'yes')
+
+        # maxpages=0 means "all pages" — we never want that on low-memory instances.
+        maxpages = max_pages if max_pages > 0 else 25
+
+        text = pdf_extract_text(
+            file_path,
+            maxpages=maxpages,
+            caching=caching,
+        )
         return text.strip() if text else None
+    except MemoryError:
+        logger.error(f"MemoryError parsing PDF {file_path} (likely too complex/large for current instance)")
+        raise
     except Exception as e:
         logger.error(f"Error parsing PDF {file_path}: {e}")
         raise
