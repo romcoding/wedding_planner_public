@@ -879,37 +879,42 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
           <Move className="w-4 h-4" />
         </div>
 
-        <div className="flex justify-between items-start mb-3 pr-6">
-          <div>
-            <h4 className="font-semibold text-gray-900">{table.name}</h4>
-            <p className="text-xs text-gray-600">
-              {occupiedSeats} / {table.capacity} seats
-            </p>
-          </div>
-          <div className="flex gap-1">
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                onEdit(table)
-              }}
-              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
-              title="Edit table"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                if (window.confirm(`Delete ${table.name}?`)) {
-                  onDelete(table.id)
-                }
-              }}
-              className="p-1 text-red-600 hover:bg-red-50 rounded"
-              title="Delete table"
-            >
-              <Trash className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Edit/Delete (kept separate from centered label so it never overlaps seats) */}
+        <div className="absolute top-2 left-2 z-10 flex gap-1">
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onEdit(table)
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+            title="Edit table"
+          >
+            <Edit className="w-4 h-4" />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              if (window.confirm(`Delete ${table.name}?`)) {
+                onDelete(table.id)
+              }
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="p-1 text-red-600 hover:bg-red-50 rounded"
+            title="Delete table"
+          >
+            <Trash className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Centered label */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none px-10">
+          <h4 className="font-semibold text-gray-900 leading-tight max-w-full truncate">
+            {table.name}
+          </h4>
+          <p className="text-xs text-gray-600 mt-1">
+            {occupiedSeats} / {table.capacity} seats
+          </p>
         </div>
       </div>
       
