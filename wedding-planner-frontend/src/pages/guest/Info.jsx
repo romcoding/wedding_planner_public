@@ -38,6 +38,13 @@ export default function GuestInfo() {
     return 'Pending'
   }
 
+  const getInviteTypeLabel = (n) => {
+    const count = Number(n || 1)
+    if (count === 1) return 'Individual'
+    if (count === 2) return 'Couple'
+    return 'Group'
+  }
+
   // Get images by position
   const infoTopImage = images?.find(img => img.position === 'info_top' && img.is_active && img.is_public)
   const editRsvpImage = images?.find(img => img.position === 'edit_rsvp' && img.is_active && img.is_public)
@@ -86,6 +93,10 @@ export default function GuestInfo() {
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
                       <span className="text-gray-600">Coming</span>
                       <span className="font-semibold text-gray-900">{getStatusLabel(guestProfile?.rsvp_status)}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <span className="text-gray-600">Invite type</span>
+                      <span className="font-semibold text-gray-900">{getInviteTypeLabel(guestProfile?.number_of_guests)}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
                       <span className="text-gray-600">Guests</span>

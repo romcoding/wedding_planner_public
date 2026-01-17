@@ -222,7 +222,8 @@ export default function RSVP() {
     return Number.isFinite(n) && n > 0 ? n : 1
   }, [guestData?.number_of_guests])
 
-  const isCoupleInvite = originalGuestCount > 1
+  const isCoupleInvite = originalGuestCount === 2
+  const isGroupInvite = originalGuestCount > 2
 
   // Populate pass state when guest data loads
   useEffect(() => {
@@ -354,9 +355,10 @@ export default function RSVP() {
   const steps = useMemo(() => {
     const base = ['attendance']
     if (isCoupleInvite) base.push('couple')
+    if (isGroupInvite) base.push('groupCount')
     base.push('overnight', 'dietary', 'notes', 'photo', 'done')
     return base
-  }, [isCoupleInvite])
+  }, [isCoupleInvite, isGroupInvite])
 
   const currentStepKey = steps[Math.min(pass.step, steps.length - 1)]
 
@@ -388,6 +390,13 @@ export default function RSVP() {
     const newCount = bothComing ? originalGuestCount : 1
     setPass((p) => ({ ...p, number_of_guests: newCount }))
     await savePartial({ number_of_guests: newCount })
+    goNext()
+  }
+
+  const handleGroupCountNext = async () => {
+    const clamped = Math.max(1, Math.min(originalGuestCount, pass.number_of_guests || 1))
+    setPass((p) => ({ ...p, number_of_guests: clamped }))
+    await savePartial({ number_of_guests: clamped })
     goNext()
   }
 
@@ -657,6 +666,57 @@ export default function RSVP() {
                         <ChevronLeft className="w-4 h-4" />
                         {t('back')}
                       </button>
+                    </div>
+                  </StepShell>
+                )}
+
+                {currentStepKey === 'groupCount' && (
+                  <StepShell title={t('qGroupHowMany')} subtitle={t('qGroupHowManySub').replace('{{max}}', String(originalGuestCount))}>
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPass((p) => ({
+                              ...p,
+                              number_of_guests: Math.max(1, (p.number_of_guests || 1) - 1),
+                            }))
+                          }
+                          className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 font-semibold"
+                        >
+                          −
+                        </button>
+                        <div className="text-center">
+                          <div className="text-3xl font-bold text-gray-900">{pass.number_of_guests || 1}</div>
+                          <div className="text-sm text-gray-600">{t('people')}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setPass((p) => ({
+                              ...p,
+                              number_of_guests: Math.min(originalGuestCount, (p.number_of_guests || 1) + 1),
+                            }))
+                          }
+                          className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 font-semibold"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-3">{t('groupMaxNote').replace('{{max}}', String(originalGuestCount))}</p>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <PrimaryButton variant="secondary" onClick={goPrev}>
+                        <span className="flex items-center justify-center gap-2">
+                          <ChevronLeft className="w-4 h-4" /> {t('back')}
+                        </span>
+                      </PrimaryButton>
+                      <PrimaryButton onClick={handleGroupCountNext} disabled={updateRSVPMutation.isPending}>
+                        <span className="flex items-center justify-center gap-2">
+                          {t('next')} <ChevronRight className="w-4 h-4" />
+                        </span>
+                      </PrimaryButton>
                     </div>
                   </StepShell>
                 )}

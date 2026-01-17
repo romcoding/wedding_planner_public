@@ -11,7 +11,8 @@ export default function GuestsPage() {
   const [selectedGuest, setSelectedGuest] = useState(null)
   const [showQRCode, setShowQRCode] = useState(null)
   const queryClient = useQueryClient()
-  const [inviteType, setInviteType] = useState('individual') // individual | couple
+  const [inviteType, setInviteType] = useState('individual') // individual | couple | group
+  const [groupSize, setGroupSize] = useState(3)
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -140,6 +141,7 @@ export default function GuestsPage() {
           <button
             onClick={() => {
               setInviteType('individual')
+              setGroupSize(3)
               setFormData({
                 first_name: '',
                 last_name: '',
@@ -225,19 +227,46 @@ export default function GuestsPage() {
                   onChange={(e) => {
                     const next = e.target.value
                     setInviteType(next)
-                    setFormData({
-                      ...formData,
-                      number_of_guests: next === 'couple' ? 2 : 1,
-                    })
+                    if (next === 'individual') {
+                      setFormData({ ...formData, number_of_guests: 1 })
+                      return
+                    }
+                    if (next === 'couple') {
+                      setFormData({ ...formData, number_of_guests: 2 })
+                      return
+                    }
+                    // group
+                    const nextSize = Math.max(3, Number(groupSize || 3))
+                    setGroupSize(nextSize)
+                    setFormData({ ...formData, number_of_guests: nextSize })
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
                   <option value="individual">Individual (1)</option>
                   <option value="couple">Couple (2)</option>
+                  <option value="group">Group (3+)</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  This controls whether the guest sees the “both coming?” question.
+                  Couple is exactly 2. Anything above 2 is treated as a group.
                 </p>
+                {inviteType === 'group' && (
+                  <div className="mt-2">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Group size
+                    </label>
+                    <input
+                      type="number"
+                      min="3"
+                      value={groupSize}
+                      onChange={(e) => {
+                        const nextSize = Math.max(3, parseInt(e.target.value) || 3)
+                        setGroupSize(nextSize)
+                        setFormData({ ...formData, number_of_guests: nextSize })
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -280,6 +309,7 @@ export default function GuestsPage() {
                 onClick={() => {
                   setShowForm(false)
                   setInviteType('individual')
+                  setGroupSize(3)
                   setFormData({
                     first_name: '',
                     last_name: '',
@@ -457,20 +487,54 @@ export default function GuestsPage() {
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <select
-                        value={guest.number_of_guests || 1}
-                        onChange={(e) =>
-                          updateGuestMutation.mutate({
-                            id: guest.id,
-                            data: { number_of_guests: parseInt(e.target.value) || 1 },
-                          })
-                        }
-                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        title="Invite type"
-                      >
-                        <option value={1}>Individual (1)</option>
-                        <option value={2}>Couple (2)</option>
-                      </select>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={
+                            (guest.number_of_guests || 1) === 1
+                              ? 'individual'
+                              : (guest.number_of_guests || 1) === 2
+                                ? 'couple'
+                                : 'group'
+                          }
+                          onChange={(e) => {
+                            const next = e.target.value
+                            if (next === 'individual') {
+                              updateGuestMutation.mutate({ id: guest.id, data: { number_of_guests: 1 } })
+                              return
+                            }
+                            if (next === 'couple') {
+                              updateGuestMutation.mutate({ id: guest.id, data: { number_of_guests: 2 } })
+                              return
+                            }
+                            // group
+                            updateGuestMutation.mutate({
+                              id: guest.id,
+                              data: { number_of_guests: Math.max(3, guest.number_of_guests || 3) },
+                            })
+                          }}
+                          className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                          title="Invite type"
+                        >
+                          <option value="individual">Individual</option>
+                          <option value="couple">Couple</option>
+                          <option value="group">Group</option>
+                        </select>
+                        {(guest.number_of_guests || 1) > 2 && (
+                          <input
+                            type="number"
+                            min="3"
+                            value={guest.number_of_guests || 3}
+                            onChange={(e) =>
+                              updateGuestMutation.mutate({
+                                id: guest.id,
+                                data: { number_of_guests: Math.max(3, parseInt(e.target.value) || 3) },
+                              })
+                            }
+                            className="w-20 text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                            title="Group size"
+                          />
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex gap-2">

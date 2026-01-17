@@ -34,6 +34,71 @@ const EventsPage = () => {
     queryFn: () => api.get('/events').then((res) => res.data),
   })
 
+  // Admin content (for setting wedding date keys)
+  const { data: adminContent } = useQuery({
+    queryKey: ['content', 'admin'],
+    queryFn: () => api.get('/content?admin=true').then((res) => res.data),
+  })
+
+  const upsertContentKey = async ({ key, title, content_en, content_de, content_fr }) => {
+    const existing = adminContent?.find((c) => c.key === key)
+    const payload = {
+      key,
+      title,
+      content_type: 'text',
+      is_public: true,
+      content_en,
+      content_de,
+      content_fr,
+      // keep legacy field in sync for older readers
+      content: content_en,
+    }
+    if (existing?.id) {
+      return api.put(`/content/${existing.id}`, payload).then((r) => r.data)
+    }
+    return api.post('/content', payload).then((r) => r.data)
+  }
+
+  const setWeddingDateFromEvent = useMutation({
+    mutationFn: async (event) => {
+      if (!event?.start_time) throw new Error('Event has no start date')
+
+      const iso = moment(event.start_time).format('YYYY-MM-DD')
+      // Use noon to avoid timezone edge cases when formatting
+      const dateForFormat = new Date(`${iso}T12:00:00`)
+
+      const displayEn = new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(dateForFormat)
+      const displayDe = new Intl.DateTimeFormat('de-DE', { year: 'numeric', month: 'long', day: 'numeric' }).format(dateForFormat)
+      const displayFr = new Intl.DateTimeFormat('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' }).format(dateForFormat)
+
+      await upsertContentKey({
+        key: 'wedding_date_iso',
+        title: 'Wedding date (ISO)',
+        content_en: iso,
+        content_de: iso,
+        content_fr: iso,
+      })
+
+      await upsertContentKey({
+        key: 'wedding_date',
+        title: 'Wedding date (display)',
+        content_en: displayEn,
+        content_de: displayDe,
+        content_fr: displayFr,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['content'])
+      queryClient.invalidateQueries(['content', 'public'])
+      queryClient.invalidateQueries(['content', 'admin'])
+      alert('Wedding date has been set from this event.')
+    },
+    onError: (err) => {
+      console.error('Failed to set wedding date:', err)
+      alert(err?.message || 'Failed to set wedding date.')
+    },
+  })
+
   // Sort events chronologically by start_time
   const sortedEvents = events ? [...events].sort((a, b) => {
     const dateA = new Date(a.start_time)
@@ -524,6 +589,14 @@ const EventsPage = () => {
                   </div>
                   
                   <div className="flex gap-2 ml-4">
+                    <button
+                      onClick={() => setWeddingDateFromEvent.mutate(event)}
+                      className="px-3 py-2 text-sm font-semibold text-gray-900 bg-gray-100 hover:bg-gray-200 rounded"
+                      title="Use this event as the main wedding date (updates Wedding Pass)"
+                      disabled={setWeddingDateFromEvent.isPending}
+                    >
+                      Use as wedding date
+                    </button>
                     <button
                       onClick={() => handleEdit(event)}
                       className="p-2 text-blue-600 hover:bg-blue-50 rounded"
