@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { Edit, Plane, Gift, ArrowLeft, Calendar, MapPin, Music, Camera, Mail } from 'lucide-react'
 import Timeline from '../../components/Timeline'
@@ -11,6 +11,14 @@ import Contact from './Contact'
 export default function GuestInfo() {
   const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState(null)
+  const queryClient = useQueryClient()
+  const [editMode, setEditMode] = useState(false)
+  const [localEdits, setLocalEdits] = useState({
+    overnight_stay: false,
+    dietary_restrictions: '',
+    special_requests: '',
+    attending_names: [],
+  })
 
   const inviteToken = useMemo(() => {
     try {
@@ -32,6 +40,27 @@ export default function GuestInfo() {
     queryFn: () => api.get('/guest-auth/profile').then((res) => res.data),
   })
 
+  useEffect(() => {
+    if (!guestProfile) return
+    setLocalEdits({
+      overnight_stay: !!guestProfile.overnight_stay,
+      dietary_restrictions: guestProfile.dietary_restrictions || '',
+      special_requests: guestProfile.special_requests || '',
+      attending_names: Array.isArray(guestProfile.attending_names)
+        ? guestProfile.attending_names
+        : [],
+    })
+  }, [guestProfile])
+
+  const updateMutation = useMutation({
+    mutationFn: (payload) => api.put('/guests/update-rsvp', payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['guest-profile'])
+      setEditMode(false)
+      setActiveSection(null) // return to overview grid
+    },
+  })
+
   const getStatusLabel = (status) => {
     if (status === 'confirmed') return 'Yes'
     if (status === 'declined') return 'No'
@@ -43,6 +72,23 @@ export default function GuestInfo() {
     if (count === 1) return 'Individual'
     if (count === 2) return 'Couple'
     return 'Group'
+  }
+
+  const inviteeNames = useMemo(() => {
+    const names = Array.isArray(guestProfile?.invitee_names) ? guestProfile.invitee_names : []
+    const cleaned = names.map((n) => (n || '').trim()).filter(Boolean)
+    if (cleaned.length) return cleaned
+    const primary = `${guestProfile?.first_name || ''} ${guestProfile?.last_name || ''}`.trim()
+    return primary ? [primary] : []
+  }, [guestProfile?.invitee_names, guestProfile?.first_name, guestProfile?.last_name])
+
+  const toggleAttending = (name) => {
+    setLocalEdits((prev) => {
+      const set = new Set(prev.attending_names || [])
+      if (set.has(name)) set.delete(name)
+      else set.add(name)
+      return { ...prev, attending_names: Array.from(set) }
+    })
   }
 
   // Get images by position
@@ -127,18 +173,119 @@ export default function GuestInfo() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    if (inviteToken) {
-                      navigate(`/rsvp/${inviteToken}`)
-                    } else {
-                      navigate('/')
-                    }
-                  }}
-                  className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all"
-                >
-                  Open your Wedding Pass
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    onClick={() => setEditMode((v) => !v)}
+                    className="px-6 py-3 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium"
+                  >
+                    {editMode ? 'Cancel editing' : 'Edit here'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (inviteToken) {
+                        navigate(`/rsvp/${inviteToken}`)
+                      } else {
+                        navigate('/')
+                      }
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all"
+                  >
+                    Open your Wedding Pass
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActiveSection(null)
+                      setEditMode(false)
+                    }}
+                    className="px-6 py-3 bg-white border border-gray-200 text-gray-900 rounded-lg hover:bg-gray-50 font-medium"
+                  >
+                    Back to information
+                  </button>
+                </div>
+
+                {editMode && (
+                  <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-5">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit your answers</h3>
+
+                    {inviteeNames.length > 1 && (
+                      <div className="mb-4">
+                        <div className="text-sm font-medium text-gray-700 mb-2">Who is coming?</div>
+                        <div className="space-y-2">
+                          {inviteeNames.map((name) => {
+                            const checked = (localEdits.attending_names || []).includes(name)
+                            return (
+                              <label
+                                key={name}
+                                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white cursor-pointer"
+                              >
+                                <span className="text-gray-900 font-medium">{name}</span>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => toggleAttending(name)}
+                                  className="w-5 h-5"
+                                />
+                              </label>
+                            )
+                          })}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Leave at least one selected if you are coming.
+                        </p>
+                      </div>
+                    )}
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Overnight stay</label>
+                      <select
+                        value={localEdits.overnight_stay ? 'yes' : 'no'}
+                        onChange={(e) => setLocalEdits((p) => ({ ...p, overnight_stay: e.target.value === 'yes' }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+                      >
+                        <option value="no">No</option>
+                        <option value="yes">Yes</option>
+                      </select>
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Dietary restrictions</label>
+                      <textarea
+                        rows={3}
+                        value={localEdits.dietary_restrictions}
+                        onChange={(e) => setLocalEdits((p) => ({ ...p, dietary_restrictions: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+                      />
+                    </div>
+
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                      <textarea
+                        rows={3}
+                        value={localEdits.special_requests}
+                        onChange={(e) => setLocalEdits((p) => ({ ...p, special_requests: e.target.value }))}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+                      />
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        const payload = {
+                          overnight_stay: localEdits.overnight_stay,
+                          dietary_restrictions: localEdits.dietary_restrictions,
+                          special_requests: localEdits.special_requests,
+                        }
+                        if (inviteeNames.length > 1) {
+                          payload.attending_names = (localEdits.attending_names || []).filter((n) => inviteeNames.includes(n))
+                        }
+                        updateMutation.mutate(payload)
+                      }}
+                      disabled={updateMutation.isPending}
+                      className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all disabled:opacity-50"
+                    >
+                      {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

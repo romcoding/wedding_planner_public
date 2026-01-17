@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Guest, User
 from datetime import datetime
+import json
 
 guests_bp = Blueprint('guests', __name__)
 
@@ -37,6 +38,20 @@ def update_rsvp():
         guest.overnight_stay = bool(data['overnight_stay'])
     if 'number_of_guests' in data:
         guest.number_of_guests = data['number_of_guests']
+    if 'attending_names' in data:
+        # Accept list of names; store JSON. Also sync number_of_guests to attending count when confirmed.
+        names = data.get('attending_names')
+        if names is None:
+            guest.attending_names = None
+        elif isinstance(names, list):
+            cleaned = [str(x).strip() for x in names if str(x).strip()]
+            invitees = guest.get_invitee_names()
+            if invitees:
+                allowed = {n for n in invitees}
+                cleaned = [n for n in cleaned if n in allowed]
+            guest.attending_names = json.dumps(cleaned)
+            if guest.rsvp_status == 'confirmed':
+                guest.number_of_guests = len(cleaned)
     if 'dietary_restrictions' in data:
         guest.dietary_restrictions = data['dietary_restrictions']
     if 'allergies' in data:
@@ -87,6 +102,13 @@ def create_guest():
     while Guest.query.filter_by(unique_token=unique_token).first():
         unique_token = Guest.generate_unique_token()
     
+    invitee_names = data.get('invitee_names')
+    invitee_json = None
+    if isinstance(invitee_names, list):
+        cleaned = [str(x).strip() for x in invitee_names if str(x).strip()]
+        if cleaned:
+            invitee_json = json.dumps(cleaned)
+
     # Create guest with all admin-provided info
     guest = Guest(
         email=data['email'],
@@ -97,6 +119,7 @@ def create_guest():
         rsvp_status=data.get('rsvp_status', 'pending'),
         overnight_stay=data.get('overnight_stay', False),
         number_of_guests=data.get('number_of_guests', 1),
+        invitee_names=invitee_json,
         dietary_restrictions=data.get('dietary_restrictions'),
         allergies=data.get('allergies'),
         special_requests=data.get('special_requests'),
@@ -283,6 +306,21 @@ def update_guest(guest_id):
         guest.address = data['address']
     if 'notes' in data:
         guest.notes = data['notes']
+    if 'invitee_names' in data:
+        names = data.get('invitee_names')
+        if names is None:
+            guest.invitee_names = None
+        elif isinstance(names, list):
+            cleaned = [str(x).strip() for x in names if str(x).strip()]
+            guest.invitee_names = json.dumps(cleaned) if cleaned else None
+            # If attending_names exists, ensure it's still a subset of invitees
+            attending = guest.get_attending_names()
+            if attending:
+                allowed = set(cleaned)
+                attending = [n for n in attending if n in allowed]
+                guest.attending_names = json.dumps(attending)
+                if guest.rsvp_status == 'confirmed':
+                    guest.number_of_guests = len(attending)
     
     guest.updated_at = datetime.utcnow()
     db.session.commit()

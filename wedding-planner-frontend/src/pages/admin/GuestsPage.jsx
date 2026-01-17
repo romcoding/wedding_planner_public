@@ -13,6 +13,7 @@ export default function GuestsPage() {
   const queryClient = useQueryClient()
   const [inviteType, setInviteType] = useState('individual') // individual | couple | group
   const [groupSize, setGroupSize] = useState(3)
+  const [inviteeNames, setInviteeNames] = useState([''])
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -88,7 +89,11 @@ export default function GuestsPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    createGuestMutation.mutate(formData)
+    const trimmedNames = inviteeNames.map((n) => (n || '').trim()).filter(Boolean)
+    createGuestMutation.mutate({
+      ...formData,
+      invitee_names: trimmedNames.length ? trimmedNames : undefined,
+    })
   }
 
   if (isLoading) {
@@ -142,6 +147,7 @@ export default function GuestsPage() {
             onClick={() => {
               setInviteType('individual')
               setGroupSize(3)
+              setInviteeNames([''])
               setFormData({
                 first_name: '',
                 last_name: '',
@@ -229,16 +235,27 @@ export default function GuestsPage() {
                     setInviteType(next)
                     if (next === 'individual') {
                       setFormData({ ...formData, number_of_guests: 1 })
+                      setInviteeNames([''])
                       return
                     }
                     if (next === 'couple') {
                       setFormData({ ...formData, number_of_guests: 2 })
+                      setInviteeNames((prev) => {
+                        const nextNames = [...prev]
+                        while (nextNames.length < 2) nextNames.push('')
+                        return nextNames.slice(0, 2)
+                      })
                       return
                     }
                     // group
                     const nextSize = Math.max(3, Number(groupSize || 3))
                     setGroupSize(nextSize)
                     setFormData({ ...formData, number_of_guests: nextSize })
+                    setInviteeNames((prev) => {
+                      const nextNames = [...prev]
+                      while (nextNames.length < nextSize) nextNames.push('')
+                      return nextNames.slice(0, nextSize)
+                    })
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
                 >
@@ -262,12 +279,48 @@ export default function GuestsPage() {
                         const nextSize = Math.max(3, parseInt(e.target.value) || 3)
                         setGroupSize(nextSize)
                         setFormData({ ...formData, number_of_guests: nextSize })
+                        setInviteeNames((prev) => {
+                          const nextNames = [...prev]
+                          while (nextNames.length < nextSize) nextNames.push('')
+                          return nextNames.slice(0, nextSize)
+                        })
                       }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                     />
                   </div>
                 )}
               </div>
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-3">Invitee names</h3>
+              <p className="text-xs text-gray-600 mb-3">
+                Add all names on this invitation. These names will be shown to guests when they confirm who is coming.
+              </p>
+              <div className="space-y-2">
+                {inviteeNames.map((name, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => {
+                        const v = e.target.value
+                        setInviteeNames((prev) => prev.map((p, i) => (i === idx ? v : p)))
+                        // Keep primary name in sync with first input (best-effort)
+                        if (idx === 0) {
+                          const parts = v.trim().split(/\s+/)
+                          setFormData((prev) => ({
+                            ...prev,
+                            first_name: parts[0] || prev.first_name,
+                            last_name: parts.slice(1).join(' ') || prev.last_name,
+                          }))
+                        }
+                      }}
+                      placeholder={idx === 0 ? 'Name 1 (primary)' : `Name ${idx + 1}`}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Initial RSVP Status
@@ -310,6 +363,7 @@ export default function GuestsPage() {
                   setShowForm(false)
                   setInviteType('individual')
                   setGroupSize(3)
+                  setInviteeNames([''])
                   setFormData({
                     first_name: '',
                     last_name: '',

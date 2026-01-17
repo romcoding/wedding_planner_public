@@ -2,6 +2,7 @@ from src.models import db
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 import secrets
+import json
 
 class Guest(db.Model):
     """Guest model for wedding registration"""
@@ -23,6 +24,11 @@ class Guest(db.Model):
     rsvp_status = db.Column(db.String(20), default='pending')  # pending, confirmed, declined
     overnight_stay = db.Column(db.Boolean, default=False)  # Whether guest wants to stay overnight
     number_of_guests = db.Column(db.Integer, default=1)  # Including plus-ones
+
+    # Invitee details (for couples/groups)
+    # Stored as JSON string arrays for backward-compatible storage.
+    invitee_names = db.Column(db.Text)  # JSON array of full names invited (e.g. ["Alex Smith","Sam Smith"])
+    attending_names = db.Column(db.Text)  # JSON array subset of invitee_names indicating who is coming
     
     # Dietary and special requirements
     dietary_restrictions = db.Column(db.Text)  # JSON string or comma-separated
@@ -52,6 +58,29 @@ class Guest(db.Model):
     def check_password(self, password):
         """Check password against hash"""
         return check_password_hash(self.password_hash, password) if self.password_hash else False
+
+    def _safe_json_list(self, raw):
+        if not raw:
+            return []
+        try:
+            value = json.loads(raw)
+            if isinstance(value, list):
+                # keep only strings
+                return [str(x) for x in value if isinstance(x, (str, int, float)) and str(x).strip()]
+        except Exception:
+            return []
+        return []
+
+    def get_invitee_names(self):
+        # Default to primary name for backward compatibility
+        names = self._safe_json_list(self.invitee_names)
+        if names:
+            return names
+        primary = f"{self.first_name} {self.last_name}".strip()
+        return [primary] if primary else []
+
+    def get_attending_names(self):
+        return self._safe_json_list(self.attending_names)
     
     def to_dict(self, include_sensitive=False):
         """Convert guest to dictionary"""
@@ -66,6 +95,8 @@ class Guest(db.Model):
             'rsvp_status': self.rsvp_status,
             'overnight_stay': self.overnight_stay,
             'number_of_guests': self.number_of_guests,
+            'invitee_names': self.get_invitee_names(),
+            'attending_names': self.get_attending_names(),
             'dietary_restrictions': self.dietary_restrictions,
             'allergies': self.allergies,
             'special_requests': self.special_requests,

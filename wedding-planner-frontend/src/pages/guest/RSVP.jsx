@@ -16,7 +16,6 @@ import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import GlitterAnimation from '../../components/GlitterAnimation'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
-import Timeline from '../../components/Timeline'
 import api from '../../lib/api'
 
 function PassCard({ children }) {
@@ -83,68 +82,7 @@ function TopTabs({ tabs, activeTab, setActiveTab, comingSoonLabel }) {
   )
 }
 
-function PostContent({
-  t,
-  TimelineComponent,
-  activeTab,
-  setActiveTab,
-  MapPinIcon,
-  NotebookPenIcon,
-}) {
-  const tabs = [
-    { key: 'needToKnow', label: t('tabNeedToKnow'), disabled: false },
-    { key: 'venue', label: t('tabVenue'), disabled: true },
-    { key: 'day', label: t('tabDayItself'), disabled: false },
-    { key: 'evening', label: t('tabYourEvening'), disabled: true },
-  ]
-
-  return (
-    <div className="mt-6">
-      <TopTabs
-        tabs={tabs}
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
-        comingSoonLabel={t('comingSoon')}
-      />
-      <div className="mt-4">
-        {activeTab === 'needToKnow' && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPinIcon className="w-5 h-5 text-pink-500" />
-                <h3 className="text-lg font-semibold text-gray-900">{t('needToKnowTitle')}</h3>
-              </div>
-              <p className="text-gray-600">{t('needToKnowBody')}</p>
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <NotebookPenIcon className="w-5 h-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900">{t('giftDressCodeTitle')}</h3>
-              </div>
-              <p className="text-gray-600">{t('giftDressCodeBody')}</p>
-            </div>
-          </div>
-        )}
-        {activeTab === 'venue' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">
-            {t('comingSoon')}
-          </div>
-        )}
-        {activeTab === 'day' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-5">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('dayItselfTitle')}</h3>
-            <TimelineComponent />
-          </div>
-        )}
-        {activeTab === 'evening' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">
-            {t('comingSoon')}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+// Note: we intentionally keep deeper info on the /info page, not on the final step here.
 
 export default function RSVP() {
   const { token } = useParams()
@@ -155,7 +93,6 @@ export default function RSVP() {
   const [showGlitter, setShowGlitter] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('needToKnow')
 
   const storageKey = useMemo(() => (token ? `wedding_pass_progress:${token}` : null), [token])
   const hasHydratedFromStorage = useRef(false)
@@ -176,6 +113,7 @@ export default function RSVP() {
     overnight_stay: false,
     dietary_restrictions: '',
     special_requests: '',
+    attending_names: [],
     step: 0,
     completed: false,
     photo: {
@@ -222,18 +160,47 @@ export default function RSVP() {
     return Number.isFinite(n) && n > 0 ? n : 1
   }, [guestData?.number_of_guests])
 
-  const isCoupleInvite = originalGuestCount === 2
-  const isGroupInvite = originalGuestCount > 2
+  const inviteeNames = useMemo(() => {
+    const names = Array.isArray(guestData?.invitee_names) ? guestData.invitee_names : []
+    const cleaned = names.map((n) => (n || '').trim()).filter(Boolean)
+    if (cleaned.length) return cleaned
+    const primary = `${guestData?.first_name || ''} ${guestData?.last_name || ''}`.trim()
+    return primary ? [primary] : []
+  }, [guestData?.invitee_names, guestData?.first_name, guestData?.last_name])
+
+  const invitedCount = inviteeNames.length || 1
+  const isCoupleInvite = invitedCount === 2
+  const isGroupInvite = invitedCount > 2
 
   // Populate pass state when guest data loads
   useEffect(() => {
     if (!guestData) return
+
+    // Derive attending names (prefer explicit attending_names if present)
+    const explicitAttending = Array.isArray(guestData.attending_names)
+      ? guestData.attending_names.map((n) => (n || '').trim()).filter(Boolean)
+      : []
+
+    let inferredAttending = []
+    if (explicitAttending.length) {
+      inferredAttending = explicitAttending
+    } else if (guestData.rsvp_status === 'confirmed') {
+      if (inviteeNames.length) {
+        const count = Math.max(1, Number(guestData.number_of_guests || 1))
+        inferredAttending = inviteeNames.slice(0, Math.min(inviteeNames.length, count))
+      } else {
+        inferredAttending = []
+      }
+    } else if (guestData.rsvp_status === 'declined') {
+      inferredAttending = []
+    }
 
     setPass((prev) => ({
       ...prev,
       rsvp_status: guestData.rsvp_status || 'pending',
       overnight_stay: !!guestData.overnight_stay,
       number_of_guests: Number(guestData.number_of_guests || 1),
+      attending_names: inferredAttending,
       dietary_restrictions: guestData.dietary_restrictions || '',
       special_requests: guestData.special_requests || '',
       // if already responded and no stored progress, jump to done
@@ -355,7 +322,7 @@ export default function RSVP() {
   const steps = useMemo(() => {
     const base = ['attendance']
     if (isCoupleInvite) base.push('couple')
-    if (isGroupInvite) base.push('groupCount')
+    if (isGroupInvite) base.push('group')
     base.push('overnight', 'dietary', 'notes', 'photo', 'done')
     return base
   }, [isCoupleInvite, isGroupInvite])
@@ -374,8 +341,21 @@ export default function RSVP() {
 
   const handleChooseAttendance = async (isYes) => {
     const status = isYes ? 'confirmed' : 'declined'
-    setPass((p) => ({ ...p, rsvp_status: status }))
-    await savePartial({ rsvp_status: status })
+    let nextAttending = []
+    if (status === 'confirmed') {
+      if (!isCoupleInvite && !isGroupInvite) {
+        nextAttending = inviteeNames.slice(0, 1)
+      } else if (isCoupleInvite) {
+        // default to both; user can adjust on next step
+        nextAttending = inviteeNames.slice(0, 2)
+      } else if (isGroupInvite) {
+        // default to everyone; user can adjust on next step
+        nextAttending = inviteeNames.slice()
+      }
+    }
+
+    setPass((p) => ({ ...p, rsvp_status: status, attending_names: nextAttending }))
+    await savePartial({ rsvp_status: status, attending_names: nextAttending })
 
     if (isYes) {
       setShowGlitter(true)
@@ -386,17 +366,31 @@ export default function RSVP() {
     completePass()
   }
 
-  const handleCoupleChoice = async (bothComing) => {
-    const newCount = bothComing ? originalGuestCount : 1
-    setPass((p) => ({ ...p, number_of_guests: newCount }))
-    await savePartial({ number_of_guests: newCount })
+  const handleCoupleChoice = async (choice) => {
+    // choice: 'both' | 'first' | 'second'
+    const name1 = inviteeNames[0]
+    const name2 = inviteeNames[1]
+    const nextAttending =
+      choice === 'both' ? [name1, name2] : choice === 'second' ? [name2] : [name1]
+    setPass((p) => ({ ...p, attending_names: nextAttending }))
+    await savePartial({ attending_names: nextAttending })
     goNext()
   }
 
-  const handleGroupCountNext = async () => {
-    const clamped = Math.max(1, Math.min(originalGuestCount, pass.number_of_guests || 1))
-    setPass((p) => ({ ...p, number_of_guests: clamped }))
-    await savePartial({ number_of_guests: clamped })
+  const toggleGroupName = (name) => {
+    setPass((p) => {
+      const set = new Set(p.attending_names || [])
+      if (set.has(name)) set.delete(name)
+      else set.add(name)
+      return { ...p, attending_names: Array.from(set) }
+    })
+  }
+
+  const handleGroupNext = async () => {
+    const cleaned = (pass.attending_names || []).filter((n) => inviteeNames.includes(n))
+    const finalNames = cleaned.length ? cleaned : inviteeNames.slice(0, 1)
+    setPass((p) => ({ ...p, attending_names: finalNames }))
+    await savePartial({ attending_names: finalNames })
     goNext()
   }
 
@@ -472,6 +466,33 @@ export default function RSVP() {
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
+  }
+
+  const savePageOneClick = async () => {
+    const url = window.location.href
+    const title = t('yourWeddingPass')
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url })
+        return
+      }
+    } catch {
+      // ignore share abort
+    }
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url)
+        alert(t('savePageCopied'))
+        return
+      }
+    } catch {
+      // ignore
+    }
+
+    // Fallback: show hint
+    alert(t('savePageHint'))
   }
 
   if (loading || loadingGuest || authMutation.isPending) {
@@ -644,17 +665,24 @@ export default function RSVP() {
                   <StepShell title={t('qBothComing')} subtitle={t('qBothComingSub')}>
                     <div className="space-y-3">
                       <PrimaryButton
-                        onClick={() => handleCoupleChoice(true)}
+                        onClick={() => handleCoupleChoice('both')}
                         disabled={updateRSVPMutation.isPending}
                       >
-                        {t('bothOfUs')}
+                        {t('bothOfUs')} ({inviteeNames[0]} + {inviteeNames[1]})
                       </PrimaryButton>
                       <PrimaryButton
                         variant="secondary"
-                        onClick={() => handleCoupleChoice(false)}
+                        onClick={() => handleCoupleChoice('first')}
                         disabled={updateRSVPMutation.isPending}
                       >
-                        {t('justMe')}
+                        {t('onlyName').replace('{{name}}', inviteeNames[0] || t('name1'))}
+                      </PrimaryButton>
+                      <PrimaryButton
+                        variant="secondary"
+                        onClick={() => handleCoupleChoice('second')}
+                        disabled={updateRSVPMutation.isPending}
+                      >
+                        {t('onlyName').replace('{{name}}', inviteeNames[1] || t('name2'))}
                       </PrimaryButton>
                     </div>
                     <div className="mt-5 flex items-center justify-between">
@@ -670,40 +698,35 @@ export default function RSVP() {
                   </StepShell>
                 )}
 
-                {currentStepKey === 'groupCount' && (
-                  <StepShell title={t('qGroupHowMany')} subtitle={t('qGroupHowManySub').replace('{{max}}', String(originalGuestCount))}>
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                      <div className="flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPass((p) => ({
-                              ...p,
-                              number_of_guests: Math.max(1, (p.number_of_guests || 1) - 1),
-                            }))
-                          }
-                          className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 font-semibold"
-                        >
-                          −
-                        </button>
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-gray-900">{pass.number_of_guests || 1}</div>
-                          <div className="text-sm text-gray-600">{t('people')}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPass((p) => ({
-                              ...p,
-                              number_of_guests: Math.min(originalGuestCount, (p.number_of_guests || 1) + 1),
-                            }))
-                          }
-                          className="px-4 py-3 bg-white border border-gray-200 rounded-xl text-gray-900 font-semibold"
-                        >
-                          +
-                        </button>
-                      </div>
-                      <p className="text-xs text-gray-500 mt-3">{t('groupMaxNote').replace('{{max}}', String(originalGuestCount))}</p>
+                {currentStepKey === 'group' && (
+                  <StepShell
+                    title={t('qGroupWhoComing')}
+                    subtitle={t('qGroupWhoComingSub')}
+                  >
+                    <div className="space-y-2">
+                      {inviteeNames.map((name) => {
+                        const checked = (pass.attending_names || []).includes(name)
+                        return (
+                          <label
+                            key={name}
+                            className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white cursor-pointer"
+                          >
+                            <span className="text-gray-900 font-medium">{name}</span>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleGroupName(name)}
+                              className="w-5 h-5"
+                            />
+                          </label>
+                        )
+                      })}
+                    </div>
+
+                    <div className="mt-3 text-sm text-gray-600">
+                      {t('selectedCount')
+                        .replace('{{count}}', String((pass.attending_names || []).length))
+                        .replace('{{max}}', String(invitedCount))}
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -712,7 +735,7 @@ export default function RSVP() {
                           <ChevronLeft className="w-4 h-4" /> {t('back')}
                         </span>
                       </PrimaryButton>
-                      <PrimaryButton onClick={handleGroupCountNext} disabled={updateRSVPMutation.isPending}>
+                      <PrimaryButton onClick={handleGroupNext} disabled={updateRSVPMutation.isPending}>
                         <span className="flex items-center justify-center gap-2">
                           {t('next')} <ChevronRight className="w-4 h-4" />
                         </span>
@@ -897,12 +920,9 @@ export default function RSVP() {
                         <p className="text-xs text-gray-500">{t('calendarNotConfigured')}</p>
                       ) : null}
 
-                      <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-semibold text-gray-900">{t('saveThisPageTitle')}</span>{' '}
-                          {t('saveThisPageBody')}
-                        </p>
-                      </div>
+                      <PrimaryButton variant="secondary" onClick={savePageOneClick}>
+                        {t('saveThisPageButton')}
+                      </PrimaryButton>
 
                       <div className="rounded-2xl border border-gray-200 bg-white p-4">
                         <p className="text-sm text-gray-700">
@@ -918,15 +938,6 @@ export default function RSVP() {
                         {t('openFullInfo')}
                       </PrimaryButton>
                     </div>
-
-                    <PostContent
-                      t={t}
-                      TimelineComponent={Timeline}
-                      activeTab={activeTab}
-                      setActiveTab={setActiveTab}
-                      MapPinIcon={MapPin}
-                      NotebookPenIcon={NotebookPen}
-                    />
                   </StepShell>
                 )}
               </PassCard>

@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from src.models import db, Guest
 from datetime import datetime
+import json
 
 guest_auth_bp = Blueprint('guest_auth', __name__)
 
@@ -79,6 +80,7 @@ def guest_register():
         rsvp_status=data.get('rsvp_status', 'pending'),
         attendance_type=data.get('attendance_type'),
         number_of_guests=data.get('number_of_guests', 1),
+        invitee_names=json.dumps([f"{data.get('first_name','').strip()} {data.get('last_name','').strip()}".strip()]) if data.get('first_name') and data.get('last_name') else None,
         dietary_restrictions=data.get('dietary_restrictions'),
         allergies=data.get('allergies'),
         special_requests=data.get('special_requests'),
@@ -147,6 +149,19 @@ def update_guest_profile():
         guest.attendance_type = data['attendance_type']
     if 'number_of_guests' in data:
         guest.number_of_guests = data['number_of_guests']
+    if 'attending_names' in data:
+        names = data.get('attending_names')
+        if names is None:
+            guest.attending_names = None
+        elif isinstance(names, list):
+            cleaned = [str(x).strip() for x in names if str(x).strip()]
+            invitees = guest.get_invitee_names()
+            if invitees:
+                allowed = set(invitees)
+                cleaned = [n for n in cleaned if n in allowed]
+            guest.attending_names = json.dumps(cleaned)
+            if guest.rsvp_status == 'confirmed':
+                guest.number_of_guests = len(cleaned)
     if 'dietary_restrictions' in data:
         guest.dietary_restrictions = data['dietary_restrictions']
     if 'allergies' in data:
