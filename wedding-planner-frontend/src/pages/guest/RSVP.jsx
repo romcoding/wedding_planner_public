@@ -374,8 +374,26 @@ export default function RSVP() {
     }, 140)
   }
 
-  const goPrevSmooth = () => transitionToStep(Math.max(0, pass.step - 1))
-  const goNextSmooth = () => transitionToStep(Math.min(steps.length - 1, pass.step + 1))
+  // Navigation helpers:
+  // - defined in one place to avoid "goNext is not defined" regressions
+  // - uses functional updates so step math always uses the latest state
+  const transitionBy = (delta) => {
+    setIsStepFading(true)
+    setTimeout(() => {
+      setPass((p) => {
+        const next = Math.min(steps.length - 1, Math.max(0, (p.step || 0) + delta))
+        return { ...p, step: next }
+      })
+      requestAnimationFrame(() => setIsStepFading(false))
+    }, 140)
+  }
+
+  const goPrev = () => transitionBy(-1)
+  const goNext = () => transitionBy(1)
+
+  // Backwards-compatible aliases (some UI handlers reference these names)
+  const goPrevSmooth = goPrev
+  const goNextSmooth = goNext
 
   const savePartial = async (partial) => {
     setError('')

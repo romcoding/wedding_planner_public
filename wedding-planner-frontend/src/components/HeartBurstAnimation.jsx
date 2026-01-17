@@ -94,11 +94,11 @@ export default function HeartBurstAnimation({ show, onComplete }) {
         @keyframes heartFloat {
           0% {
             opacity: 0;
-            transform: translate(-50%, -50%) scale(0.85) rotate(0deg);
+            transform: translate(-50%, -50%) scale(0.75) rotate(0deg);
           }
-          10% {
-            opacity: 0.95;
-            transform: translate(-50%, -55%) scale(1) rotate(0deg);
+          25% {
+            opacity: 1;
+            transform: translate(-50%, -56%) scale(1) rotate(0deg);
           }
           70% {
             opacity: 0.85;
