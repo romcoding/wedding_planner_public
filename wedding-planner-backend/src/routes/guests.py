@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Guest, User
+from src.models import db, Guest, User, Invitation, GuestPhoto, SeatAssignment, Message, PageView, Visit, ReminderSent
 from datetime import datetime
 import json
 
@@ -343,9 +343,30 @@ def delete_guest(guest_id):
     
     if not guest:
         return jsonify({'error': 'Guest not found'}), 404
-    
-    db.session.delete(guest)
-    db.session.commit()
-    
-    return jsonify({'message': 'Guest deleted successfully'}), 200
+
+    try:
+        # Detach / clean up dependent rows to avoid FK constraint errors.
+        # Invitations: keep record, but detach accepted guest link
+        Invitation.query.filter(Invitation.guest_id == guest_id).update({'guest_id': None})
+
+        # Seat assignments: make seat empty again
+        SeatAssignment.query.filter(SeatAssignment.guest_id == guest_id).update({'guest_id': None})
+
+        # Guest photos: delete (they belong to the guest)
+        GuestPhoto.query.filter(GuestPhoto.guest_id == guest_id).delete()
+
+        # RSVP reminder sent rows: delete (FK is NOT NULL)
+        ReminderSent.query.filter(ReminderSent.guest_id == guest_id).delete()
+
+        # Messages / analytics: detach (keep history)
+        Message.query.filter(Message.guest_id == guest_id).update({'guest_id': None})
+        PageView.query.filter(PageView.guest_id == guest_id).update({'guest_id': None})
+        Visit.query.filter(Visit.guest_id == guest_id).update({'guest_id': None})
+
+        db.session.delete(guest)
+        db.session.commit()
+        return jsonify({'message': 'Guest deleted successfully'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Failed to delete guest: {str(e)}'}), 500
 
