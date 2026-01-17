@@ -93,7 +93,14 @@ function useHtmlImage(src) {
   return image
 }
 
-function MoodboardImageNode({ o, imageUrl, tool, onSelect, onDragEnd, onTransformEnd }) {
+function MoodboardImageNode({ o, tool, onSelect, onDragEnd, onTransformEnd }) {
+  const { data: img } = useQuery({
+    queryKey: ['image', o.imageId],
+    queryFn: () => api.get(`/images/${o.imageId}`).then((r) => r.data),
+    enabled: !!o.imageId,
+    staleTime: 1000 * 60 * 10,
+  })
+  const imageUrl = img?.url || null
   const image = useHtmlImage(imageUrl)
   return (
     <KonvaImage
@@ -224,6 +231,8 @@ export default function MoodboardPage() {
   const transformerRef = useRef(null)
   const fileInputRef = useRef(null)
 
+  const didBootstrapRef = useRef(false)
+
   const [viewport, setViewport] = useState({ w: 900, h: 600 })
 
   const [activeTool, setActiveTool] = useState('select') // select | pan | rect | circle | line | text
@@ -252,11 +261,6 @@ export default function MoodboardPage() {
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
-
-  const { data: images } = useQuery({
-    queryKey: ['images'],
-    queryFn: () => api.get('/images').then((r) => r.data),
-  })
 
   const { data: boards, isLoading: boardsLoading } = useQuery({
     queryKey: ['moodboards'],
@@ -334,11 +338,16 @@ export default function MoodboardPage() {
 
   useEffect(() => {
     if (boardsLoading) return
-    if (!boards || boards.length === 0) {
-      // Create default
+    if (!boards) return
+
+    // Prevent creating boards in a loop (e.g. slow network + repeated renders).
+    // We only auto-create the default board once per page load.
+    if (boards.length === 0 && !didBootstrapRef.current) {
+      didBootstrapRef.current = true
       createBoard.mutate('Main Moodboard')
       return
     }
+
     if (!boardId) {
       const first = boards[0]
       setBoardId(first.id)
@@ -756,9 +765,11 @@ export default function MoodboardPage() {
     fd.append('position', 'moodboard')
     try {
       const res = await api.post('/images', fd)
-      await queryClient.invalidateQueries(['images'])
-
       const img = res.data
+      // Prime cache for lazy image-by-id queries
+      if (img?.id) {
+        queryClient.setQueryData(['image', img.id], img)
+      }
       const pos = getPointerCanvasPos()
       addObject({
         id: uid('image'),
@@ -789,12 +800,12 @@ export default function MoodboardPage() {
 
   const selectedImageUrl = useMemo(() => {
     if (selectedObject?.type !== 'image') return null
-    const img = images?.find((x) => x.id === selectedObject.imageId)
-    return img?.url || null
-  }, [images, selectedObject])
+    const cached = queryClient.getQueryData(['image', selectedObject.imageId])
+    return cached?.url || null
+  }, [queryClient, selectedObject])
 
   // eslint-disable-next-line no-unused-vars
-  const _selectedImage = useHtmlImage(selectedImageUrl) // ensures image is cached in browser for export reliability
+  const _selectedImage = useHtmlImage(selectedImageUrl) // warm cache (helps Konva export reliability)
 
   const exportPng = () => {
     const stage = stageRef.current
@@ -1155,13 +1166,10 @@ export default function MoodboardPage() {
                   )
                 }
                 if (o.type === 'image') {
-                  const img = images?.find((x) => x.id === o.imageId)
-                  const url = img?.url
                   return (
                     <MoodboardImageNode
                       key={o.id}
                       o={o}
-                      imageUrl={url}
                       tool={tool}
                       onSelect={handleSelectObject}
                       onDragEnd={(e) => updateObject(o.id, { x: snap(e.target.x()), y: snap(e.target.y()) })}
