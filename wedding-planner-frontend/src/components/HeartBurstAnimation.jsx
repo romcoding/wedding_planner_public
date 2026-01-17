@@ -28,20 +28,22 @@ export default function HeartBurstAnimation({ show, onComplete }) {
       return
     }
 
-    const count = 40
+    const count = 70
     const now = Date.now()
     const items = Array.from({ length: count }).map((_, i) => {
-      const duration = 900 + Math.random() * 700 // 0.9s - 1.6s
-      const delay = Math.random() * 120 // small stagger
-      const size = 12 + Math.random() * 20 // 12 - 32px
+      const duration = 1800 + Math.random() * 1200 // 1.8s - 3.0s
+      const delay = Math.random() * 250 // gentle stagger
+      const size = 14 + Math.random() * 26 // 14 - 40px
       const x = Math.random() * 100
-      const y = 70 + Math.random() * 25 // cluster lower part of screen
-      const drift = (Math.random() - 0.5) * 20 // -10vw .. 10vw
+      const y = Math.random() * 100 // full screen spread
+      const drift = (Math.random() - 0.5) * 26 // -13vw .. 13vw
+      const rise = 18 + Math.random() * 38 // 18vh .. 56vh
       return {
         id: `${now}-${i}`,
         x,
         y,
         drift,
+        rise,
         size,
         delay,
         duration,
@@ -63,7 +65,11 @@ export default function HeartBurstAnimation({ show, onComplete }) {
   if (!show || hearts.length === 0) return null
 
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 9999 }}>
+    <div
+      className="fixed inset-0 overflow-hidden"
+      style={{ zIndex: 9999, pointerEvents: 'none' }}
+      aria-hidden="true"
+    >
       {hearts.map((h) => (
         <div
           key={h.id}
@@ -77,6 +83,8 @@ export default function HeartBurstAnimation({ show, onComplete }) {
             animation: `heartFloat ${h.duration}ms ease-out ${h.delay}ms forwards`,
             // pass drift via CSS var
             ['--drift']: `${h.drift}vw`,
+            ['--rise']: `${h.rise}vh`,
+            pointerEvents: 'none',
           }}
         >
           <HeartSvg color={h.color} />
@@ -88,13 +96,17 @@ export default function HeartBurstAnimation({ show, onComplete }) {
             opacity: 0;
             transform: translate(-50%, -50%) scale(0.85) rotate(0deg);
           }
-          12% {
+          10% {
             opacity: 0.95;
             transform: translate(-50%, -55%) scale(1) rotate(0deg);
           }
+          70% {
+            opacity: 0.85;
+            transform: translate(calc(-50% + calc(var(--drift) * 0.7)), calc(-50% - calc(var(--rise) * 0.7))) scale(1.05) rotate(0deg);
+          }
           100% {
             opacity: 0;
-            transform: translate(calc(-50% + var(--drift)), -95%) scale(1.1) rotate(0deg);
+            transform: translate(calc(-50% + var(--drift)), calc(-50% - var(--rise))) scale(1.1) rotate(0deg);
           }
         }
       `}</style>
