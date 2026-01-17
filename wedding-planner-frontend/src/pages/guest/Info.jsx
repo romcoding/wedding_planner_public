@@ -14,6 +14,7 @@ export default function GuestInfo() {
   const queryClient = useQueryClient()
   const [editMode, setEditMode] = useState(false)
   const [localEdits, setLocalEdits] = useState({
+    rsvp_status: 'pending',
     overnight_stay: false,
     dietary_restrictions: '',
     special_requests: '',
@@ -43,6 +44,7 @@ export default function GuestInfo() {
   useEffect(() => {
     if (!guestProfile) return
     setLocalEdits({
+      rsvp_status: guestProfile.rsvp_status || 'pending',
       overnight_stay: !!guestProfile.overnight_stay,
       dietary_restrictions: guestProfile.dietary_restrictions || '',
       special_requests: guestProfile.special_requests || '',
@@ -207,6 +209,26 @@ export default function GuestInfo() {
                   <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-5">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit your answers</h3>
 
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Coming</label>
+                      <select
+                        value={localEdits.rsvp_status}
+                        onChange={(e) => {
+                          const next = e.target.value
+                          setLocalEdits((p) => ({
+                            ...p,
+                            rsvp_status: next,
+                            attending_names: next === 'declined' ? [] : p.attending_names,
+                          }))
+                        }}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+                      >
+                        <option value="confirmed">Yes</option>
+                        <option value="declined">No</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
+
                     {inviteeNames.length > 1 && (
                       <div className="mb-4">
                         <div className="text-sm font-medium text-gray-700 mb-2">Who is coming?</div>
@@ -222,6 +244,7 @@ export default function GuestInfo() {
                                 <input
                                   type="checkbox"
                                   checked={checked}
+                                  disabled={localEdits.rsvp_status !== 'confirmed'}
                                   onChange={() => toggleAttending(name)}
                                   className="w-5 h-5"
                                 />
@@ -269,13 +292,18 @@ export default function GuestInfo() {
 
                     <button
                       onClick={() => {
+                        const nextStatus = localEdits.rsvp_status
                         const payload = {
+                          rsvp_status: nextStatus,
                           overnight_stay: localEdits.overnight_stay,
                           dietary_restrictions: localEdits.dietary_restrictions,
                           special_requests: localEdits.special_requests,
                         }
                         if (inviteeNames.length > 1) {
-                          payload.attending_names = (localEdits.attending_names || []).filter((n) => inviteeNames.includes(n))
+                          payload.attending_names =
+                            nextStatus === 'confirmed'
+                              ? (localEdits.attending_names || []).filter((n) => inviteeNames.includes(n))
+                              : []
                         }
                         updateMutation.mutate(payload)
                       }}

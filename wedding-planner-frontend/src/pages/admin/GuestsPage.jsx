@@ -61,6 +61,11 @@ export default function GuestsPage() {
         setShowQRCode(data.guest.id)
       }
     },
+    onError: (err) => {
+      console.error('Create guest failed:', err)
+      const msg = err?.response?.data?.error || err?.message || 'Failed to create guest'
+      alert(msg)
+    },
   })
 
   const updateGuestMutation = useMutation({
@@ -90,8 +95,16 @@ export default function GuestsPage() {
   const handleSubmit = (e) => {
     e.preventDefault()
     const trimmedNames = inviteeNames.map((n) => (n || '').trim()).filter(Boolean)
+    const primaryName = trimmedNames[0] || ''
+    const parts = primaryName.split(/\s+/).filter(Boolean)
+    const derivedFirst = parts[0] || ''
+    const derivedLast = parts.slice(1).join(' ') || ''
+
     createGuestMutation.mutate({
       ...formData,
+      // If admin only filled invitee names, derive primary name from Name 1.
+      first_name: formData.first_name?.trim() || derivedFirst,
+      last_name: formData.last_name?.trim() || derivedLast,
       invitee_names: trimmedNames.length ? trimmedNames : undefined,
     })
   }
@@ -257,7 +270,7 @@ export default function GuestsPage() {
                       return nextNames.slice(0, nextSize)
                     })
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                 >
                   <option value="individual">Individual (1)</option>
                   <option value="couple">Couple (2)</option>
@@ -315,7 +328,7 @@ export default function GuestsPage() {
                         }
                       }}
                       placeholder={idx === 0 ? 'Name 1 (primary)' : `Name ${idx + 1}`}
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 placeholder:text-gray-400"
                     />
                   </div>
                 ))}

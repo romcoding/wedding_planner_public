@@ -931,9 +931,6 @@ export default function RSVP() {
                         </p>
                       </div>
 
-                      <PrimaryButton variant="secondary" onClick={() => setPass((p) => ({ ...p, step: 0 }))}>
-                        {t('editAnswers')}
-                      </PrimaryButton>
                       <PrimaryButton variant="secondary" onClick={() => navigate('/info')}>
                         {t('openFullInfo')}
                       </PrimaryButton>
