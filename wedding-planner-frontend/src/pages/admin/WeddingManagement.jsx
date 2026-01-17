@@ -61,9 +61,9 @@ export default function WeddingManagement() {
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Total Attendance</p>
+              <p className="text-sm text-gray-600">Not responded</p>
               <p className="text-2xl font-bold text-purple-600 mt-1">
-                {overview?.guests?.total_attendance || 0}
+                {overview?.guests?.pending || 0}
               </p>
             </div>
             <Users className="w-8 h-8 text-purple-500" />

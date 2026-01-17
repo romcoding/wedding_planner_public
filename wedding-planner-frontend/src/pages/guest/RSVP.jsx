@@ -150,11 +150,19 @@ export default function RSVP() {
 
   // Auto-authenticate when guest data is loaded
   useEffect(() => {
-    if (guestData && !guest) {
+    if (!guestData) return
+    // If the browser previously logged in as a different guest, force re-auth for this invite token.
+    if (!guest || guest?.id !== guestData?.id) {
       authMutation.mutate()
-    } else if (guestData) {
-      setLoading(false)
+      return
     }
+    // If we have the right guest but no token, also re-auth
+    const guestToken = localStorage.getItem('guest_token')
+    if (!guestToken) {
+      authMutation.mutate()
+      return
+    }
+    setLoading(false)
   }, [guestData, guest])
 
   const originalGuestCount = useMemo(() => {
@@ -279,17 +287,44 @@ export default function RSVP() {
 
   const updateRSVPMutation = useMutation({
     mutationFn: async (data) => {
+      // Ensure the guest token matches this invite token (avoid "Guest not found" with stale guest_token)
+      if (!token) throw new Error(t('authMissing'))
+      if (!guestData) throw new Error(t('authMissing'))
+
+      const storedGuestRaw = localStorage.getItem('guest')
+      let storedGuestId = null
+      try {
+        storedGuestId = storedGuestRaw ? JSON.parse(storedGuestRaw)?.id : null
+      } catch {
+        storedGuestId = null
+      }
+
       const guestToken = localStorage.getItem('guest_token')
-      if (!guestToken) {
-        if (token) {
-          const authResponse = await api.post(`/guests/token/${token}/auth`)
-          const { access_token } = authResponse.data
-          localStorage.setItem('guest_token', access_token)
-        } else {
-          throw new Error(t('authMissing'))
+      const tokenLooksStale = !guestToken || (storedGuestId && storedGuestId !== guestData.id)
+      if (tokenLooksStale) {
+        const authResponse = await api.post(`/guests/token/${token}/auth`)
+        const { access_token, guest: guestInfo } = authResponse.data
+        localStorage.setItem('guest_token', access_token)
+        if (guestInfo) {
+          localStorage.setItem('guest', JSON.stringify(guestInfo))
         }
       }
-      return api.put('/guests/update-rsvp', data)
+
+      try {
+        return await api.put('/guests/update-rsvp', data)
+      } catch (err) {
+        // One retry if backend says guest not found (stale token edge case)
+        const status = err?.response?.status
+        const msg = err?.response?.data?.error
+        if (status === 404 && msg && msg.toLowerCase().includes('guest not found')) {
+          const authResponse = await api.post(`/guests/token/${token}/auth`)
+          const { access_token, guest: guestInfo } = authResponse.data
+          localStorage.setItem('guest_token', access_token)
+          if (guestInfo) localStorage.setItem('guest', JSON.stringify(guestInfo))
+          return await api.put('/guests/update-rsvp', data)
+        }
+        throw err
+      }
     },
     onError: (err) => {
       console.error('Update error:', err)
