@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import GlitterAnimation from '../../components/GlitterAnimation'
+import HeartBurstAnimation from '../../components/HeartBurstAnimation'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 import api from '../../lib/api'
 
@@ -90,9 +90,11 @@ export default function RSVP() {
   const { guest, loginWithToken } = useGuestAuth()
   const { t, setLanguage } = useLanguage()
 
-  const [showGlitter, setShowGlitter] = useState(false)
+  const [showHearts, setShowHearts] = useState(false)
+  const [isStepFading, setIsStepFading] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
 
   const storageKey = useMemo(() => (token ? `wedding_pass_progress:${token}` : null), [token])
   const hasHydratedFromStorage = useRef(false)
@@ -329,8 +331,16 @@ export default function RSVP() {
 
   const currentStepKey = steps[Math.min(pass.step, steps.length - 1)]
 
-  const goPrev = () => setPass((p) => ({ ...p, step: Math.max(0, p.step - 1) }))
-  const goNext = () => setPass((p) => ({ ...p, step: Math.min(steps.length - 1, p.step + 1) }))
+  const transitionToStep = (nextStep) => {
+    setIsStepFading(true)
+    setTimeout(() => {
+      setPass((p) => ({ ...p, step: nextStep }))
+      requestAnimationFrame(() => setIsStepFading(false))
+    }, 140)
+  }
+
+  const goPrevSmooth = () => transitionToStep(Math.max(0, pass.step - 1))
+  const goNextSmooth = () => transitionToStep(Math.min(steps.length - 1, pass.step + 1))
 
   const savePartial = async (partial) => {
     setError('')
@@ -358,11 +368,20 @@ export default function RSVP() {
     await savePartial({ rsvp_status: status, attending_names: nextAttending })
 
     if (isYes) {
-      setShowGlitter(true)
-      setTimeout(() => setShowGlitter(false), 1800)
-      goNext()
+      setShowHearts(true)
+      goNextSmooth()
       return
     }
+
+    // decline is confirmed via modal; do nothing here
+  }
+
+  const confirmDecline = async () => {
+    setShowDeclineConfirm(false)
+    const status = 'declined'
+    const nextAttending = []
+    setPass((p) => ({ ...p, rsvp_status: status, attending_names: nextAttending }))
+    await savePartial({ rsvp_status: status, attending_names: nextAttending })
     completePass()
   }
 
@@ -522,7 +541,7 @@ export default function RSVP() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      <GlitterAnimation show={showGlitter} onComplete={() => setShowGlitter(false)} />
+      <HeartBurstAnimation show={showHearts} onComplete={() => setShowHearts(false)} />
 
       {/* Language Switcher */}
       <div className="absolute top-4 right-4 z-10">
@@ -637,6 +656,7 @@ export default function RSVP() {
                   </div>
                 </div>
 
+                <div className={`transition-opacity duration-300 ${isStepFading ? 'opacity-0' : 'opacity-100'}`}>
                 {currentStepKey === 'attendance' && (
                   <StepShell
                     title={t('qCelebrateOnDate').replace('{{date}}', weddingDateLabel)}
@@ -651,7 +671,7 @@ export default function RSVP() {
                       </PrimaryButton>
                       <PrimaryButton
                         variant="secondary"
-                        onClick={() => handleChooseAttendance(false)}
+                        onClick={() => setShowDeclineConfirm(true)}
                         disabled={updateRSVPMutation.isPending}
                       >
                         {t('no')}
@@ -688,7 +708,7 @@ export default function RSVP() {
                     <div className="mt-5 flex items-center justify-between">
                       <button
                         type="button"
-                        onClick={goPrev}
+                        onClick={goPrevSmooth}
                         className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
                       >
                         <ChevronLeft className="w-4 h-4" />
@@ -765,7 +785,7 @@ export default function RSVP() {
                     <div className="mt-5 flex items-center justify-between">
                       <button
                         type="button"
-                        onClick={goPrev}
+                        onClick={goPrevSmooth}
                         className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
                       >
                         <ChevronLeft className="w-4 h-4" />
@@ -787,7 +807,7 @@ export default function RSVP() {
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 bg-white"
                     />
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PrimaryButton variant="secondary" onClick={goPrev}>
+                      <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
                         <span className="flex items-center justify-center gap-2">
                           <ChevronLeft className="w-4 h-4" /> {t('back')}
                         </span>
@@ -811,7 +831,7 @@ export default function RSVP() {
                       className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 bg-white"
                     />
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PrimaryButton variant="secondary" onClick={goPrev}>
+                      <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
                         <span className="flex items-center justify-center gap-2">
                           <ChevronLeft className="w-4 h-4" /> {t('back')}
                         </span>
@@ -869,7 +889,7 @@ export default function RSVP() {
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <PrimaryButton variant="secondary" onClick={goPrev}>
+                        <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
                           <span className="flex items-center justify-center gap-2">
                             <ChevronLeft className="w-4 h-4" /> {t('back')}
                           </span>
@@ -882,7 +902,7 @@ export default function RSVP() {
                       <div className="pt-2">
                         <button
                           type="button"
-                          onClick={goNext}
+                          onClick={goNextSmooth}
                           className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2"
                         >
                           {t('skipForNow')}
@@ -898,14 +918,14 @@ export default function RSVP() {
                       pass.rsvp_status === 'confirmed'
                         ? t('doneYesTitle')
                         : pass.rsvp_status === 'declined'
-                          ? t('doneNoTitle')
+                          ? t('declinedSadTitle')
                           : t('doneTitle')
                     }
                     subtitle={
                       pass.rsvp_status === 'confirmed'
                         ? t('doneYesSub')
                         : pass.rsvp_status === 'declined'
-                          ? t('doneNoSub')
+                          ? t('declinedSadSub')
                           : t('doneSub')
                     }
                   >
@@ -937,11 +957,38 @@ export default function RSVP() {
                     </div>
                   </StepShell>
                 )}
+                </div>
               </PassCard>
             </div>
           </div>
         </div>
       </div>
+
+      {showDeclineConfirm && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setShowDeclineConfirm(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+            <h3 className="text-xl font-bold text-gray-900">{t('declineConfirmTitle')}</h3>
+            <p className="text-gray-600 mt-2">{t('declineConfirmBody')}</p>
+            <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setShowDeclineConfirm(false)}
+                className="w-full py-3 px-4 rounded-xl border border-gray-200 bg-white text-gray-900 font-semibold hover:bg-gray-50"
+              >
+                {t('declineConfirmBack')}
+              </button>
+              <button
+                type="button"
+                onClick={confirmDecline}
+                className="w-full py-3 px-4 rounded-xl bg-red-600 text-white font-semibold hover:bg-red-700"
+              >
+                {t('declineConfirmYes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
