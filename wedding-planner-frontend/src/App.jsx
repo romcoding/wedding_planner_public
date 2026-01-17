@@ -21,6 +21,7 @@ import VenuesPage from './pages/admin/VenuesPage'
 import SeatingChartPage from './pages/admin/SeatingChartPage'
 import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import UsersPage from './pages/admin/UsersPage'
+import MoodboardPage from './pages/admin/MoodboardPage'
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
@@ -94,6 +95,7 @@ function AppRoutes() {
         <Route path="seating" element={<SeatingChartPage />} />
         <Route path="rsvp-reminders" element={<RSVPRemindersPage />} />
         <Route path="users" element={<UsersPage />} />
+        <Route path="moodboard" element={<MoodboardPage />} />
       </Route>
 
       <Route

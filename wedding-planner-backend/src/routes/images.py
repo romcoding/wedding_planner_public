@@ -115,9 +115,9 @@ def create_image():
                 return jsonify({'error': 'Position is required'}), 400
             
             # Validate file type
-            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'}
             if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
-                return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP'}), 400
+                return jsonify({'error': 'Invalid file type. Allowed: PNG, JPG, JPEG, GIF, WEBP, SVG'}), 400
             
             # Read file
             file_data = file.read()
@@ -132,10 +132,13 @@ def create_image():
             mime_type = file.content_type or 'image/jpeg'
             data_url = f'data:{mime_type};base64,{image_base64}'
             
-            # Get image dimensions
+            # Get image dimensions (best-effort; SVG will not be readable by PIL)
+            width, height = None, None
             try:
-                img = PILImage.open(BytesIO(file_data))
-                width, height = img.size
+                ext = file.filename.rsplit('.', 1)[1].lower()
+                if ext != 'svg':
+                    img = PILImage.open(BytesIO(file_data))
+                    width, height = img.size
             except Exception:
                 width, height = None, None
             

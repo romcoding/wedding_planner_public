@@ -33,6 +33,10 @@ echo "6. Running guest invitee names migration..."
 python3 migrate_add_invitee_names.py
 echo ""
 
+echo "7. Running moodboards table migration..."
+python3 migrate_create_moodboards_table.py
+echo ""
+
 echo "=========================================="
 echo "All migrations completed!"
 echo "=========================================="

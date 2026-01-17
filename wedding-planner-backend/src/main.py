@@ -25,6 +25,7 @@ from src.routes.users import users_bp
 from src.routes.venue_offers import offers_bp
 from src.routes.venue_documents import documents_bp
 from src.routes.venue_chat import chat_bp
+from src.routes.moodboards import moodboards_bp
 
 load_dotenv()
 
@@ -138,6 +139,7 @@ def create_app():
     app.register_blueprint(seating_bp, url_prefix='/api/seating')
     app.register_blueprint(reminders_bp, url_prefix='/api/rsvp-reminders')
     app.register_blueprint(users_bp, url_prefix='/api/users')
+    app.register_blueprint(moodboards_bp, url_prefix='')
     
     # Create tables
     with app.app_context():

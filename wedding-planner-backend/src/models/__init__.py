@@ -8,6 +8,7 @@ from .task import Task
 from .cost import Cost
 from .content import Content
 from .image import Image
+from .moodboard import Moodboard
 from .invitation import Invitation
 from .event import Event
 from .message import Message
@@ -23,5 +24,5 @@ from .table import Table, SeatAssignment
 from .rsvp_reminder import RSVPReminder, ReminderSent
 from .analytics import PageView, Visit, SecurityEvent
 
-__all__ = ['db', 'User', 'Guest', 'Task', 'Cost', 'Content', 'Image', 'Invitation', 'Event', 'Message', 'GiftRegistry', 'GuestPhoto', 'Venue', 'VenueRequest', 'VenueOfferCategory', 'VenueOffer', 'VenueDocument', 'DocumentChunk', 'VenueChatHistory', 'InvitationTemplate', 'Table', 'SeatAssignment', 'RSVPReminder', 'ReminderSent', 'PageView', 'Visit', 'SecurityEvent']
+__all__ = ['db', 'User', 'Guest', 'Task', 'Cost', 'Content', 'Image', 'Moodboard', 'Invitation', 'Event', 'Message', 'GiftRegistry', 'GuestPhoto', 'Venue', 'VenueRequest', 'VenueOfferCategory', 'VenueOffer', 'VenueDocument', 'DocumentChunk', 'VenueChatHistory', 'InvitationTemplate', 'Table', 'SeatAssignment', 'RSVPReminder', 'ReminderSent', 'PageView', 'Visit', 'SecurityEvent']
 
