@@ -342,45 +342,25 @@ def delete_guest(guest_id):
         return jsonify({'error': 'User not found'}), 404
     
     guest = Guest.query.get(guest_id)
-    
     if not guest:
         return jsonify({'error': 'Guest not found'}), 404
 
+    # IMPORTANT:
+    # Production can be behind migrations (e.g., invitations missing scheduled_at).
+    # Avoid ORM access to models that may not match DB columns by using raw SQL here.
     try:
-        # Detach / clean up dependent rows to avoid FK constraint errors.
-        # Invitations: keep record, but detach accepted guest link
-        db.session.query(Invitation).filter(Invitation.guest_id == guest_id).update(
-            {Invitation.guest_id: None},
-            synchronize_session=False,
-        )
+        from sqlalchemy import text
 
-        # Seat assignments: make seat empty again
-        db.session.query(SeatAssignment).filter(SeatAssignment.guest_id == guest_id).update(
-            {SeatAssignment.guest_id: None},
-            synchronize_session=False,
-        )
+        db.session.execute(text("UPDATE invitations SET guest_id = NULL WHERE guest_id = :gid"), {"gid": guest_id})
+        db.session.execute(text("UPDATE seat_assignments SET guest_id = NULL WHERE guest_id = :gid"), {"gid": guest_id})
+        db.session.execute(text("DELETE FROM guest_photos WHERE guest_id = :gid"), {"gid": guest_id})
+        db.session.execute(text("DELETE FROM reminder_sent WHERE guest_id = :gid"), {"gid": guest_id})
+        db.session.execute(text("UPDATE messages SET guest_id = NULL WHERE guest_id = :gid"), {"gid": guest_id})
+        db.session.execute(text("UPDATE page_views SET guest_id = NULL WHERE guest_id = :gid"), {"gid": guest_id})
+        db.session.execute(text("UPDATE visits SET guest_id = NULL WHERE guest_id = :gid"), {"gid": guest_id})
 
-        # Guest photos: delete (they belong to the guest)
-        db.session.query(GuestPhoto).filter(GuestPhoto.guest_id == guest_id).delete(synchronize_session=False)
-
-        # RSVP reminder sent rows: delete (FK is NOT NULL) - table is 'reminder_sent'
-        db.session.query(ReminderSent).filter(ReminderSent.guest_id == guest_id).delete(synchronize_session=False)
-
-        # Messages / analytics: detach (keep history)
-        db.session.query(Message).filter(Message.guest_id == guest_id).update(
-            {Message.guest_id: None},
-            synchronize_session=False,
-        )
-        db.session.query(PageView).filter(PageView.guest_id == guest_id).update(
-            {PageView.guest_id: None},
-            synchronize_session=False,
-        )
-        db.session.query(Visit).filter(Visit.guest_id == guest_id).update(
-            {Visit.guest_id: None},
-            synchronize_session=False,
-        )
-
-        db.session.delete(guest)
+        # Finally delete the guest row itself (raw delete avoids ORM lazy-loads)
+        db.session.execute(text("DELETE FROM guests WHERE id = :gid"), {"gid": guest_id})
         db.session.commit()
         return jsonify({'message': 'Guest deleted successfully'}), 200
     except Exception as e:

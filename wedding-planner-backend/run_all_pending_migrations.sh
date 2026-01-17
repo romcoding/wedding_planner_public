@@ -25,7 +25,11 @@ echo "4. Running content scheduling migration..."
 python3 migrate_add_content_scheduling.py
 echo ""
 
-echo "5. Running guest invitee names migration..."
+echo "5. Running invitation tracking migration..."
+python3 migrate_add_invitation_tracking.py
+echo ""
+
+echo "6. Running guest invitee names migration..."
 python3 migrate_add_invitee_names.py
 echo ""
 
