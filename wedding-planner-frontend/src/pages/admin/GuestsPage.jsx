@@ -10,6 +10,7 @@ export default function GuestsPage() {
   const [showForm, setShowForm] = useState(false)
   const [selectedGuest, setSelectedGuest] = useState(null)
   const [showQRCode, setShowQRCode] = useState(null)
+  const [viewGuest, setViewGuest] = useState(null)
   const queryClient = useQueryClient()
   const [inviteType, setInviteType] = useState('individual') // individual | couple | group
   const [groupSize, setGroupSize] = useState(3)
@@ -144,6 +145,14 @@ export default function GuestsPage() {
       </span>
     )
   }
+
+  const yesNo = (val) => {
+    if (val === true) return 'Yes'
+    if (val === false) return 'No'
+    return 'Not specified'
+  }
+
+  const stopRowClick = (e) => e.stopPropagation()
 
   return (
     <div>
@@ -528,7 +537,12 @@ export default function GuestsPage() {
                 </tr>
               ) : (
                 filteredGuests.map((guest) => (
-                  <tr key={guest.id} className="hover:bg-gray-50">
+                  <tr
+                    key={guest.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => setViewGuest(guest)}
+                    title="Click to view guest details"
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {guest.first_name} {guest.last_name}
@@ -556,6 +570,7 @@ export default function GuestsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-2">
                         <select
+                          onClick={stopRowClick}
                           value={
                             (guest.number_of_guests || 1) === 1
                               ? 'individual'
@@ -564,6 +579,7 @@ export default function GuestsPage() {
                                 : 'group'
                           }
                           onChange={(e) => {
+                            e.stopPropagation()
                             const next = e.target.value
                             if (next === 'individual') {
                               updateGuestMutation.mutate({ id: guest.id, data: { number_of_guests: 1 } })
@@ -597,6 +613,7 @@ export default function GuestsPage() {
                                 data: { number_of_guests: Math.max(3, parseInt(e.target.value) || 3) },
                               })
                             }
+                            onClick={stopRowClick}
                             className="w-20 text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                             title="Group size"
                           />
@@ -610,6 +627,8 @@ export default function GuestsPage() {
                             setSelectedGuest(guest)
                             setShowQRCode(guest.id)
                           }}
+                          onMouseDown={stopRowClick}
+                          onClickCapture={stopRowClick}
                           className="p-1 text-blue-600 hover:text-blue-800"
                           title="Show QR Code"
                         >
@@ -623,6 +642,8 @@ export default function GuestsPage() {
                               alert('RSVP link is not available. Please refresh the page.')
                             }
                           }}
+                          onMouseDown={stopRowClick}
+                          onClickCapture={stopRowClick}
                           className="p-1 text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           title="Copy Link"
                           disabled={!guest.rsvp_link}
@@ -634,6 +655,7 @@ export default function GuestsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
                         <select
+                          onClick={stopRowClick}
                           value={guest.rsvp_status}
                           onChange={(e) => updateGuestMutation.mutate({
                             id: guest.id,
@@ -651,6 +673,8 @@ export default function GuestsPage() {
                               deleteGuestMutation.mutate(guest.id)
                             }
                           }}
+                          onMouseDown={stopRowClick}
+                          onClickCapture={stopRowClick}
                           className="text-red-600 hover:text-red-900 text-xs"
                         >
                           Delete
@@ -664,6 +688,99 @@ export default function GuestsPage() {
           </table>
         </div>
       </div>
+
+      {/* Guest Details Modal */}
+      {viewGuest && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onMouseDown={() => setViewGuest(null)}
+        >
+          <div
+            className="w-full max-w-2xl rounded-2xl bg-white shadow-xl border border-gray-200"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 p-6 border-b border-gray-100">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  {viewGuest.first_name} {viewGuest.last_name}
+                </h3>
+                <p className="text-sm text-gray-600">
+                  Status: <span className="font-medium text-gray-900">{viewGuest.rsvp_status}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewGuest(null)}
+                className="px-3 py-2 rounded-lg bg-gray-100 text-gray-900 hover:bg-gray-200 text-sm font-medium"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Contact</div>
+                  <div className="mt-2 text-sm text-gray-900">{viewGuest.email || '—'}</div>
+                  <div className="mt-1 text-sm text-gray-700">{viewGuest.phone || '—'}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Invitation</div>
+                  <div className="mt-2 text-sm text-gray-900">
+                    Guests on invite: <span className="font-medium">{viewGuest.number_of_guests || 1}</span>
+                  </div>
+                  <div className="mt-1 text-sm text-gray-700">
+                    Language: <span className="uppercase">{viewGuest.language || '—'}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Invitee names</div>
+                <div className="mt-2 text-sm text-gray-900">
+                  {(viewGuest.invitee_names && viewGuest.invitee_names.length > 0)
+                    ? viewGuest.invitee_names.join(', ')
+                    : '—'}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Who is coming</div>
+                <div className="mt-2 text-sm text-gray-900">
+                  {(viewGuest.attending_names && viewGuest.attending_names.length > 0)
+                    ? viewGuest.attending_names.join(', ')
+                    : '—'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Overnight stay</div>
+                  <div className="mt-2 text-sm text-gray-900">{yesNo(viewGuest.overnight_stay)}</div>
+                </div>
+                <div className="rounded-xl border border-gray-200 p-4">
+                  <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Attendance type</div>
+                  <div className="mt-2 text-sm text-gray-900">{viewGuest.attendance_type ? String(viewGuest.attendance_type) : '—'}</div>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dietary restrictions</div>
+                <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap">
+                  {viewGuest.dietary_restrictions?.trim() ? viewGuest.dietary_restrictions : '—'}
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 p-4">
+                <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Notes / special requests</div>
+                <div className="mt-2 text-sm text-gray-900 whitespace-pre-wrap">
+                  {viewGuest.special_requests?.trim() ? viewGuest.special_requests : '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">

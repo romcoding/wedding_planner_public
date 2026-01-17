@@ -21,6 +21,20 @@ export default function HeartBurstAnimation({ show, onComplete }) {
   )
 
   const [hearts, setHearts] = useState([])
+  const [isDesktop, setIsDesktop] = useState(false)
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 768px)')
+    const update = () => setIsDesktop(!!mq.matches)
+    update()
+    // Safari compatibility: addListener/removeListener
+    if (mq.addEventListener) {
+      mq.addEventListener('change', update)
+      return () => mq.removeEventListener('change', update)
+    }
+    mq.addListener(update)
+    return () => mq.removeListener(update)
+  }, [])
 
   useEffect(() => {
     if (!show) {
@@ -79,34 +93,66 @@ export default function HeartBurstAnimation({ show, onComplete }) {
             top: `${h.y}%`,
             width: `${h.size}px`,
             height: `${h.size}px`,
-            transform: `translate(-50%, -50%) rotate(${h.rotation}deg)`,
-            animation: `heartFloat ${h.duration}ms ease-out ${h.delay}ms forwards`,
-            // pass drift via CSS var
-            ['--drift']: `${h.drift}vw`,
-            ['--rise']: `${h.rise}vh`,
             pointerEvents: 'none',
+            transform: 'translate(-50%, -50%)',
           }}
         >
-          <HeartSvg color={h.color} />
+          <div
+            style={{
+              width: '100%',
+              height: '100%',
+              // Avoid abrupt "pop" on desktop by:
+              // 1) applying 0% keyframe during delay (fill-mode: both)
+              // 2) keeping transforms inside keyframes (no inline transform mismatch)
+              // 3) using a softer desktop keyframe curve
+              animation: `${isDesktop ? 'heartFloatDesktop' : 'heartFloat'} ${h.duration}ms cubic-bezier(0.16, 1, 0.3, 1) ${h.delay}ms both`,
+              ['--drift']: `${h.drift}vw`,
+              ['--rise']: `${h.rise}vh`,
+              ['--rot']: `${h.rotation}deg`,
+              pointerEvents: 'none',
+            }}
+          >
+            <HeartSvg color={h.color} />
+          </div>
         </div>
       ))}
       <style>{`
         @keyframes heartFloat {
           0% {
             opacity: 0;
-            transform: translate(-50%, -50%) scale(0.75) rotate(0deg);
+            transform: translate3d(0, 0, 0) scale(0.78) rotate(var(--rot));
           }
-          25% {
+          22% {
             opacity: 1;
-            transform: translate(-50%, -56%) scale(1) rotate(0deg);
+            transform: translate3d(0, -6px, 0) scale(1) rotate(var(--rot));
           }
           70% {
             opacity: 0.85;
-            transform: translate(calc(-50% + calc(var(--drift) * 0.7)), calc(-50% - calc(var(--rise) * 0.7))) scale(1.05) rotate(0deg);
+            transform: translate3d(calc(var(--drift) * 0.7), calc(var(--rise) * -0.7), 0) scale(1.05) rotate(var(--rot));
           }
           100% {
             opacity: 0;
-            transform: translate(calc(-50% + var(--drift)), calc(-50% - var(--rise))) scale(1.1) rotate(0deg);
+            transform: translate3d(var(--drift), calc(var(--rise) * -1), 0) scale(1.1) rotate(var(--rot));
+          }
+        }
+
+        /* Desktop-only: a slightly slower, softer fade-in (avoid abrupt "jump in") */
+        @keyframes heartFloatDesktop {
+          0% {
+            opacity: 0;
+            transform: translate3d(0, 0, 0) scale(0.68) rotate(var(--rot));
+          }
+          35% {
+            opacity: 1;
+            transform: translate3d(0, -8px, 0) scale(1) rotate(var(--rot));
+          }
+          70% {
+            opacity: 0.85;
+            transform: translate3d(calc(var(--drift) * 0.7), calc(var(--rise) * -0.7), 0) scale(1.05) rotate(var(--rot));
+          }
+          100% {
+            opacity: 0;
+            transform: translate3d(var(--drift), calc(var(--rise) * -1), 0) scale(1.1) rotate(var(--rot));
           }
         }
       `}</style>

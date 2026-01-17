@@ -28,7 +28,7 @@ export default function AdminLayout() {
 
   const navItems = [
     { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
-    { path: '/admin/guests', icon: Users, label: 'RSVP Requests' },
+    { path: '/admin/guests', icon: Users, label: 'Guest Management' },
     { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
     { path: '/admin/rsvp-reminders', icon: Bell, label: 'RSVP Reminders' },
     { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
