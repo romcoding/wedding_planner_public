@@ -11,6 +11,7 @@ export default function GuestsPage() {
   const [selectedGuest, setSelectedGuest] = useState(null)
   const [showQRCode, setShowQRCode] = useState(null)
   const queryClient = useQueryClient()
+  const [inviteType, setInviteType] = useState('individual') // individual | couple
 
   const [formData, setFormData] = useState({
     first_name: '',
@@ -137,7 +138,19 @@ export default function GuestsPage() {
             Total: {guests?.length || 0} guests
           </div>
           <button
-            onClick={() => setShowForm(true)}
+            onClick={() => {
+              setInviteType('individual')
+              setFormData({
+                first_name: '',
+                last_name: '',
+                email: '',
+                phone: '',
+                number_of_guests: 1,
+                rsvp_status: 'pending',
+                language: 'en',
+              })
+              setShowForm(true)
+            }}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
             <PlusCircle className="w-5 h-5" />
@@ -205,15 +218,26 @@ export default function GuestsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number of Guests
+                  Invite Type
                 </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={formData.number_of_guests}
-                  onChange={(e) => setFormData({ ...formData, number_of_guests: parseInt(e.target.value) || 1 })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <select
+                  value={inviteType}
+                  onChange={(e) => {
+                    const next = e.target.value
+                    setInviteType(next)
+                    setFormData({
+                      ...formData,
+                      number_of_guests: next === 'couple' ? 2 : 1,
+                    })
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                >
+                  <option value="individual">Individual (1)</option>
+                  <option value="couple">Couple (2)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  This controls whether the guest sees the “both coming?” question.
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -255,6 +279,7 @@ export default function GuestsPage() {
                 type="button"
                 onClick={() => {
                   setShowForm(false)
+                  setInviteType('individual')
                   setFormData({
                     first_name: '',
                     last_name: '',
@@ -431,8 +456,21 @@ export default function GuestsPage() {
                         <span className="text-gray-400">Not specified</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {guest.number_of_guests || 1}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={guest.number_of_guests || 1}
+                        onChange={(e) =>
+                          updateGuestMutation.mutate({
+                            id: guest.id,
+                            data: { number_of_guests: parseInt(e.target.value) || 1 },
+                          })
+                        }
+                        className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        title="Invite type"
+                      >
+                        <option value={1}>Individual (1)</option>
+                        <option value={2}>Couple (2)</option>
+                      </select>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex gap-2">

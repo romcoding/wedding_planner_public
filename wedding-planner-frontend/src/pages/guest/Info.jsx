@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
@@ -12,11 +12,31 @@ export default function GuestInfo() {
   const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState(null)
 
+  const inviteToken = useMemo(() => {
+    try {
+      return localStorage.getItem('guest_invite_token')
+    } catch {
+      return null
+    }
+  }, [])
+
   // Fetch images from API
   const { data: images, isLoading: imagesLoading } = useQuery({
     queryKey: ['images'],
     queryFn: () => api.get('/images').then((res) => res.data),
   })
+
+  // Fetch guest profile (uses guest_token JWT)
+  const { data: guestProfile } = useQuery({
+    queryKey: ['guest-profile'],
+    queryFn: () => api.get('/guest-auth/profile').then((res) => res.data),
+  })
+
+  const getStatusLabel = (status) => {
+    if (status === 'confirmed') return 'Yes'
+    if (status === 'declined') return 'No'
+    return 'Pending'
+  }
 
   // Get images by position
   const infoTopImage = images?.find(img => img.position === 'info_top' && img.is_active && img.is_public)
@@ -54,16 +74,59 @@ export default function GuestInfo() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <Edit className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">Edit RSVP</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">Change your information</h2>
                 </div>
                 <p className="text-gray-600 mb-6">
-                  You can update your RSVP information at any time. Please contact us if you need to make changes.
+                  You can review and update your Wedding Pass at any time.
                 </p>
+
+                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Your current answers</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <span className="text-gray-600">Coming</span>
+                      <span className="font-semibold text-gray-900">{getStatusLabel(guestProfile?.rsvp_status)}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <span className="text-gray-600">Guests</span>
+                      <span className="font-semibold text-gray-900">{guestProfile?.number_of_guests || 1}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <span className="text-gray-600">Overnight stay</span>
+                      <span className="font-semibold text-gray-900">{guestProfile?.overnight_stay ? 'Yes' : 'No'}</span>
+                    </div>
+                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <span className="text-gray-600">Dietary</span>
+                      <span className="font-semibold text-gray-900">
+                        {guestProfile?.dietary_restrictions ? 'Provided' : '—'}
+                      </span>
+                    </div>
+                    <div className="md:col-span-2 bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <div className="text-gray-600 mb-1">Dietary details</div>
+                      <div className="text-gray-900 whitespace-pre-wrap break-words">
+                        {guestProfile?.dietary_restrictions || '—'}
+                      </div>
+                    </div>
+                    <div className="md:col-span-2 bg-white rounded-xl px-4 py-3 border border-gray-200">
+                      <div className="text-gray-600 mb-1">Notes</div>
+                      <div className="text-gray-900 whitespace-pre-wrap break-words">
+                        {guestProfile?.special_requests || '—'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <button
-                  onClick={() => navigate('/')}
+                  onClick={() => {
+                    if (inviteToken) {
+                      navigate(`/rsvp/${inviteToken}`)
+                    } else {
+                      navigate('/')
+                    }
+                  }}
                   className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all"
                 >
-                  Go to RSVP Form
+                  Open your Wedding Pass
                 </button>
               </div>
             )}
@@ -206,7 +269,7 @@ export default function GuestInfo() {
             {editRsvpImage ? (
               <img
                 src={editRsvpImage.url}
-                alt={editRsvpImage.alt_text || 'Edit RSVP'}
+                alt={editRsvpImage.alt_text || 'Change your information'}
                 className="w-full h-full object-cover"
               />
             ) : (
@@ -218,8 +281,8 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white">
                 <Edit className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">Edit RSVP</h3>
-                <p className="text-white/90">Update your information</p>
+                <h3 className="text-2xl font-bold mb-2">Change your information</h3>
+                <p className="text-white/90">Review and update your Wedding Pass</p>
               </div>
             </div>
           </div>

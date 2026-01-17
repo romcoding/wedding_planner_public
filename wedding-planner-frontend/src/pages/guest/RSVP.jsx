@@ -19,6 +19,133 @@ import LanguageSwitcher from '../../components/LanguageSwitcher'
 import Timeline from '../../components/Timeline'
 import api from '../../lib/api'
 
+function PassCard({ children }) {
+  return <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">{children}</div>
+}
+
+function PrimaryButton({ children, onClick, disabled, variant = 'primary', className = '' }) {
+  const base =
+    'w-full py-4 px-5 rounded-xl font-semibold text-lg transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed'
+  const styles =
+    variant === 'primary'
+      ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700'
+      : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className={`${base} ${styles} ${className}`}
+    >
+      {children}
+    </button>
+  )
+}
+
+function StepShell({ title, subtitle, children }) {
+  return (
+    <div className="transition-opacity duration-300">
+      <div className="mb-5">
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h2>
+        {subtitle ? <p className="text-gray-600 mt-2">{subtitle}</p> : null}
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function TopTabs({ tabs, activeTab, setActiveTab, comingSoonLabel }) {
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1">
+      {tabs.map((tab) => {
+        const isActive = activeTab === tab.key
+        const isDisabled = tab.disabled
+        return (
+          <button
+            key={tab.key}
+            type="button"
+            disabled={isDisabled}
+            onClick={() => setActiveTab(tab.key)}
+            className={[
+              'px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition-colors',
+              isActive
+                ? 'bg-gray-900 text-white border-gray-900'
+                : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50',
+              isDisabled ? 'opacity-40 cursor-not-allowed hover:bg-white' : '',
+            ].join(' ')}
+            title={isDisabled ? comingSoonLabel : ''}
+          >
+            {tab.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function PostContent({
+  t,
+  TimelineComponent,
+  activeTab,
+  setActiveTab,
+  MapPinIcon,
+  NotebookPenIcon,
+}) {
+  const tabs = [
+    { key: 'needToKnow', label: t('tabNeedToKnow'), disabled: false },
+    { key: 'venue', label: t('tabVenue'), disabled: true },
+    { key: 'day', label: t('tabDayItself'), disabled: false },
+    { key: 'evening', label: t('tabYourEvening'), disabled: true },
+  ]
+
+  return (
+    <div className="mt-6">
+      <TopTabs
+        tabs={tabs}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        comingSoonLabel={t('comingSoon')}
+      />
+      <div className="mt-4">
+        {activeTab === 'needToKnow' && (
+          <div className="space-y-4">
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <MapPinIcon className="w-5 h-5 text-pink-500" />
+                <h3 className="text-lg font-semibold text-gray-900">{t('needToKnowTitle')}</h3>
+              </div>
+              <p className="text-gray-600">{t('needToKnowBody')}</p>
+            </div>
+            <div className="rounded-2xl border border-gray-200 bg-white p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <NotebookPenIcon className="w-5 h-5 text-purple-600" />
+                <h3 className="text-lg font-semibold text-gray-900">{t('giftDressCodeTitle')}</h3>
+              </div>
+              <p className="text-gray-600">{t('giftDressCodeBody')}</p>
+            </div>
+          </div>
+        )}
+        {activeTab === 'venue' && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">
+            {t('comingSoon')}
+          </div>
+        )}
+        {activeTab === 'day' && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('dayItselfTitle')}</h3>
+            <TimelineComponent />
+          </div>
+        )}
+        {activeTab === 'evening' && (
+          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">
+            {t('comingSoon')}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function RSVP() {
   const { token } = useParams()
   const navigate = useNavigate()
@@ -32,6 +159,16 @@ export default function RSVP() {
 
   const storageKey = useMemo(() => (token ? `wedding_pass_progress:${token}` : null), [token])
   const hasHydratedFromStorage = useRef(false)
+
+  // Persist token so the guest can jump back to their Wedding Pass from other pages (Info, etc.)
+  useEffect(() => {
+    if (!token) return
+    try {
+      localStorage.setItem('guest_invite_token', token)
+    } catch {
+      // ignore
+    }
+  }, [token])
 
   const [pass, setPass] = useState({
     rsvp_status: 'pending', // pending | confirmed | declined
@@ -327,111 +464,6 @@ export default function RSVP() {
     a.remove()
     URL.revokeObjectURL(url)
   }
-
-  const PassCard = ({ children }) => (
-    <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">{children}</div>
-  )
-
-  const PrimaryButton = ({ children, onClick, disabled, variant = 'primary' }) => {
-    const base =
-      'w-full py-4 px-5 rounded-xl font-semibold text-lg transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed'
-    const styles =
-      variant === 'primary'
-        ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700'
-        : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'
-    return (
-      <button type="button" disabled={disabled} onClick={onClick} className={`${base} ${styles}`}>
-        {children}
-      </button>
-    )
-  }
-
-  const StepShell = ({ title, subtitle, children }) => (
-    <div className="transition-opacity duration-300">
-      <div className="mb-5">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h2>
-        {subtitle ? <p className="text-gray-600 mt-2">{subtitle}</p> : null}
-      </div>
-      {children}
-    </div>
-  )
-
-  const TopTabs = () => {
-    const tabs = [
-      { key: 'needToKnow', label: t('tabNeedToKnow'), disabled: false },
-      { key: 'venue', label: t('tabVenue'), disabled: true },
-      { key: 'day', label: t('tabDayItself'), disabled: false },
-      { key: 'evening', label: t('tabYourEvening'), disabled: true },
-    ]
-    return (
-      <div className="flex gap-2 overflow-x-auto pb-1">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.key
-          const isDisabled = tab.disabled
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              disabled={isDisabled}
-              onClick={() => setActiveTab(tab.key)}
-              className={[
-                'px-4 py-2 rounded-full text-sm font-semibold whitespace-nowrap border transition-colors',
-                isActive
-                  ? 'bg-gray-900 text-white border-gray-900'
-                  : 'bg-white text-gray-900 border-gray-200 hover:bg-gray-50',
-                isDisabled ? 'opacity-40 cursor-not-allowed hover:bg-white' : '',
-              ].join(' ')}
-              title={isDisabled ? t('comingSoon') : ''}
-            >
-              {tab.label}
-            </button>
-          )
-        })}
-      </div>
-    )
-  }
-
-  const PostContent = () => (
-    <div className="mt-6">
-      <TopTabs />
-      <div className="mt-4">
-        {activeTab === 'needToKnow' && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin className="w-5 h-5 text-pink-500" />
-                <h3 className="text-lg font-semibold text-gray-900">{t('needToKnowTitle')}</h3>
-              </div>
-              <p className="text-gray-600">{t('needToKnowBody')}</p>
-            </div>
-            <div className="rounded-2xl border border-gray-200 bg-white p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <NotebookPen className="w-5 h-5 text-purple-600" />
-                <h3 className="text-lg font-semibold text-gray-900">{t('giftDressCodeTitle')}</h3>
-              </div>
-              <p className="text-gray-600">{t('giftDressCodeBody')}</p>
-            </div>
-          </div>
-        )}
-        {activeTab === 'venue' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">
-            {t('comingSoon')}
-          </div>
-        )}
-        {activeTab === 'day' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-5">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">{t('dayItselfTitle')}</h3>
-            <Timeline />
-          </div>
-        )}
-        {activeTab === 'evening' && (
-          <div className="rounded-2xl border border-gray-200 bg-white p-5 text-gray-600">
-            {t('comingSoon')}
-          </div>
-        )}
-      </div>
-    </div>
-  )
 
   if (loading || loadingGuest || authMutation.isPending) {
     return (
@@ -827,7 +859,14 @@ export default function RSVP() {
                       </PrimaryButton>
                     </div>
 
-                    <PostContent />
+                    <PostContent
+                      t={t}
+                      TimelineComponent={Timeline}
+                      activeTab={activeTab}
+                      setActiveTab={setActiveTab}
+                      MapPinIcon={MapPin}
+                      NotebookPenIcon={NotebookPen}
+                    />
                   </StepShell>
                 )}
               </PassCard>
