@@ -625,27 +625,25 @@ export default function GuestsPage() {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex gap-2">
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             setSelectedGuest(guest)
                             setShowQRCode(guest.id)
                           }}
-                          onMouseDown={stopRowClick}
-                          onClickCapture={stopRowClick}
                           className="p-1 text-blue-600 hover:text-blue-800"
                           title="Show QR Code"
                         >
                           <QrCode className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             if (guest.rsvp_link) {
                               copyToClipboard(guest.rsvp_link)
                             } else {
                               alert('RSVP link is not available. Please refresh the page.')
                             }
                           }}
-                          onMouseDown={stopRowClick}
-                          onClickCapture={stopRowClick}
                           className="p-1 text-gray-600 hover:text-gray-800 disabled:opacity-50"
                           title="Copy Link"
                           disabled={!guest.rsvp_link}
