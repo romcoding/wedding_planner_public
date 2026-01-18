@@ -1,17 +1,24 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
+import { useLanguage } from '../../contexts/LanguageContext'
 import api from '../../lib/api'
 import { Upload, Camera, X, CheckCircle } from 'lucide-react'
 
 export default function PhotoGallery() {
   const { guest } = useGuestAuth()
+  const { t } = useLanguage()
   const queryClient = useQueryClient()
   const fileInputRef = useRef(null)
   const [selectedFile, setSelectedFile] = useState(null)
   const [preview, setPreview] = useState(null)
   const [caption, setCaption] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+
+  const externalFolderUrl = t('photo_gallery_folder_url')
+  const externalUploadUrl = t('photo_gallery_upload_url')
+  const hasExternalFolderUrl = externalFolderUrl && externalFolderUrl !== 'photo_gallery_folder_url'
+  const hasExternalUploadUrl = externalUploadUrl && externalUploadUrl !== 'photo_gallery_upload_url'
 
   const { data: photos, isLoading } = useQuery({
     queryKey: ['guest-photos'],
@@ -91,6 +98,37 @@ export default function PhotoGallery() {
   return (
     <div className="space-y-6">
       <h2 className="text-3xl font-bold text-gray-900 mb-6">Photo Gallery</h2>
+
+      {(hasExternalFolderUrl || hasExternalUploadUrl) && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="text-xl font-semibold mb-2">Shared photo folder</h3>
+          <p className="text-sm text-gray-600 mb-4">
+            If you prefer, you can use the shared folder to view and add photos.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {hasExternalFolderUrl && (
+              <a
+                href={externalFolderUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-black text-center"
+              >
+                Open folder
+              </a>
+            )}
+            {hasExternalUploadUrl && (
+              <a
+                href={externalUploadUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 text-center"
+              >
+                Upload to folder
+              </a>
+            )}
+          </div>
+        </div>
+      )}
       
       {/* Upload Section */}
       {guest && (

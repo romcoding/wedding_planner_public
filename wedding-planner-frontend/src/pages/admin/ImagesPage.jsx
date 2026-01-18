@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X } from 'lucide-react'
+import { useToast } from '../../components/ui/Toast'
 
 const ImagesPage = () => {
   const queryClient = useQueryClient()
+  const toast = useToast()
   const fileInputRef = useRef(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -14,6 +16,53 @@ const ImagesPage = () => {
   const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({
     position: '',
+  })
+
+  const [externalViewUrl, setExternalViewUrl] = useState('')
+  const [externalUploadUrl, setExternalUploadUrl] = useState('')
+
+  const SETTINGS_KEYS = {
+    view: 'photo_gallery_folder_url',
+    upload: 'photo_gallery_upload_url',
+  }
+
+  const { data: contentItems } = useQuery({
+    queryKey: ['content', 'admin'],
+    queryFn: () => api.get('/content?lang=en').then((r) => r.data),
+  })
+
+  useEffect(() => {
+    if (!contentItems) return
+    const view = contentItems.find((c) => c.key === SETTINGS_KEYS.view)?.content || ''
+    const upload = contentItems.find((c) => c.key === SETTINGS_KEYS.upload)?.content || ''
+    setExternalViewUrl(view)
+    setExternalUploadUrl(upload)
+  }, [contentItems])
+
+  const saveWebSettings = useMutation({
+    mutationFn: async ({ key, value }) => {
+      const existing = contentItems?.find((c) => c.key === key)
+      if (existing?.id) {
+        return api.put(`/content/${existing.id}`, {
+          content_type: 'text',
+          is_public: true,
+          content_en: value,
+        })
+      }
+      return api.post('/content', {
+        key,
+        title: key,
+        content_type: 'text',
+        is_public: true,
+        content_en: value,
+      })
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['content', 'admin'])
+      queryClient.invalidateQueries(['content', 'public'])
+      toast.success('Saved')
+    },
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to save'),
   })
 
   const { data: images, isLoading } = useQuery({
@@ -210,7 +259,7 @@ const ImagesPage = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Image Management</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Web page</h1>
         <button
           onClick={() => {
             resetForm()
@@ -221,6 +270,57 @@ const ImagesPage = () => {
           <PlusCircle className="w-5 h-5" />
           Add Image
         </button>
+      </div>
+
+      {/* External photo folder settings */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Photo gallery storage</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          You can link a Google Drive or OneDrive folder for guests. For a real in-app gallery sourced from Drive/OneDrive,
+          we’d need OAuth + APIs; this v1 uses links (view + upload) so guests can open the folder and add photos there.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Folder view link</label>
+            <input
+              type="url"
+              value={externalViewUrl}
+              onChange={(e) => setExternalViewUrl(e.target.value)}
+              placeholder="https://drive.google.com/drive/folders/... or https://1drv.ms/f/..."
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Upload link (request-files)</label>
+            <input
+              type="url"
+              value={externalUploadUrl}
+              onChange={(e) => setExternalUploadUrl(e.target.value)}
+              placeholder="OneDrive 'Request files' link or similar"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: SETTINGS_KEYS.view, value: externalViewUrl || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save folder link
+          </button>
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: SETTINGS_KEYS.upload, value: externalUploadUrl || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save upload link
+          </button>
+        </div>
       </div>
 
       {showForm && (

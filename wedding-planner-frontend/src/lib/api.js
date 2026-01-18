@@ -8,15 +8,21 @@ const api = axios.create({
 
 // Add token to requests if available (admin or guest)
 api.interceptors.request.use((config) => {
+  const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+  const isAdminRoute = pathname.startsWith('/admin')
+
   // Determine which token to use based on the endpoint
   const url = config.url || ''
   const isGuestEndpoint = url.includes('/guests/update-rsvp') || 
                          url.includes('/guests/token/') ||
                          url.includes('/guest-auth/') ||
-                         url.includes('/guest-photos')
+                         url.includes('/guest-photos') ||
+                         // Public-ish endpoints that must use guest token when browsing guest UI,
+                         // otherwise an existing admin token would leak private data to guests.
+                         (!isAdminRoute && (url.includes('/events') || url.includes('/images') || url.includes('/content') || url.includes('/gift-registry')))
   
   let token = null
-  if (isGuestEndpoint) {
+  if (isGuestEndpoint || !isAdminRoute) {
     // For guest endpoints, prioritize guest token
     token = localStorage.getItem('guest_token') || localStorage.getItem('access_token')
   } else {

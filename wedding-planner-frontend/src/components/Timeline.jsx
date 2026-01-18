@@ -8,11 +8,15 @@ export default function Timeline() {
     queryFn: () => api.get('/events').then((res) => res.data),
   })
 
+  const visibleEvents = Array.isArray(events)
+    ? events.filter((e) => e?.is_public !== false)
+    : []
+
   if (isLoading) {
     return <div className="text-center py-8">Loading timeline...</div>
   }
 
-  if (!events || events.length === 0) {
+  if (!visibleEvents || visibleEvents.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
@@ -28,7 +32,7 @@ export default function Timeline() {
         {/* Timeline line */}
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-pink-300 via-purple-300 to-pink-300"></div>
         
-        {events.map((event, index) => {
+        {visibleEvents.map((event, index) => {
           const startDate = new Date(event.start_time)
           const endDate = event.end_time ? new Date(event.end_time) : null
           
