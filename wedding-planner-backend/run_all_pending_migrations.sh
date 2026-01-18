@@ -37,6 +37,10 @@ echo "7. Running moodboards table migration..."
 python3 migrate_create_moodboards_table.py
 echo ""
 
+echo "8. Running seating assignment attendee name migration..."
+python3 migrate_add_seat_assignment_attendee_name.py
+echo ""
+
 echo "=========================================="
 echo "All migrations completed!"
 echo "=========================================="

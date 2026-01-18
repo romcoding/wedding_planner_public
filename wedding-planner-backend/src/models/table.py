@@ -48,13 +48,16 @@ class SeatAssignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     table_id = db.Column(db.Integer, db.ForeignKey('tables.id'), nullable=False)
     guest_id = db.Column(db.Integer, db.ForeignKey('guests.id'), nullable=True)  # Nullable for empty seats
+    attendee_name = db.Column(db.Text)  # For couple/group: which invited person is seated here
     seat_number = db.Column(db.Integer, nullable=False)  # Seat position at table (1, 2, 3, etc.)
     notes = db.Column(db.Text)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    guest = db.relationship('Guest', backref=db.backref('seat_assignment', uselist=False))
+    # A guest can have multiple seat assignments (e.g. couple/group members),
+    # distinguished by attendee_name.
+    guest = db.relationship('Guest', backref=db.backref('seat_assignments', lazy=True))
     
     def to_dict(self, include_guest=False):
         """Convert seat assignment to dictionary"""
@@ -62,17 +65,33 @@ class SeatAssignment(db.Model):
             'id': self.id,
             'table_id': self.table_id,
             'guest_id': self.guest_id,
+            'attendee_name': self.attendee_name,
             'seat_number': self.seat_number,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
         if include_guest and self.guest:
+            # Best-effort display name for the seated person.
+            display_name = self.attendee_name
+            if not display_name:
+                try:
+                    names = self.guest.get_attending_names() or self.guest.get_invitee_names() or []
+                except Exception:
+                    names = []
+                if names:
+                    display_name = names[0]
+                else:
+                    display_name = f"{self.guest.first_name or ''} {self.guest.last_name or ''}".strip() or None
+
             result['guest'] = {
                 'id': self.guest.id,
                 'first_name': self.guest.first_name,
                 'last_name': self.guest.last_name,
                 'email': self.guest.email,
                 'number_of_guests': self.guest.number_of_guests,
+                'invitee_names': self.guest.get_invitee_names(),
+                'attending_names': self.guest.get_attending_names(),
             }
+            result['display_name'] = display_name
         return result

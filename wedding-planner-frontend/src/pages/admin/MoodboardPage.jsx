@@ -322,6 +322,20 @@ export default function MoodboardPage() {
     onError: (err) => toast.error(err?.response?.data?.error || 'Failed to delete board'),
   })
 
+  const resetBoards = useMutation({
+    mutationFn: () => api.post('/moodboards/reset').then((r) => r.data),
+    onSuccess: (b) => {
+      queryClient.invalidateQueries(['moodboards'])
+      setBoardId(b.id)
+      setBoardTitleDraft(b.title || '')
+      setContent(defaultBoardContent())
+      setSelectedIds([])
+      setHistory({ past: [], future: [] })
+      toast.success('Moodboards reset')
+    },
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to reset moodboards'),
+  })
+
   const saveBoard = useMutation({
     mutationFn: ({ id, contentJson }) => api.put(`/moodboards/${id}`, { contentJson }).then((r) => r.data),
     onSuccess: () => {
@@ -915,6 +929,21 @@ export default function MoodboardPage() {
           >
             <Trash2 className="w-5 h-5" />
           </IconButton>
+
+          {boards && boards.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Reset moodboards? This deletes ALL moodboards and recreates a single "Main Moodboard".')) {
+                  resetBoards.mutate()
+                }
+              }}
+              className="ml-2 px-3 h-10 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 text-sm font-medium"
+              title="Delete all moodboards and recreate a single default board"
+            >
+              Reset
+            </button>
+          )}
 
           <div className="w-px h-8 bg-gray-200 mx-1" />
 

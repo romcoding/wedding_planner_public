@@ -539,11 +539,13 @@ export default function GuestsPage() {
                 filteredGuests.map((guest) => (
                   <tr
                     key={guest.id}
-                    className="hover:bg-gray-50 cursor-pointer"
-                    onClick={() => setViewGuest(guest)}
-                    title="Click to view guest details"
+                    className="hover:bg-gray-50"
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td
+                      className="px-6 py-4 whitespace-nowrap cursor-pointer"
+                      onClick={() => setViewGuest(guest)}
+                      title="Click to view guest details"
+                    >
                       <div className="text-sm font-medium text-gray-900">
                         {guest.first_name} {guest.last_name}
                       </div>

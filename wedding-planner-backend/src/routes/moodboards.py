@@ -128,3 +128,21 @@ def delete_moodboard(board_id: int):
     db.session.commit()
     return jsonify({'message': 'Moodboard deleted successfully'}), 200
 
+
+@moodboards_bp.route('/api/moodboards/reset', methods=['POST'])
+@jwt_required()
+def reset_moodboards():
+    """
+    Deletes all moodboards for the current admin and recreates a single default board.
+    Useful to clean up boards created during a bug.
+    """
+    user_id, err = _require_admin()
+    if err:
+        return err
+
+    Moodboard.query.filter_by(owner_id=user_id).delete(synchronize_session=False)
+    board = Moodboard(owner_id=user_id, title='Main Moodboard', content_json=None)
+    db.session.add(board)
+    db.session.commit()
+    return jsonify(board.to_dict(include_content=True)), 200
+

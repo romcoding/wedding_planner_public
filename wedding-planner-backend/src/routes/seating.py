@@ -160,6 +160,11 @@ def assign_guest():
     if data['seat_number'] > table.capacity or data['seat_number'] < 1:
         return jsonify({'error': 'Invalid seat number'}), 400
     
+    guest_id = data.get('guest_id')
+    attendee_name = data.get('attendee_name')
+    if attendee_name and not guest_id:
+        return jsonify({'error': 'attendee_name requires guest_id'}), 400
+
     # Find or create assignment
     assignment = SeatAssignment.query.filter_by(
         table_id=data['table_id'],
@@ -170,14 +175,28 @@ def assign_guest():
         assignment = SeatAssignment(
             table_id=data['table_id'],
             seat_number=data['seat_number'],
-            guest_id=data.get('guest_id')
+            guest_id=guest_id,
+            attendee_name=attendee_name
         )
         db.session.add(assignment)
     else:
         # Check if seat is already taken by another guest
-        if assignment.guest_id and assignment.guest_id != data.get('guest_id'):
+        existing_key = f"{assignment.guest_id or ''}::{assignment.attendee_name or ''}"
+        next_key = f"{guest_id or ''}::{attendee_name or ''}"
+        if assignment.guest_id and existing_key != next_key:
             return jsonify({'error': 'Seat is already assigned to another guest'}), 400
-        assignment.guest_id = data.get('guest_id')
+        assignment.guest_id = guest_id
+        assignment.attendee_name = attendee_name
+
+    # Prevent assigning the same person to multiple seats
+    if guest_id:
+        dup = SeatAssignment.query.filter(
+            SeatAssignment.guest_id == guest_id,
+            (SeatAssignment.attendee_name == attendee_name) if attendee_name is not None else (SeatAssignment.attendee_name.is_(None)),
+            SeatAssignment.id != assignment.id
+        ).first()
+        if dup and dup.guest_id is not None:
+            return jsonify({'error': 'This person is already assigned to a seat'}), 400
     
     if 'notes' in data:
         assignment.notes = data['notes']
@@ -207,6 +226,7 @@ def unassign_guest(assignment_id):
         return jsonify({'error': 'Unauthorized'}), 403
     
     assignment.guest_id = None
+    assignment.attendee_name = None
     assignment.notes = None
     assignment.updated_at = datetime.utcnow()
     db.session.commit()
@@ -235,6 +255,7 @@ def bulk_assign():
             table_id = assignment_data.get('table_id')
             seat_number = assignment_data.get('seat_number')
             guest_id = assignment_data.get('guest_id')
+            attendee_name = assignment_data.get('attendee_name')
             
             if not table_id or not seat_number:
                 results['errors'].append({'assignment': assignment_data, 'error': 'Missing table_id or seat_number'})
@@ -254,11 +275,13 @@ def bulk_assign():
                 assignment = SeatAssignment(
                     table_id=table_id,
                     seat_number=seat_number,
-                    guest_id=guest_id
+                    guest_id=guest_id,
+                    attendee_name=attendee_name
                 )
                 db.session.add(assignment)
             else:
                 assignment.guest_id = guest_id
+                assignment.attendee_name = attendee_name
             
             assignment.updated_at = datetime.utcnow()
             results['success'].append(assignment.to_dict())
@@ -273,22 +296,59 @@ def bulk_assign():
 @seating_bp.route('/guests/unassigned', methods=['GET'])
 @jwt_required()
 def get_unassigned_guests():
-    """Get all confirmed guests without seat assignments (admin only)"""
+    """Get all confirmed guest-members without seat assignments (admin only)"""
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
     if not user or user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
     
-    # Get all guests with confirmed RSVP
     confirmed_guests = Guest.query.filter_by(rsvp_status='confirmed').all()
-    
-    # Get all assigned guest IDs
-    assigned_guest_ids = {a.guest_id for a in SeatAssignment.query.filter(
-        SeatAssignment.guest_id.isnot(None)
-    ).all()}
-    
-    # Filter unassigned guests
-    unassigned = [g for g in confirmed_guests if g.id not in assigned_guest_ids]
-    
-    return jsonify([g.to_dict(include_sensitive=False) for g in unassigned]), 200
+
+    # Build set of assigned people (guest_id + attendee_name).
+    assigned = set()
+    assignments = SeatAssignment.query.filter(SeatAssignment.guest_id.isnot(None)).all()
+    guest_by_id = {g.id: g for g in confirmed_guests}
+    for a in assignments:
+        if not a.guest_id:
+            continue
+        if a.attendee_name:
+            assigned.add((a.guest_id, a.attendee_name))
+            continue
+        # Legacy assignments without attendee_name:
+        g = guest_by_id.get(a.guest_id) or Guest.query.get(a.guest_id)
+        if g:
+            names = g.get_attending_names() or g.get_invitee_names() or []
+            if names:
+                assigned.add((a.guest_id, names[0]))
+            else:
+                full = f"{g.first_name or ''} {g.last_name or ''}".strip()
+                assigned.add((a.guest_id, full))
+        else:
+            assigned.add((a.guest_id, ''))
+
+    result = []
+    for g in confirmed_guests:
+        names = g.get_attending_names() or g.get_invitee_names() or []
+        if not names:
+            full = f"{g.first_name or ''} {g.last_name or ''}".strip()
+            names = [full] if full else [f"Guest {g.id}"]
+
+        for idx, name in enumerate(names):
+            if (g.id, name) in assigned:
+                continue
+            result.append({
+                'id': f"member-{g.id}-{idx}",
+                'guest_id': g.id,
+                'attendee_name': name,
+                'display_name': name,
+                'guest': {
+                    'id': g.id,
+                    'first_name': g.first_name,
+                    'last_name': g.last_name,
+                    'email': g.email,
+                    'number_of_guests': g.number_of_guests,
+                }
+            })
+
+    return jsonify(result), 200

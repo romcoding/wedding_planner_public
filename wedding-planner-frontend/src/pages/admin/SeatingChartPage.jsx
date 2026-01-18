@@ -151,6 +151,8 @@ const SeatingChartPage = () => {
     const activeData = active.data.current
     const overData = over?.data.current
 
+    const personKey = (guestId, attendeeName) => `${guestId || ''}::${attendeeName || ''}`
+
     // If no drop target, log and return early
     if (!over) {
       setActiveId(null)
@@ -186,6 +188,7 @@ const SeatingChartPage = () => {
     // If dragging a guest to a seat
     if (activeData?.type === 'guest' && overData?.type === 'seat') {
       const guestId = activeData.guestId
+      const attendeeName = activeData.attendeeName || null
       if (!guestId) {
         setActiveId(null)
         setDraggedTableId(null)
@@ -204,16 +207,19 @@ const SeatingChartPage = () => {
       // Check if seat is already taken
       const table = tables?.find(t => t.id === tableId)
       const seat = table?.assignments?.find(a => a.seat_number === seatNumber)
+      const seatKey = personKey(seat?.guest_id, seat?.attendee_name)
+      const incomingKey = personKey(guestId, attendeeName)
       
       // If seat is already taken by a different guest, unassign first
-      if (seat?.guest_id && seat.guest_id !== guestId) {
+      if (seat?.guest_id && seatKey !== incomingKey) {
         // Unassign current guest first, then assign new one
         unassignGuest.mutate(seat.id, {
           onSuccess: () => {
             assignGuest.mutate({
               table_id: tableId,
               seat_number: seatNumber,
-              guest_id: guestId
+              guest_id: guestId,
+              attendee_name: attendeeName
             }, {
               onSuccess: () => {
                 queryClient.invalidateQueries(['seating-tables'])
@@ -230,12 +236,13 @@ const SeatingChartPage = () => {
             alert('Failed to unassign current guest. Please try again.')
           }
         })
-      } else if (!seat?.guest_id || seat.guest_id === guestId) {
+      } else if (!seat?.guest_id || seatKey === incomingKey) {
         // Seat is empty or same guest, just assign/update
         assignGuest.mutate({
           table_id: tableId,
           seat_number: seatNumber,
-          guest_id: guestId
+          guest_id: guestId,
+          attendee_name: attendeeName
         }, {
           onSuccess: (response) => {
             // Force refresh of tables and unassigned guests
@@ -252,27 +259,12 @@ const SeatingChartPage = () => {
       return
     }
 
-    // If dragging a guest to unassigned zone
-    if (activeData?.type === 'guest' && overData?.type === 'unassigned') {
-      // Find the current assignment for this guest
-      const guestId = activeData.guestId
-      const table = tables?.find(t => 
-        t.assignments?.some(a => a.guest_id === guestId)
-      )
-      if (table) {
-        const assignment = table.assignments.find(a => a.guest_id === guestId)
-        if (assignment) {
-          unassignGuest.mutate(assignment.id)
-        }
-      }
-      setActiveId(null)
-      setDraggedTableId(null)
-      return
-    }
+    // guest -> unassigned (noop). Unassigning happens via dragging a seat to the unassigned zone.
 
     // If dragging a guest from a seat to another seat
     if (activeData?.type === 'seat' && overData?.type === 'seat') {
       const activeGuestId = activeData.guestId
+      const activeAttendeeName = activeData.attendeeName || null
       const activeTableId = activeData.tableId
       const activeSeatNumber = activeData.seatNumber
       const overTableId = overData.tableId
@@ -287,6 +279,8 @@ const SeatingChartPage = () => {
       // Check if target seat is already taken
       const overTable = tables?.find(t => t.id === overTableId)
       const overSeat = overTable?.assignments?.find(a => a.seat_number === overSeatNumber)
+      const overKey = personKey(overSeat?.guest_id, overSeat?.attendee_name)
+      const activeKey = personKey(activeGuestId, activeAttendeeName)
       
       // Unassign from old seat
       const activeTable = tables?.find(t => t.id === activeTableId)
@@ -294,7 +288,7 @@ const SeatingChartPage = () => {
       
       if (activeSeat?.id) {
         // If target seat is taken by different guest, unassign it first
-        if (overSeat?.guest_id && overSeat.guest_id !== activeGuestId) {
+        if (overSeat?.guest_id && overKey !== activeKey) {
           unassignGuest.mutate(overSeat.id, {
             onSuccess: () => {
               // Then unassign from old seat and assign to new
@@ -303,7 +297,8 @@ const SeatingChartPage = () => {
                   assignGuest.mutate({
                     table_id: overTableId,
                     seat_number: overSeatNumber,
-                    guest_id: activeGuestId
+                    guest_id: activeGuestId,
+                    attendee_name: activeAttendeeName
                   }, {
                     onError: (error) => {
                       console.error('Error assigning guest:', error)
@@ -321,7 +316,8 @@ const SeatingChartPage = () => {
               assignGuest.mutate({
                 table_id: overTableId,
                 seat_number: overSeatNumber,
-                guest_id: activeGuestId
+                guest_id: activeGuestId,
+                attendee_name: activeAttendeeName
               }, {
                 onError: (error) => {
                   console.error('Error assigning guest:', error)
@@ -402,8 +398,8 @@ const SeatingChartPage = () => {
     return <div className="p-6">Loading seating chart...</div>
   }
 
-  const activeGuest = activeId?.startsWith('guest-') 
-    ? unassignedGuests?.find(g => g.id === parseInt(activeId.split('-')[1]))
+  const activeGuest = activeId?.startsWith('person-')
+    ? unassignedGuests?.find((p) => `person-${p.id}` === activeId)
     : null
 
   const activeSeat = activeId?.startsWith('seat-')
@@ -613,14 +609,14 @@ const SeatingChartPage = () => {
               {activeGuest && (
                 <div className="bg-blue-100 border-2 border-blue-500 rounded-lg p-3 shadow-lg">
                   <p className="font-medium text-sm text-gray-900">
-                    {activeGuest.first_name} {activeGuest.last_name}
+                    {activeGuest.display_name || `${activeGuest.guest?.first_name || ''} ${activeGuest.guest?.last_name || ''}`.trim()}
                   </p>
                 </div>
               )}
               {activeSeat && activeSeat.guest && (
                 <div className="bg-green-100 border-2 border-green-500 rounded-lg p-2 shadow-lg">
                   <p className="font-medium text-xs text-gray-900">
-                    {activeSeat.guest.first_name} {activeSeat.guest.last_name}
+                    {activeSeat.display_name || `${activeSeat.guest.first_name || ''} ${activeSeat.guest.last_name || ''}`.trim()}
                   </p>
                 </div>
               )}
@@ -635,11 +631,14 @@ const SeatingChartPage = () => {
 // Guest Card Component (Draggable)
 function GuestCard({ guest, isDragging }) {
   const { attributes, listeners, setNodeRef, transform, isDragging: isSortableDragging } = useDraggable({
-    id: `guest-${guest.id}`,
+    id: `person-${guest.id}`,
     data: {
       type: 'guest',
-      guestId: guest.id,
-      guest: guest
+      guestId: guest.guest_id,
+      attendeeName: guest.attendee_name,
+      displayName: guest.display_name,
+      memberId: guest.id,
+      guest: guest.guest
     }
   })
 
@@ -659,11 +658,11 @@ function GuestCard({ guest, isDragging }) {
       className="bg-blue-50 border-2 border-blue-400 rounded-lg p-3 cursor-grab active:cursor-grabbing hover:bg-blue-100 transition-colors touch-none select-none"
     >
       <p className="font-medium text-sm text-gray-900 pointer-events-none">
-        {guest.first_name} {guest.last_name}
+        {guest.display_name || `${guest.guest?.first_name || ''} ${guest.guest?.last_name || ''}`.trim()}
       </p>
-      {guest.number_of_guests > 1 && (
-        <p className="text-xs text-gray-600 pointer-events-none">+{guest.number_of_guests - 1} guest(s)</p>
-      )}
+      <p className="text-[11px] text-gray-600 pointer-events-none">
+        Invitation #{guest.guest_id}
+      </p>
     </div>
   )
 }
@@ -954,7 +953,9 @@ function SeatComponent({ assignment, tableId }) {
       tableId: tableId,
       seatNumber: assignment.seat_number,
       assignmentId: assignment.id,
-      guestId: assignment.guest_id
+      guestId: assignment.guest_id,
+      attendeeName: assignment.attendee_name,
+      displayName: assignment.display_name
     }
   })
 
@@ -967,6 +968,8 @@ function SeatComponent({ assignment, tableId }) {
       seatNumber: assignment.seat_number,
       assignmentId: assignment.id,
       guestId: assignment.guest_id,
+      attendeeName: assignment.attendee_name,
+      displayName: assignment.display_name,
       guest: assignment.guest
     },
     disabled: !assignment.guest_id
@@ -1014,11 +1017,8 @@ function SeatComponent({ assignment, tableId }) {
     >
       {assignment.guest_id ? (
         <div className="text-center px-1">
-          <div className="font-bold text-[10px] leading-tight">
-            {assignment.guest?.first_name || 'Guest'}
-          </div>
-          <div className="font-semibold text-[9px] leading-tight text-gray-600">
-            {assignment.guest?.last_name || ''}
+          <div className="font-bold text-[10px] leading-tight line-clamp-2">
+            {assignment.display_name || `${assignment.guest?.first_name || ''} ${assignment.guest?.last_name || ''}`.trim() || 'Guest'}
           </div>
         </div>
       ) : (
@@ -1040,7 +1040,7 @@ function UnassignedGuestsDropZone({ guests, activeId }) {
       <div className="bg-white rounded-lg shadow p-4 sticky top-6">
         <h3 className="font-semibold mb-4 flex items-center gap-2">
           <Users className="w-5 h-5" />
-          Unassigned Guests ({guests?.length || 0})
+          Unassigned People ({guests?.length || 0})
         </h3>
         <div 
           ref={setNodeRef}
@@ -1052,7 +1052,7 @@ function UnassignedGuestsDropZone({ guests, activeId }) {
             <GuestCard
               key={guest.id}
               guest={guest}
-              isDragging={activeId === `guest-${guest.id}`}
+              isDragging={activeId === `person-${guest.id}`}
             />
           ))}
           {(!guests || guests.length === 0) && (
