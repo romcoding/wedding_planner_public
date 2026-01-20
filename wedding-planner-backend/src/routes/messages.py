@@ -60,11 +60,12 @@ def create_message():
             guest_name = f"{guest.first_name} {guest.last_name}".strip() if guest else "Anonymous"
             guest_email = guest.email if guest else None
             subject = f"[Wedding Planner] New guest message: {data['subject']}"
+            body_html = (data.get('body') or '').replace('\r\n', '\n').replace('\n', '<br/>')
             body = (
                 f"<p><strong>From:</strong> {guest_name} ({guest_email or 'no email'})</p>"
                 f"<p><strong>Guest ID:</strong> {guest_id or '—'}</p>"
                 f"<hr/>"
-                f"<p>{(data.get('body') or '').replace('\\n', '<br/>')}</p>"
+                f"<p>{body_html}</p>"
             )
             EmailService.send_notification_email(forward_to, subject, body)
 
