@@ -3,6 +3,8 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Message, User, Guest
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
+import os
+from src.services.email_service import EmailService
 
 messages_bp = Blueprint('messages', __name__)
 
@@ -50,6 +52,22 @@ def create_message():
     try:
         db.session.add(message)
         db.session.commit()
+
+        # Optional: forward guest messages to an email inbox (requires SMTP env vars configured).
+        forward_to = os.getenv('CONTACT_FORWARD_EMAIL')
+        if forward_to and sender_type == 'guest':
+            guest = Guest.query.get(guest_id) if guest_id else None
+            guest_name = f"{guest.first_name} {guest.last_name}".strip() if guest else "Anonymous"
+            guest_email = guest.email if guest else None
+            subject = f"[Wedding Planner] New guest message: {data['subject']}"
+            body = (
+                f"<p><strong>From:</strong> {guest_name} ({guest_email or 'no email'})</p>"
+                f"<p><strong>Guest ID:</strong> {guest_id or '—'}</p>"
+                f"<hr/>"
+                f"<p>{(data.get('body') or '').replace('\\n', '<br/>')}</p>"
+            )
+            EmailService.send_notification_email(forward_to, subject, body)
+
         return jsonify({
             'message': 'Message sent successfully',
             'message_data': message.to_dict()

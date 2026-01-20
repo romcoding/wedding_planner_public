@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -20,6 +20,18 @@ export default function PhotoGallery() {
   const hasExternalFolderUrl = externalFolderUrl && externalFolderUrl !== 'photo_gallery_folder_url'
   const hasExternalUploadUrl = externalUploadUrl && externalUploadUrl !== 'photo_gallery_upload_url'
   const useExternalOnly = hasExternalFolderUrl || hasExternalUploadUrl
+  const redirectUrl = (hasExternalUploadUrl ? externalUploadUrl : (hasExternalFolderUrl ? externalFolderUrl : null))
+
+  // If links are configured, keep guest UX simple: clicking Photo Gallery immediately redirects.
+  useEffect(() => {
+    if (!useExternalOnly) return
+    if (!redirectUrl) return
+    // Small timeout lets UI paint and avoids weirdness on some mobile browsers
+    const t = setTimeout(() => {
+      window.location.assign(redirectUrl)
+    }, 50)
+    return () => clearTimeout(t)
+  }, [useExternalOnly, redirectUrl])
 
   const { data: photos, isLoading } = useQuery({
     queryKey: ['guest-photos'],
@@ -105,7 +117,7 @@ export default function PhotoGallery() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-semibold mb-2">Shared photo folder</h3>
           <p className="text-sm text-gray-600 mb-4">
-            Please use the shared folder to view and upload photos. (In-app upload is disabled.)
+            Redirecting you to the shared folder…
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {hasExternalFolderUrl && (
@@ -134,7 +146,7 @@ export default function PhotoGallery() {
 
       {useExternalOnly && (
         <div className="text-sm text-gray-600">
-          Tip: If you don’t want guests to see the in-app gallery at all, don’t upload photos here anymore—use the shared folder only.
+          If the redirect doesn’t happen automatically, use one of the buttons above.
         </div>
       )}
 
