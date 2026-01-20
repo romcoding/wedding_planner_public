@@ -204,7 +204,7 @@ function ColorControl({ label, value, onChange, allowAlpha = false, alphaValue =
   )
 }
 
-function IconButton({ title, onClick, active, children, disabled }) {
+function IconButton({ title, onClick, active, children, disabled, className = '' }) {
   return (
     <button
       type="button"
@@ -215,6 +215,7 @@ function IconButton({ title, onClick, active, children, disabled }) {
         'h-10 w-10 rounded-lg border flex items-center justify-center transition-colors',
         disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50',
         active ? 'bg-blue-50 border-blue-200 text-blue-700' : 'bg-white border-gray-200 text-gray-700',
+        className,
       ].join(' ')}
     >
       {children}
@@ -232,12 +233,14 @@ export default function MoodboardPage() {
   const fileInputRef = useRef(null)
 
   const didBootstrapRef = useRef(false)
+  const gestureRef = useRef({ isPinching: false, startDist: 0, startScale: 1, startCenter: null, startPos: null })
 
   const [viewport, setViewport] = useState({ w: 900, h: 600 })
 
   const [activeTool, setActiveTool] = useState('select') // select | pan | rect | circle | line | text
   const [isSpaceDown, setIsSpaceDown] = useState(false)
   const [keepRatio, setKeepRatio] = useState(true)
+  const [isCoarsePointer, setIsCoarsePointer] = useState(false)
 
   const [boardId, setBoardId] = useState(null)
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
@@ -251,6 +254,18 @@ export default function MoodboardPage() {
   const [drawingLine, setDrawingLine] = useState(null) // { id, points: [] } preview
 
   const [history, setHistory] = useState({ past: [], future: [] })
+
+  useEffect(() => {
+    const mq = window.matchMedia('(pointer: coarse)')
+    const update = () => setIsCoarsePointer(!!mq.matches)
+    update()
+    if (mq.addEventListener) {
+      mq.addEventListener('change', update)
+      return () => mq.removeEventListener('change', update)
+    }
+    mq.addListener(update)
+    return () => mq.removeListener(update)
+  }, [])
 
   useEffect(() => {
     const el = containerRef.current
@@ -723,6 +738,60 @@ export default function MoodboardPage() {
     setStageState({ x: newPos.x, y: newPos.y, scale: nextScale })
   }
 
+  const getTouchInfo = (evt) => {
+    const touches = evt?.evt?.touches
+    if (!touches || touches.length < 2) return null
+    const a = touches[0]
+    const b = touches[1]
+    const dx = b.clientX - a.clientX
+    const dy = b.clientY - a.clientY
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const center = { x: (a.clientX + b.clientX) / 2, y: (a.clientY + b.clientY) / 2 }
+    return { dist, center }
+  }
+
+  const handleTouchStart = (e) => {
+    const info = getTouchInfo(e)
+    if (!info) return
+    e.evt.preventDefault()
+    const stage = stageRef.current
+    if (!stage) return
+    gestureRef.current = {
+      isPinching: true,
+      startDist: info.dist,
+      startScale: stageState.scale || 1,
+      startCenter: info.center,
+      startPos: { x: stageState.x || 0, y: stageState.y || 0 },
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    const info = getTouchInfo(e)
+    if (!info) return
+    const g = gestureRef.current
+    if (!g?.isPinching) return
+    e.evt.preventDefault()
+
+    const stage = stageRef.current
+    if (!stage) return
+
+    const scale = clamp(g.startScale * (info.dist / (g.startDist || 1)), 0.1, 3)
+
+    // Pan with two-finger drag: shift by center delta
+    const dx = info.center.x - (g.startCenter?.x || info.center.x)
+    const dy = info.center.y - (g.startCenter?.y || info.center.y)
+
+    setStageState({
+      scale,
+      x: (g.startPos?.x || 0) + dx,
+      y: (g.startPos?.y || 0) + dy,
+    })
+  }
+
+  const handleTouchEnd = () => {
+    gestureRef.current = { isPinching: false, startDist: 0, startScale: stageState.scale || 1, startCenter: null, startPos: null }
+  }
+
   const zoomBy = (delta) => {
     const scale = clamp((stageState.scale || 1) + delta, 0.1, 3)
     setStageState({ scale })
@@ -875,6 +944,7 @@ export default function MoodboardPage() {
   const tool = isSpaceDown ? 'pan' : activeTool
   const canTransform = tool === 'select'
   const isPanMode = tool === 'pan'
+  const toolBtnSize = isCoarsePointer ? 'h-12 w-12' : 'h-10 w-10'
 
   return (
     <div className="w-full">
@@ -1041,26 +1111,26 @@ export default function MoodboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-[64px_1fr_340px] gap-4">
         {/* Left toolbar */}
         <div className="flex lg:flex-col gap-2 bg-white border border-gray-200 rounded-2xl p-2 h-fit">
-          <IconButton title="Select" onClick={() => setActiveTool('select')} active={activeTool === 'select' && !isSpaceDown}>
+          <IconButton className={toolBtnSize} title="Select" onClick={() => setActiveTool('select')} active={activeTool === 'select' && !isSpaceDown}>
             <MousePointer2 className="w-5 h-5" />
           </IconButton>
-          <IconButton title="Pan (or hold Space)" onClick={() => setActiveTool('pan')} active={activeTool === 'pan' || isSpaceDown}>
+          <IconButton className={toolBtnSize} title="Pan (or hold Space)" onClick={() => setActiveTool('pan')} active={activeTool === 'pan' || isSpaceDown}>
             <Hand className="w-5 h-5" />
           </IconButton>
           <div className="w-px lg:w-full lg:h-px h-10 bg-gray-200 my-1" />
-          <IconButton title="Upload image" onClick={onToolbarUploadClick}>
+          <IconButton className={toolBtnSize} title="Upload image" onClick={onToolbarUploadClick}>
             <ImagePlus className="w-5 h-5" />
           </IconButton>
-          <IconButton title="Rectangle" onClick={() => setActiveTool('rect')} active={activeTool === 'rect'}>
+          <IconButton className={toolBtnSize} title="Rectangle" onClick={() => setActiveTool('rect')} active={activeTool === 'rect'}>
             <Square className="w-5 h-5" />
           </IconButton>
-          <IconButton title="Circle" onClick={() => setActiveTool('circle')} active={activeTool === 'circle'}>
+          <IconButton className={toolBtnSize} title="Circle" onClick={() => setActiveTool('circle')} active={activeTool === 'circle'}>
             <CircleIcon className="w-5 h-5" />
           </IconButton>
-          <IconButton title="Line" onClick={() => setActiveTool('line')} active={activeTool === 'line'}>
+          <IconButton className={toolBtnSize} title="Line" onClick={() => setActiveTool('line')} active={activeTool === 'line'}>
             <Minus className="w-5 h-5" />
           </IconButton>
-          <IconButton title="Text" onClick={() => setActiveTool('text')} active={activeTool === 'text'}>
+          <IconButton className={toolBtnSize} title="Text" onClick={() => setActiveTool('text')} active={activeTool === 'text'}>
             <Type className="w-5 h-5" />
           </IconButton>
           <input
@@ -1080,7 +1150,7 @@ export default function MoodboardPage() {
         <div
           ref={containerRef}
           className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
-          style={{ height: 'calc(100vh - 220px)', minHeight: 560 }}
+          style={{ height: 'calc(100vh - 220px)', minHeight: 560, touchAction: 'none' }}
           onDragOver={(e) => e.preventDefault()}
           onDrop={onDropFiles}
         >
@@ -1098,6 +1168,9 @@ export default function MoodboardPage() {
             onMouseDown={handleStageMouseDown}
             onMouseMove={handleStageMouseMove}
             onMouseUp={handleStageMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <Layer>
               {/* Hard-white canvas background (regardless of admin page bg) */}

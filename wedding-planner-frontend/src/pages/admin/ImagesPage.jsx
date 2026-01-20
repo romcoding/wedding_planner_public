@@ -26,6 +26,22 @@ const ImagesPage = () => {
     upload: 'photo_gallery_upload_url',
   }
 
+  const THEME_KEYS = {
+    primary: 'theme_primary',
+    secondary: 'theme_secondary',
+    accent: 'theme_accent',
+    background: 'theme_background',
+    text: 'theme_text',
+  }
+
+  const [theme, setTheme] = useState({
+    primary: '#EC4899',
+    secondary: '#7C3AED',
+    accent: '#111827',
+    background: '#FFFFFF',
+    text: '#111827',
+  })
+
   const { data: contentItems } = useQuery({
     queryKey: ['content', 'admin'],
     queryFn: () => api.get('/content?lang=en').then((r) => r.data),
@@ -37,6 +53,18 @@ const ImagesPage = () => {
     const upload = contentItems.find((c) => c.key === SETTINGS_KEYS.upload)?.content || ''
     setExternalViewUrl(view)
     setExternalUploadUrl(upload)
+
+    const readTheme = (key, fallback) => {
+      const v = contentItems.find((c) => c.key === key)?.content
+      return v || fallback
+    }
+    setTheme({
+      primary: readTheme(THEME_KEYS.primary, '#EC4899'),
+      secondary: readTheme(THEME_KEYS.secondary, '#7C3AED'),
+      accent: readTheme(THEME_KEYS.accent, '#111827'),
+      background: readTheme(THEME_KEYS.background, '#FFFFFF'),
+      text: readTheme(THEME_KEYS.text, '#111827'),
+    })
   }, [contentItems])
 
   const saveWebSettings = useMutation({
@@ -319,6 +347,87 @@ const ImagesPage = () => {
             disabled={saveWebSettings.isPending}
           >
             Save upload link
+          </button>
+        </div>
+      </div>
+
+      {/* Theme colors */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Website colors</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          These colors are applied to the guest website (buttons/background accents) via theme settings.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[
+            { k: 'primary', label: 'Primary' },
+            { k: 'secondary', label: 'Secondary' },
+            { k: 'accent', label: 'Accent' },
+            { k: 'background', label: 'Background' },
+            { k: 'text', label: 'Text' },
+          ].map((row) => (
+            <div key={row.k} className="flex items-center gap-3 border border-gray-200 rounded-lg p-3">
+              <input
+                type="color"
+                value={theme[row.k] || '#000000'}
+                onChange={(e) => setTheme((p) => ({ ...p, [row.k]: e.target.value }))}
+                className="h-10 w-12 rounded border border-gray-200 bg-white"
+                aria-label={`${row.label} color`}
+              />
+              <div className="flex-1">
+                <div className="text-sm font-medium text-gray-900">{row.label}</div>
+                <input
+                  type="text"
+                  value={theme[row.k] || ''}
+                  onChange={(e) => setTheme((p) => ({ ...p, [row.k]: e.target.value }))}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  placeholder="#RRGGBB"
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap gap-2 mt-4">
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: THEME_KEYS.primary, value: theme.primary || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save primary
+          </button>
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: THEME_KEYS.secondary, value: theme.secondary || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save secondary
+          </button>
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: THEME_KEYS.accent, value: theme.accent || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save accent
+          </button>
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: THEME_KEYS.background, value: theme.background || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save background
+          </button>
+          <button
+            type="button"
+            onClick={() => saveWebSettings.mutate({ key: THEME_KEYS.text, value: theme.text || '' })}
+            className="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black text-sm font-medium"
+            disabled={saveWebSettings.isPending}
+          >
+            Save text
           </button>
         </div>
       </div>
