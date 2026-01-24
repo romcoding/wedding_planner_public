@@ -2,18 +2,17 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Task, User
 from datetime import datetime
+from src.utils.rbac import require_roles
 
 tasks_bp = Blueprint('tasks', __name__)
 
 @tasks_bp.route('', methods=['GET'])
 @jwt_required()
 def get_tasks():
-    """Get all tasks for the current user"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    """Get all tasks (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     # Filtering options
     status = request.args.get('status')
@@ -22,7 +21,8 @@ def get_tasks():
     event_id = request.args.get('event_id', type=int)
     assignee = request.args.get('assignee')
     
-    query = Task.query.filter_by(user_id=user_id)
+    # Single-instance mode: tasks are shared across dashboard users.
+    query = Task.query
     
     if status:
         query = query.filter_by(status=status)
@@ -43,11 +43,9 @@ def get_tasks():
 @jwt_required()
 def create_task():
     """Create a new task"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     # Handle JSON parsing with error handling
     try:
@@ -76,7 +74,7 @@ def create_task():
             return jsonify({'error': 'Invalid reminder_date format'}), 400
     
     task = Task(
-        user_id=user_id,
+        user_id=user.id,
         title=data['title'].strip(),  # Trim whitespace
         description=data.get('description'),
         priority=data.get('priority', 'medium'),
@@ -99,13 +97,11 @@ def create_task():
 @jwt_required()
 def update_task(task_id):
     """Update a task"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    task = Task.query.filter_by(id=task_id, user_id=user_id).first()
+    task = Task.query.filter_by(id=task_id).first()
     
     if not task:
         return jsonify({'error': 'Task not found'}), 404
@@ -167,13 +163,11 @@ def update_task(task_id):
 @jwt_required()
 def delete_task(task_id):
     """Delete a task"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    task = Task.query.filter_by(id=task_id, user_id=user_id).first()
+    task = Task.query.filter_by(id=task_id).first()
     
     if not task:
         return jsonify({'error': 'Task not found'}), 404

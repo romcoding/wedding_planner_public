@@ -4,6 +4,7 @@ from src.models import db, Guest, User, Invitation, GuestPhoto, SeatAssignment, 
 from datetime import datetime
 import json
 import logging
+from src.utils.rbac import require_roles
 
 guests_bp = Blueprint('guests', __name__)
 logger = logging.getLogger(__name__)
@@ -79,14 +80,10 @@ def update_rsvp():
 @guests_bp.route('', methods=['POST'])
 @jwt_required()
 def create_guest():
-    """Create a new guest (admin only) - generates unique token"""
-    user_id = get_jwt_identity()
-    # Convert to int if it's a string
-    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Create a new guest (admin/planner) - generates unique token"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -155,14 +152,10 @@ def create_guest():
 @guests_bp.route('', methods=['GET'])
 @jwt_required()
 def get_guests():
-    """Get all guests (admin only)"""
-    user_id = get_jwt_identity()
-    # Convert to int if it's a string
-    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    """Get all guests (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     # Filtering options
     rsvp_status = request.args.get('rsvp_status')
@@ -233,14 +226,10 @@ def authenticate_with_token(token):
 @guests_bp.route('/<int:guest_id>', methods=['GET'])
 @jwt_required()
 def get_guest(guest_id):
-    """Get specific guest details (admin only)"""
-    user_id = get_jwt_identity()
-    # Convert to int if it's a string
-    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    """Get specific guest details (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     guest = Guest.query.get(guest_id)
     
@@ -265,14 +254,10 @@ def get_guest(guest_id):
 @guests_bp.route('/<int:guest_id>', methods=['PUT'])
 @jwt_required()
 def update_guest(guest_id):
-    """Update guest information (admin only)"""
-    user_id = get_jwt_identity()
-    # Convert to int if it's a string
-    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    """Update guest information (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     guest = Guest.query.get(guest_id)
     
@@ -332,14 +317,10 @@ def update_guest(guest_id):
 @guests_bp.route('/<int:guest_id>', methods=['DELETE'])
 @jwt_required()
 def delete_guest(guest_id):
-    """Delete guest (admin only)"""
-    user_id = get_jwt_identity()
-    # Convert to int if it's a string
-    user_id = int(user_id) if isinstance(user_id, str) and not str(user_id).startswith('guest_') else user_id
-    user = User.query.get(user_id)
-    
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    """Delete guest (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     guest = Guest.query.get(guest_id)
     if not guest:

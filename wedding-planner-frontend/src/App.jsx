@@ -28,6 +28,13 @@ import GuestInfo from './pages/guest/Info'
 import GuestRegister from './pages/guest/Register'
 import RSVP from './pages/guest/RSVP'
 
+function AdminRouteGuard({ allowRoles, user, element, fallbackTo = '/admin/guests' }) {
+  if (!user) return <Navigate to="/admin/login" replace />
+  if (!allowRoles || allowRoles.length === 0) return element
+  if (allowRoles.includes(user.role)) return element
+  return <Navigate to={fallbackTo} replace />
+}
+
 function GuestRoutes() {
   const { guest, loading } = useGuestAuth()
 
@@ -81,26 +88,35 @@ function AppRoutes() {
         path="/admin"
         element={user ? <AdminLayout /> : <Navigate to="/admin/login" replace />}
       >
-        <Route index element={<Navigate to="/admin/wedding" replace />} />
-        <Route path="guests" element={<GuestsPage />} />
-        <Route path="tasks" element={<TasksPage />} />
-        <Route path="costs" element={<CostsPage />} />
-        <Route path="content" element={<ContentPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="wedding" element={<WeddingManagement />} />
-        <Route path="images" element={<ImagesPage />} />
-        <Route path="invitations" element={<InvitationsPage />} />
-        <Route path="events" element={<EventsPage />} />
-        <Route path="venues" element={<VenuesPage />} />
-        <Route path="seating" element={<SeatingChartPage />} />
-        <Route path="rsvp-reminders" element={<RSVPRemindersPage />} />
-        <Route path="users" element={<UsersPage />} />
-        <Route path="moodboard" element={<MoodboardPage />} />
+        <Route
+          index
+          element={
+            <Navigate to={user?.role === 'planner' ? '/admin/guests' : '/admin/wedding'} replace />
+          }
+        />
+
+        {/* Planner-visible */}
+        <Route path="guests" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<GuestsPage />} />} />
+        <Route path="tasks" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<TasksPage />} />} />
+        <Route path="events" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<EventsPage />} />} />
+        <Route path="venues" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<VenuesPage />} />} />
+        <Route path="seating" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<SeatingChartPage />} />} />
+        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<MoodboardPage />} />} />
+
+        {/* Admin-only */}
+        <Route path="wedding" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WeddingManagement />} fallbackTo="/admin/guests" />} />
+        <Route path="images" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ImagesPage />} fallbackTo="/admin/guests" />} />
+        <Route path="invitations" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<InvitationsPage />} fallbackTo="/admin/guests" />} />
+        <Route path="rsvp-reminders" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<RSVPRemindersPage />} fallbackTo="/admin/guests" />} />
+        <Route path="costs" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<CostsPage />} fallbackTo="/admin/guests" />} />
+        <Route path="content" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ContentPage />} fallbackTo="/admin/guests" />} />
+        <Route path="analytics" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<AnalyticsPage />} fallbackTo="/admin/guests" />} />
+        <Route path="users" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<UsersPage />} fallbackTo="/admin/guests" />} />
       </Route>
 
       <Route
         path="/admin/login"
-        element={user ? <Navigate to="/admin/wedding" replace /> : <LoginPage />}
+        element={user ? <Navigate to={user?.role === 'planner' ? '/admin/guests' : '/admin/wedding'} replace /> : <LoginPage />}
       />
     </Routes>
   )

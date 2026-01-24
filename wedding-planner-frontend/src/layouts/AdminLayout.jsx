@@ -27,22 +27,33 @@ export default function AdminLayout() {
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const navItems = [
-    { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
-    { path: '/admin/guests', icon: Users, label: 'Guest Management' },
-    { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
-    { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
-    { path: '/admin/rsvp-reminders', icon: Bell, label: 'RSVP Reminders' },
-    { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
-    { path: '/admin/events', icon: Calendar, label: 'Timeline' },
-    { path: '/admin/venues', icon: MapPin, label: 'Venues' },
-    { path: '/admin/images', icon: ImageIcon, label: 'Web page' },
-    { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
-    { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
-    { path: '/admin/content', icon: FileText, label: 'Content' },
-    { path: '/admin/analytics', icon: BarChart3, label: 'Technical Analytics' },
-    { path: '/admin/users', icon: Shield, label: 'User Management' },
-  ]
+  const isPlanner = user?.role === 'planner'
+
+  const navItems = isPlanner
+    ? [
+        { path: '/admin/guests', icon: Users, label: 'Guest Management' },
+        { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
+        { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
+        { path: '/admin/events', icon: Calendar, label: 'Timeline' },
+        { path: '/admin/venues', icon: MapPin, label: 'Venues' },
+        { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
+      ]
+    : [
+        { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
+        { path: '/admin/guests', icon: Users, label: 'Guest Management' },
+        { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
+        { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
+        { path: '/admin/rsvp-reminders', icon: Bell, label: 'RSVP Reminders' },
+        { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
+        { path: '/admin/events', icon: Calendar, label: 'Timeline' },
+        { path: '/admin/venues', icon: MapPin, label: 'Venues' },
+        { path: '/admin/images', icon: ImageIcon, label: 'Web page' },
+        { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
+        { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
+        { path: '/admin/content', icon: FileText, label: 'Content' },
+        { path: '/admin/analytics', icon: BarChart3, label: 'Technical Analytics' },
+        { path: '/admin/users', icon: Shield, label: 'User Management' },
+      ]
 
   return (
     <div className="min-h-screen bg-gray-50">

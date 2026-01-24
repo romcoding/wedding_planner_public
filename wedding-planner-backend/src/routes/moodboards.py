@@ -3,20 +3,24 @@ import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from src.models import db, Moodboard, User
-from src.utils.jwt_helpers import get_admin_id
+from src.utils.rbac import require_roles
 
 
 moodboards_bp = Blueprint('moodboards', __name__)
 
 
-def _require_admin():
-    user_id = get_admin_id()
-    if not user_id:
-        return None, (jsonify({'error': 'Unauthorized - Admin access required'}), 403)
-    user = User.query.get(user_id)
-    if not user or user.role != 'admin':
-        return None, (jsonify({'error': 'Unauthorized'}), 403)
-    return user_id, None
+def _require_admin_or_planner():
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return None, err
+    return user, None
+
+
+def _require_admin_only():
+    user, err = require_roles(['admin'])
+    if err:
+        return None, err
+    return user, None
 
 
 def _validate_content_json_size(raw: str):
@@ -36,24 +40,25 @@ def _validate_content_json_size(raw: str):
 @moodboards_bp.route('/api/moodboards', methods=['GET'])
 @jwt_required()
 def list_moodboards():
-    user_id, err = _require_admin()
+    user, err = _require_admin_or_planner()
     if err:
         return err
-    boards = Moodboard.query.filter_by(owner_id=user_id).order_by(Moodboard.updated_at.desc()).all()
+    # Single-instance mode: moodboards are shared across dashboard users.
+    boards = Moodboard.query.order_by(Moodboard.updated_at.desc()).all()
     return jsonify([b.to_dict(include_content=False) for b in boards]), 200
 
 
 @moodboards_bp.route('/api/moodboards', methods=['POST'])
 @jwt_required()
 def create_moodboard():
-    user_id, err = _require_admin()
+    user, err = _require_admin_or_planner()
     if err:
         return err
     data = request.get_json(silent=True) or {}
     title = (data.get('title') or 'Main Moodboard').strip()
     if not title:
         title = 'Main Moodboard'
-    board = Moodboard(owner_id=user_id, title=title, content_json=None)
+    board = Moodboard(owner_id=user.id, title=title, content_json=None)
     db.session.add(board)
     db.session.commit()
     return jsonify(board.to_dict(include_content=True)), 201
@@ -62,24 +67,20 @@ def create_moodboard():
 @moodboards_bp.route('/api/moodboards/<int:board_id>', methods=['GET'])
 @jwt_required()
 def get_moodboard(board_id: int):
-    user_id, err = _require_admin()
+    user, err = _require_admin_or_planner()
     if err:
         return err
     board = Moodboard.query.get_or_404(board_id)
-    if board.owner_id != user_id:
-        return jsonify({'error': 'Not found'}), 404
     return jsonify(board.to_dict(include_content=True)), 200
 
 
 @moodboards_bp.route('/api/moodboards/<int:board_id>', methods=['PUT'])
 @jwt_required()
 def update_moodboard(board_id: int):
-    user_id, err = _require_admin()
+    user, err = _require_admin_or_planner()
     if err:
         return err
     board = Moodboard.query.get_or_404(board_id)
-    if board.owner_id != user_id:
-        return jsonify({'error': 'Not found'}), 404
 
     data = request.get_json(silent=True) or {}
 
@@ -118,12 +119,10 @@ def update_moodboard(board_id: int):
 @moodboards_bp.route('/api/moodboards/<int:board_id>', methods=['DELETE'])
 @jwt_required()
 def delete_moodboard(board_id: int):
-    user_id, err = _require_admin()
+    user, err = _require_admin_or_planner()
     if err:
         return err
     board = Moodboard.query.get_or_404(board_id)
-    if board.owner_id != user_id:
-        return jsonify({'error': 'Not found'}), 404
     db.session.delete(board)
     db.session.commit()
     return jsonify({'message': 'Moodboard deleted successfully'}), 200
@@ -136,12 +135,12 @@ def reset_moodboards():
     Deletes all moodboards for the current admin and recreates a single default board.
     Useful to clean up boards created during a bug.
     """
-    user_id, err = _require_admin()
+    user, err = _require_admin_only()
     if err:
         return err
 
-    Moodboard.query.filter_by(owner_id=user_id).delete(synchronize_session=False)
-    board = Moodboard(owner_id=user_id, title='Main Moodboard', content_json=None)
+    Moodboard.query.delete(synchronize_session=False)
+    board = Moodboard(owner_id=user.id, title='Main Moodboard', content_json=None)
     db.session.add(board)
     db.session.commit()
     return jsonify(board.to_dict(include_content=True)), 200

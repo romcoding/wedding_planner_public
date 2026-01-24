@@ -8,6 +8,7 @@ import json
 import csv
 import io
 import logging
+from src.utils.rbac import require_roles
 
 venues_bp = Blueprint('venues', __name__)
 logger = logging.getLogger(__name__)
@@ -17,10 +18,9 @@ logger = logging.getLogger(__name__)
 def get_venues():
     """Get all venues with optional filtering and pagination"""
     try:
-        user_id = get_admin_id()
-        
-        if not user_id:
-            return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+        user, err = require_roles(['admin', 'planner'])
+        if err:
+            return err
         
         # Query parameters
         search = request.args.get('search', '').strip()
@@ -36,7 +36,8 @@ def get_venues():
         include_deleted = request.args.get('include_deleted', 'false').lower() == 'true'
         
         # Build query
-        query = Venue.query.filter_by(user_id=user_id)
+        # Single-instance mode: venues are shared across dashboard users.
+        query = Venue.query
         
         if not include_deleted:
             query = query.filter_by(is_deleted=False)
@@ -145,15 +146,10 @@ def get_venues():
 @venues_bp.route('', methods=['POST'])
 @jwt_required()
 def create_venue():
-    """Create a new venue (admin only)"""
-    user_id = get_admin_id()
-    
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    user = User.query.get(user_id)
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
+    """Create a new venue (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -184,7 +180,7 @@ def create_venue():
         images_str = ''
     
     venue = Venue(
-        user_id=user_id,
+        user_id=user.id,
         name=data['name'],
         description=data.get('description'),
         # Location fields
@@ -226,12 +222,11 @@ def create_venue():
 @jwt_required()
 def get_venue(venue_id):
     """Get venue details with associated requests"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venue = Venue.query.filter_by(id=venue_id, user_id=user_id).first()
+    venue = Venue.query.filter_by(id=venue_id).first()
     
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
@@ -242,12 +237,11 @@ def get_venue(venue_id):
 @jwt_required()
 def update_venue(venue_id):
     """Update a venue"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venue = Venue.query.filter_by(id=venue_id, user_id=user_id).first()
+    venue = Venue.query.filter_by(id=venue_id).first()
     
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
@@ -337,12 +331,11 @@ def update_venue(venue_id):
 @jwt_required()
 def delete_venue(venue_id):
     """Soft delete a venue"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venue = Venue.query.filter_by(id=venue_id, user_id=user_id).first()
+    venue = Venue.query.filter_by(id=venue_id).first()
     
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
@@ -357,12 +350,11 @@ def delete_venue(venue_id):
 @jwt_required()
 def create_venue_request(venue_id):
     """Create a venue request"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venue = Venue.query.filter_by(id=venue_id, user_id=user_id).first()
+    venue = Venue.query.filter_by(id=venue_id).first()
     
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
@@ -379,7 +371,7 @@ def create_venue_request(venue_id):
     
     venue_request = VenueRequest(
         venue_id=venue_id,
-        user_id=user_id,
+        user_id=user.id,
         contact_date=contact_date,
         status=data.get('status', 'pending'),
         proposed_price=data.get('proposed_price'),
@@ -395,12 +387,11 @@ def create_venue_request(venue_id):
 @jwt_required()
 def update_venue_request(request_id):
     """Update a venue request"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venue_request = VenueRequest.query.filter_by(id=request_id, user_id=user_id).first()
+    venue_request = VenueRequest.query.filter_by(id=request_id).first()
     
     if not venue_request:
         return jsonify({'error': 'Venue request not found'}), 404
@@ -428,12 +419,11 @@ def update_venue_request(request_id):
 @jwt_required()
 def delete_venue_request(request_id):
     """Delete a venue request"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venue_request = VenueRequest.query.filter_by(id=request_id, user_id=user_id).first()
+    venue_request = VenueRequest.query.filter_by(id=request_id).first()
     
     if not venue_request:
         return jsonify({'error': 'Venue request not found'}), 404
@@ -447,10 +437,9 @@ def delete_venue_request(request_id):
 @jwt_required()
 def scrape_venue():
     """Scrape venue information from a URL"""
-    user_id = get_admin_id()
-    
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     url = data.get('url')
@@ -499,12 +488,11 @@ def scrape_venue():
 @jwt_required()
 def export_venues_csv():
     """Export all venues to CSV"""
-    user_id = get_admin_id()
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    venues = Venue.query.filter_by(user_id=user_id, is_deleted=False).all()
+    venues = Venue.query.filter_by(is_deleted=False).all()
     
     # Create CSV in memory
     output = io.StringIO()
@@ -589,10 +577,9 @@ def export_venues_csv():
 @jwt_required()
 def import_venues_csv():
     """Import venues from CSV"""
-    user_id = get_admin_id()
-    
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
@@ -631,7 +618,7 @@ def import_venues_csv():
                 
                 # Create venue
                 venue = Venue(
-                    user_id=user_id,
+                    user_id=user.id,
                     name=row.get('Name', '').strip(),
                     description=row.get('Description', '').strip() or None,
                     address=row.get('Address', '').strip() or None,

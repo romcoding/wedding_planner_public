@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Image, User
 from src.utils.jwt_helpers import get_admin_id
+from src.utils.rbac import require_roles
 from sqlalchemy.exc import IntegrityError
 import base64
 from io import BytesIO
@@ -88,16 +89,10 @@ def get_image(image_id):
 @images_bp.route('/api/images', methods=['POST'])
 @jwt_required()
 def create_image():
-    """Create a new image (admin only) - accepts file upload or URL"""
-    user_id = get_admin_id()
-    
-    if not user_id:
-        return jsonify({'error': 'Unauthorized - Admin access required'}), 403
-    
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Create a new image (admin/planner) - accepts file upload or URL"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     # Check content type
     content_type = request.content_type or ''
@@ -144,7 +139,7 @@ def create_image():
             
             # Create image record
             image = Image(
-                user_id=user_id,
+                user_id=user.id,
                 name=file.filename,
                 url=data_url,
                 position=position,
@@ -210,7 +205,7 @@ def create_image():
                 pass
         
         image = Image(
-            user_id=user_id,
+            user_id=user.id,
             name=name,
             url=url,
             alt_text=data.get('alt_text', ''),

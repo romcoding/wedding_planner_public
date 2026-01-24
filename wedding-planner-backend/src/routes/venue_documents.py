@@ -12,6 +12,7 @@ from src.services.document_parser import parse_document, chunk_text
 from src.services.embedding_service import get_embeddings_batch
 from src.services.offer_extractor import extract_offers_from_text
 import logging
+from src.utils.rbac import require_roles
 
 logger = logging.getLogger(__name__)
 
@@ -198,18 +199,13 @@ def _process_document_in_background(app, document_id: int, file_path: str, mime_
 @jwt_required()
 def get_documents(venue_id):
     """Get all documents for a venue"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     venue = Venue.query.get(venue_id)
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
-    # Allow admin to access any venue
-    if venue.user_id != user_id and user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     documents = VenueDocument.query.filter_by(venue_id=venue_id).order_by(VenueDocument.created_at.desc()).all()
     return jsonify([doc.to_dict() for doc in documents]), 200
@@ -219,18 +215,13 @@ def get_documents(venue_id):
 @jwt_required()
 def upload_document(venue_id):
     """Upload a document for a venue"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     venue = Venue.query.get(venue_id)
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
-    # Allow admin to access any venue
-    if venue.user_id != user_id and user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     if 'file' not in request.files:
         return jsonify({'error': 'No file provided'}), 400
@@ -265,7 +256,7 @@ def upload_document(venue_id):
         # Create document record
         document = VenueDocument(
             venue_id=venue_id,
-            user_id=user_id,
+            user_id=user.id,
             filename=safe_filename,
             original_filename=filename,
             file_path=file_path,
@@ -304,11 +295,9 @@ def upload_document(venue_id):
 @jwt_required()
 def update_document(venue_id, document_id):
     """Update document metadata (notes, etc.)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     document = VenueDocument.query.filter_by(id=document_id, venue_id=venue_id).first()
     if not document:
@@ -331,11 +320,9 @@ def update_document(venue_id, document_id):
 @jwt_required()
 def delete_document(venue_id, document_id):
     """Delete a document"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     document = VenueDocument.query.filter_by(id=document_id, venue_id=venue_id).first()
     if not document:

@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Venue, VenueChatHistory, User
 from src.services.venue_chat_service import generate_chat_response
 import logging
+from src.utils.rbac import require_roles
 
 logger = logging.getLogger(__name__)
 
@@ -16,18 +17,13 @@ chat_bp = Blueprint('venue_chat', __name__)
 @jwt_required()
 def chat(venue_id):
     """Chat with venue using RAG"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     venue = Venue.query.get(venue_id)
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
-    # Allow admin to access any venue
-    if venue.user_id != user_id and user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.get_json()
     if not data or not data.get('message'):
@@ -50,7 +46,7 @@ def chat(venue_id):
         # Save user message
         user_chat = VenueChatHistory(
             venue_id=venue_id,
-            user_id=user_id,
+            user_id=user.id,
             session_id=session_id,
             message_type='user',
             message=user_message
@@ -69,7 +65,7 @@ def chat(venue_id):
         # Save assistant response
         assistant_chat = VenueChatHistory(
             venue_id=venue_id,
-            user_id=user_id,
+            user_id=user.id,
             session_id=session_id,
             message_type='assistant',
             message=response['message'],
@@ -98,18 +94,13 @@ def chat(venue_id):
 @jwt_required()
 def get_chat_history(venue_id):
     """Get chat history for a venue"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     venue = Venue.query.get(venue_id)
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
-    # Allow admin to access any venue
-    if venue.user_id != user_id and user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     session_id = request.args.get('session_id')
     limit = request.args.get('limit', type=int, default=50)

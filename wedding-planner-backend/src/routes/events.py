@@ -4,6 +4,7 @@ from src.models import db, Event, User
 from src.utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
+from src.utils.rbac import require_roles
 
 events_bp = Blueprint('events', __name__)
 
@@ -29,7 +30,7 @@ def get_events():
                     try:
                         admin_id = int(identity_str) if isinstance(identity_str, str) else identity
                         user = User.query.get(admin_id)
-                        is_admin = user and user.role == 'admin'
+                        is_admin = user and user.role in ['admin', 'planner']
                     except (ValueError, TypeError):
                         pass
         except:
@@ -47,12 +48,10 @@ def get_events():
 @events_bp.route('', methods=['POST'])
 @jwt_required()
 def create_event():
-    """Create a new event (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Create a new event (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -82,7 +81,7 @@ def create_event():
         return jsonify({'error': f'Invalid date format: {str(e)}'}), 400
     
     event = Event(
-        user_id=user_id,
+        user_id=user.id,
         name=data['name'],
         description=data.get('description', ''),
         location=data.get('location', ''),
@@ -116,12 +115,10 @@ def create_event():
 @events_bp.route('/<int:event_id>', methods=['PUT'])
 @jwt_required()
 def update_event(event_id):
-    """Update an event (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Update an event (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     event = Event.query.get_or_404(event_id)
     data = request.get_json()
@@ -176,12 +173,10 @@ def update_event(event_id):
 @events_bp.route('/<int:event_id>', methods=['DELETE'])
 @jwt_required()
 def delete_event(event_id):
-    """Delete an event (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Delete an event (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     event = Event.query.get_or_404(event_id)
     

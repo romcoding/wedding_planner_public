@@ -6,6 +6,7 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Venue, VenueOfferCategory, VenueOffer, User
 from src.utils.jwt_helpers import get_admin_id
 from sqlalchemy.exc import IntegrityError
+from src.utils.rbac import require_roles
 
 offers_bp = Blueprint('venue_offers', __name__)
 
@@ -14,18 +15,13 @@ offers_bp = Blueprint('venue_offers', __name__)
 @jwt_required()
 def get_categories(venue_id):
     """Get all offer categories for a venue"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     venue = Venue.query.get(venue_id)
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
-    # Allow admin to access any venue
-    if venue.user_id != user_id and user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     categories = VenueOfferCategory.query.filter_by(venue_id=venue_id).order_by(VenueOfferCategory.order).all()
     return jsonify([cat.to_dict(include_offers=True) for cat in categories]), 200
@@ -35,18 +31,13 @@ def get_categories(venue_id):
 @jwt_required()
 def create_category(venue_id):
     """Create a new offer category"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     venue = Venue.query.get(venue_id)
     if not venue:
         return jsonify({'error': 'Venue not found'}), 404
-    # Allow admin to access any venue
-    if venue.user_id != user_id and user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     data = request.get_json()
     if not data or not data.get('name'):
@@ -72,11 +63,9 @@ def create_category(venue_id):
 @jwt_required()
 def update_category(venue_id, category_id):
     """Update an offer category"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     category = VenueOfferCategory.query.filter_by(id=category_id, venue_id=venue_id).first()
     if not category:
@@ -102,11 +91,9 @@ def update_category(venue_id, category_id):
 @jwt_required()
 def delete_category(venue_id, category_id):
     """Delete an offer category (cascades to offers)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     category = VenueOfferCategory.query.filter_by(id=category_id, venue_id=venue_id).first()
     if not category:
@@ -125,11 +112,9 @@ def delete_category(venue_id, category_id):
 @jwt_required()
 def create_offer(venue_id, category_id):
     """Create a new offer in a category"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     category = VenueOfferCategory.query.filter_by(id=category_id, venue_id=venue_id).first()
     if not category:
@@ -168,11 +153,9 @@ def create_offer(venue_id, category_id):
 @jwt_required()
 def update_offer(venue_id, offer_id):
     """Update an offer"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     offer = VenueOffer.query.filter_by(id=offer_id, venue_id=venue_id).first()
     if not offer:
@@ -214,11 +197,9 @@ def update_offer(venue_id, offer_id):
 @jwt_required()
 def delete_offer(venue_id, offer_id):
     """Delete an offer"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     offer = VenueOffer.query.filter_by(id=offer_id, venue_id=venue_id).first()
     if not offer:

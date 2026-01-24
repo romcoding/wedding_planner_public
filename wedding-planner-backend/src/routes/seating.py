@@ -2,33 +2,31 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Table, SeatAssignment, Guest, User
 from datetime import datetime
+from src.utils.rbac import require_roles
 
 seating_bp = Blueprint('seating', __name__)
 
 @seating_bp.route('/tables', methods=['GET'])
 @jwt_required()
 def get_tables():
-    """Get all tables with assignments (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Get all tables with assignments (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     include_assignments = request.args.get('include_assignments', 'false').lower() == 'true'
-    tables = Table.query.filter_by(user_id=user_id).order_by(Table.name).all()
+    # Single-instance mode: seating is shared across dashboard users.
+    tables = Table.query.order_by(Table.name).all()
     
     return jsonify([t.to_dict(include_assignments=include_assignments) for t in tables]), 200
 
 @seating_bp.route('/tables', methods=['POST'])
 @jwt_required()
 def create_table():
-    """Create a new table (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Create a new table (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -36,7 +34,7 @@ def create_table():
         return jsonify({'error': 'Name and capacity are required'}), 400
     
     table = Table(
-        user_id=user_id,
+        user_id=user.id,
         name=data['name'],
         capacity=data['capacity'],
         shape=data.get('shape', 'round'),
@@ -64,14 +62,12 @@ def create_table():
 @seating_bp.route('/tables/<int:table_id>', methods=['PUT'])
 @jwt_required()
 def update_table(table_id):
-    """Update a table (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    """Update a table (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
-    
-    table = Table.query.filter_by(id=table_id, user_id=user_id).first()
+    table = Table.query.filter_by(id=table_id).first()
     if not table:
         return jsonify({'error': 'Table not found'}), 404
     
@@ -122,14 +118,12 @@ def update_table(table_id):
 @seating_bp.route('/tables/<int:table_id>', methods=['DELETE'])
 @jwt_required()
 def delete_table(table_id):
-    """Delete a table (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
+    """Delete a table (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
-    
-    table = Table.query.filter_by(id=table_id, user_id=user_id).first()
+    table = Table.query.filter_by(id=table_id).first()
     if not table:
         return jsonify({'error': 'Table not found'}), 404
     
@@ -141,19 +135,17 @@ def delete_table(table_id):
 @seating_bp.route('/assignments', methods=['POST'])
 @jwt_required()
 def assign_guest():
-    """Assign a guest to a seat (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Assign a guest to a seat (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     
     if not data or not data.get('table_id') or not data.get('seat_number'):
         return jsonify({'error': 'table_id and seat_number are required'}), 400
     
-    table = Table.query.filter_by(id=data['table_id'], user_id=user_id).first()
+    table = Table.query.filter_by(id=data['table_id']).first()
     if not table:
         return jsonify({'error': 'Table not found'}), 404
     
@@ -209,21 +201,14 @@ def assign_guest():
 @seating_bp.route('/assignments/<int:assignment_id>', methods=['DELETE'])
 @jwt_required()
 def unassign_guest(assignment_id):
-    """Remove guest assignment from a seat (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Remove guest assignment from a seat (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     assignment = SeatAssignment.query.get(assignment_id)
     if not assignment:
         return jsonify({'error': 'Assignment not found'}), 404
-    
-    # Verify table belongs to user
-    table = Table.query.filter_by(id=assignment.table_id, user_id=user_id).first()
-    if not table:
-        return jsonify({'error': 'Unauthorized'}), 403
     
     assignment.guest_id = None
     assignment.attendee_name = None
@@ -236,12 +221,10 @@ def unassign_guest(assignment_id):
 @seating_bp.route('/assignments/bulk', methods=['POST'])
 @jwt_required()
 def bulk_assign():
-    """Bulk assign guests to seats (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Bulk assign guests to seats (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     data = request.get_json()
     
@@ -261,7 +244,7 @@ def bulk_assign():
                 results['errors'].append({'assignment': assignment_data, 'error': 'Missing table_id or seat_number'})
                 continue
             
-            table = Table.query.filter_by(id=table_id, user_id=user_id).first()
+            table = Table.query.filter_by(id=table_id).first()
             if not table:
                 results['errors'].append({'assignment': assignment_data, 'error': 'Table not found'})
                 continue
@@ -296,12 +279,10 @@ def bulk_assign():
 @seating_bp.route('/guests/unassigned', methods=['GET'])
 @jwt_required()
 def get_unassigned_guests():
-    """Get all confirmed guest-members without seat assignments (admin only)"""
-    user_id = get_jwt_identity()
-    user = User.query.get(user_id)
-    
-    if not user or user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
+    """Get all confirmed guest-members without seat assignments (admin/planner)"""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
     
     confirmed_guests = Guest.query.filter_by(rsvp_status='confirmed').all()
 
