@@ -49,10 +49,10 @@ export default function PhotoGallery() {
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
-      alert('Photo uploaded! It will be visible after admin approval.')
+      alert(t('photoGalleryUploadSuccess'))
     },
     onError: (error) => {
-      alert(error.response?.data?.error || 'Failed to upload photo')
+      alert(error.response?.data?.error || t('photoGalleryUploadFailed'))
     },
   })
 
@@ -66,11 +66,11 @@ export default function PhotoGallery() {
   const handleFileSelect = (file) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
-      alert('Please select an image file')
+      alert(t('photoGalleryInvalidFile'))
       return
     }
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image size must be less than 10MB')
+      alert(t('photoGalleryTooLarge'))
       return
     }
     setSelectedFile(file)
@@ -106,18 +106,18 @@ export default function PhotoGallery() {
   }
 
   if (!useExternalOnly && isLoading) {
-    return <div className="text-center py-8">Loading gallery...</div>
+    return <div className="text-center py-8">{t('photoGalleryLoading')}</div>
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">Photo Gallery</h2>
+      <h2 className="text-3xl font-bold text-gray-900 mb-6">{t('photoGalleryTitle')}</h2>
 
       {useExternalOnly && (
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-xl font-semibold mb-2">Shared photo folder</h3>
+          <h3 className="text-xl font-semibold mb-2">{t('photoGallerySharedFolderTitle')}</h3>
           <p className="text-sm text-gray-600 mb-4">
-            Redirecting you to the shared folder…
+            {t('photoGalleryRedirecting')}
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {hasExternalFolderUrl && (
@@ -127,7 +127,7 @@ export default function PhotoGallery() {
                 rel="noreferrer"
                 className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-black text-center"
               >
-                Open folder
+                {t('photoGalleryOpenFolder')}
               </a>
             )}
             {hasExternalUploadUrl && (
@@ -137,7 +137,7 @@ export default function PhotoGallery() {
                 rel="noreferrer"
                 className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 text-center"
               >
-                Upload to folder
+                {t('photoGalleryUploadToFolder')}
               </a>
             )}
           </div>
@@ -146,7 +146,7 @@ export default function PhotoGallery() {
 
       {useExternalOnly && (
         <div className="text-sm text-gray-600">
-          If the redirect doesn’t happen automatically, use one of the buttons above.
+          {t('photoGalleryRedirectHint')}
         </div>
       )}
 
@@ -155,7 +155,7 @@ export default function PhotoGallery() {
           {/* Upload Section */}
           {guest && (
             <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold mb-4">Upload a Photo</h3>
+              <h3 className="text-xl font-semibold mb-4">{t('photoGalleryUploadTitle')}</h3>
 
               <div
                 onDragOver={handleDragOver}
@@ -181,7 +181,7 @@ export default function PhotoGallery() {
                     <div className="mt-4">
                       <input
                         type="text"
-                        placeholder="Add a caption (optional)"
+                        placeholder={t('photoGalleryCaptionPlaceholder')}
                         value={caption}
                         onChange={(e) => setCaption(e.target.value)}
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4"
@@ -191,19 +191,19 @@ export default function PhotoGallery() {
                         disabled={uploadMutation.isPending}
                         className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50"
                       >
-                        {uploadMutation.isPending ? 'Uploading...' : 'Upload Photo'}
+                        {uploadMutation.isPending ? t('photoGalleryUploading') : t('photoGalleryUploadButton')}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div>
                     <Camera className="w-12 h-12 mx-auto text-gray-400 mb-4" />
-                    <p className="text-gray-600 mb-2">Drag and drop a photo here, or click to browse</p>
+                    <p className="text-gray-600 mb-2">{t('photoGalleryDropHint')}</p>
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
                     >
-                      Select Photo
+                      {t('photoGallerySelectPhoto')}
                     </button>
                     <input
                       ref={fileInputRef}

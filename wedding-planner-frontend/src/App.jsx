@@ -55,7 +55,8 @@ function GuestRoutes() {
           <Route path="register" element={<GuestRegister />} />
           <Route path="rsvp/:token" element={<RSVP />} />
           <Route element={<GuestLayout />}>
-            <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
+            <Route index element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
+            <Route path="home" element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
             <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
           </Route>
         </Route>

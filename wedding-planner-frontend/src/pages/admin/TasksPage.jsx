@@ -24,6 +24,23 @@ import { CSS } from '@dnd-kit/utilities'
 
 // Task Card Component (Draggable)
 function TaskCard({ task, onEdit, onDelete }) {
+  const BASE_CURRENCY = 'CHF'
+  const formatMoney = (amount, currency = BASE_CURRENCY) => {
+    const n = Number(amount || 0)
+    try {
+      return new Intl.NumberFormat('de-CH', {
+        style: 'currency',
+        currency,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Number.isFinite(n) ? n : 0)
+    } catch {
+      const safe = Number.isFinite(n) ? n : 0
+      return `${currency} ${Math.round(safe)}`
+    }
+  }
+
   const {
     attributes,
     listeners,
@@ -94,9 +111,9 @@ function TaskCard({ task, onEdit, onDelete }) {
 
       {(task.estimated_cost || task.actual_cost) && (
         <div className="text-xs text-gray-600 mb-2">
-          {task.estimated_cost && `Est: $${parseFloat(task.estimated_cost).toFixed(2)}`}
+          {task.estimated_cost && `Est: ${formatMoney(task.estimated_cost)}`}
           {task.estimated_cost && task.actual_cost && ' • '}
-          {task.actual_cost && `Act: $${parseFloat(task.actual_cost).toFixed(2)}`}
+          {task.actual_cost && `Act: ${formatMoney(task.actual_cost)}`}
         </div>
       )}
 

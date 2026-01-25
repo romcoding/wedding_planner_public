@@ -3,6 +3,23 @@ import api from '../../lib/api'
 import { Users, CheckSquare, DollarSign, TrendingUp } from 'lucide-react'
 
 export default function AdminDashboard() {
+  const BASE_CURRENCY = 'CHF'
+  const formatMoney = (amount, currency = BASE_CURRENCY) => {
+    const n = Number(amount || 0)
+    try {
+      return new Intl.NumberFormat('de-CH', {
+        style: 'currency',
+        currency,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Number.isFinite(n) ? n : 0)
+    } catch {
+      const safe = Number.isFinite(n) ? n : 0
+      return `${currency} ${Math.round(safe)}`
+    }
+  }
+
   const { data: overview, isLoading } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: async () => {
@@ -44,7 +61,7 @@ export default function AdminDashboard() {
     },
     {
       label: 'Total Budget',
-      value: `$${budget?.costs?.total_planned?.toLocaleString() || '0'}`,
+      value: formatMoney(budget?.costs?.total_planned || 0),
       icon: DollarSign,
       color: 'bg-purple-500',
     },
@@ -104,19 +121,19 @@ export default function AdminDashboard() {
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Planned</span>
               <span className="font-semibold text-gray-900">
-                ${budget?.costs?.total_planned?.toLocaleString() || '0'}
+                {formatMoney(budget?.costs?.total_planned || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Paid</span>
               <span className="font-semibold text-green-600">
-                ${budget?.costs?.total_paid?.toLocaleString() || '0'}
+                {formatMoney(budget?.costs?.total_paid || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Pending</span>
               <span className="font-semibold text-yellow-600">
-                ${budget?.costs?.total_pending?.toLocaleString() || '0'}
+                {formatMoney(budget?.costs?.total_pending || 0)}
               </span>
             </div>
           </div>

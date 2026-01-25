@@ -28,6 +28,22 @@ import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageCom
 import VenueSetupWizard from './VenueSetupWizard'
 
 export default function VenuesPage() {
+  const formatMoney = (amount, currency = 'CHF') => {
+    const n = Number(amount || 0)
+    if (!Number.isFinite(n)) return `${currency} 0`
+    try {
+      return new Intl.NumberFormat('de-CH', {
+        style: 'currency',
+        currency,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(n)
+    } catch {
+      return `${currency} ${Math.round(n)}`
+    }
+  }
+
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
@@ -728,7 +744,7 @@ export default function VenuesPage() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-3">Pricing</h3>
                   <div className="grid grid-cols-3 gap-4">
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-1">Minimum Price ($)</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Minimum Price (CHF)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -737,10 +753,10 @@ export default function VenuesPage() {
                         placeholder="e.g., 5000"
                         className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
-                      <p className="text-xs text-gray-600 mt-1">Lowest price in USD</p>
+                      <p className="text-xs text-gray-600 mt-1">Lowest price in CHF</p>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-900 mb-1">Maximum Price ($)</label>
+                      <label className="block text-sm font-semibold text-gray-900 mb-1">Maximum Price (CHF)</label>
                       <input
                         type="number"
                         step="0.01"
@@ -749,7 +765,7 @@ export default function VenuesPage() {
                         placeholder="e.g., 10000"
                         className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
-                      <p className="text-xs text-gray-600 mt-1">Highest price in USD</p>
+                      <p className="text-xs text-gray-600 mt-1">Highest price in CHF</p>
                     </div>
                     <div>
                       <label className="block text-sm font-semibold text-gray-900 mb-1">Price Range (Text)</label>
@@ -757,7 +773,7 @@ export default function VenuesPage() {
                         type="text"
                         value={formData.price_range}
                         onChange={(e) => setFormData({ ...formData, price_range: e.target.value })}
-                        placeholder="e.g., $5,000-$10,000 or Budget/Mid-range/Premium"
+                        placeholder="e.g., CHF 5'000–10'000 or Budget/Mid-range/Premium"
                         className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 placeholder-gray-600"
                       />
                       <p className="text-xs text-gray-600 mt-1">Text description of price range</p>
@@ -1032,7 +1048,7 @@ export default function VenuesPage() {
                       <div className="text-sm text-gray-500 flex items-center gap-1">
                         <DollarSign className="h-4 w-4" />
                         {venue.price_min && venue.price_max 
-                          ? `$${venue.price_min}-$${venue.price_max}` 
+                          ? `${formatMoney(venue.price_min)} - ${formatMoney(venue.price_max)}` 
                           : venue.price_range || '-'}
                       </div>
                     </td>
@@ -1471,7 +1487,7 @@ function VenueDetailModal({ venueId, onClose }) {
                 </h3>
                 <p className="text-gray-600">
                   {venue.price_min && venue.price_max 
-                    ? `$${venue.price_min}-$${venue.price_max}` 
+                    ? `${formatMoney(venue.price_min)} - ${formatMoney(venue.price_max)}` 
                     : venue.price_range || '-'}
                 </p>
               </div>
@@ -1713,7 +1729,7 @@ function VenueDetailModal({ venueId, onClose }) {
                       </div>
                       {request.proposed_price && (
                         <div className="text-sm text-gray-600 mb-1">
-                          Proposed Price: ${parseFloat(request.proposed_price).toFixed(2)}
+                          Proposed Price: {(request.currency || 'CHF')} {parseFloat(request.proposed_price).toFixed(2)}
                         </div>
                       )}
                       {request.notes && (

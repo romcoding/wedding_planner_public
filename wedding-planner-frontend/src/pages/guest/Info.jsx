@@ -7,12 +7,14 @@ import Timeline from '../../components/Timeline'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
 import Contact from './Contact'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
   const [activeSection, setActiveSection] = useState(null)
   const queryClient = useQueryClient()
   const [editMode, setEditMode] = useState(false)
+  const { t } = useLanguage()
   const [localEdits, setLocalEdits] = useState({
     rsvp_status: 'pending',
     overnight_stay: false,
@@ -63,17 +65,23 @@ export default function GuestInfo() {
     },
   })
 
+  const readContent = (key) => {
+    const v = t(key)
+    if (!v || v === key) return ''
+    return String(v)
+  }
+
   const getStatusLabel = (status) => {
-    if (status === 'confirmed') return 'Yes'
-    if (status === 'declined') return 'No'
-    return 'Pending'
+    if (status === 'confirmed') return t('yes')
+    if (status === 'declined') return t('no')
+    return t('pending')
   }
 
   const getInviteTypeLabel = (n) => {
     const count = Number(n || 1)
-    if (count === 1) return 'Individual'
-    if (count === 2) return 'Couple'
-    return 'Group'
+    if (count === 1) return t('inviteTypeIndividual')
+    if (count === 2) return t('inviteTypeCouple')
+    return t('inviteTypeGroup')
   }
 
   const inviteeNames = useMemo(() => {
@@ -121,7 +129,7 @@ export default function GuestInfo() {
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
           >
             <ArrowLeft className="w-5 h-5" />
-            Back
+            {t('back')}
           </button>
 
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
@@ -129,45 +137,45 @@ export default function GuestInfo() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <Edit className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">Change your information</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{t('guestInfoChangeTitle')}</h2>
                 </div>
                 <p className="text-gray-600 mb-6">
-                  You can review and update your Wedding Pass at any time.
+                  {t('guestInfoChangeBody')}
                 </p>
 
                 <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Your current answers</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('guestInfoCurrentAnswers')}</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">Coming</span>
+                      <span className="text-gray-600">{t('guestInfoComing')}</span>
                       <span className="font-semibold text-gray-900">{getStatusLabel(guestProfile?.rsvp_status)}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">Invite type</span>
+                      <span className="text-gray-600">{t('guestInfoInviteType')}</span>
                       <span className="font-semibold text-gray-900">{getInviteTypeLabel(guestProfile?.number_of_guests)}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">Guests</span>
+                      <span className="text-gray-600">{t('guestInfoGuests')}</span>
                       <span className="font-semibold text-gray-900">{guestProfile?.number_of_guests || 1}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">Overnight stay</span>
-                      <span className="font-semibold text-gray-900">{guestProfile?.overnight_stay ? 'Yes' : 'No'}</span>
+                      <span className="text-gray-600">{t('guestInfoOvernight')}</span>
+                      <span className="font-semibold text-gray-900">{guestProfile?.overnight_stay ? t('yes') : t('no')}</span>
                     </div>
                     <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">Dietary</span>
+                      <span className="text-gray-600">{t('guestInfoDietary')}</span>
                       <span className="font-semibold text-gray-900">
-                        {guestProfile?.dietary_restrictions ? 'Provided' : '—'}
+                        {guestProfile?.dietary_restrictions ? t('guestInfoProvided') : '—'}
                       </span>
                     </div>
                     <div className="md:col-span-2 bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <div className="text-gray-600 mb-1">Dietary details</div>
+                      <div className="text-gray-600 mb-1">{t('guestInfoDietaryDetails')}</div>
                       <div className="text-gray-900 whitespace-pre-wrap break-words">
                         {guestProfile?.dietary_restrictions || '—'}
                       </div>
                     </div>
                     <div className="md:col-span-2 bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <div className="text-gray-600 mb-1">Notes</div>
+                      <div className="text-gray-600 mb-1">{t('guestInfoNotes')}</div>
                       <div className="text-gray-900 whitespace-pre-wrap break-words">
                         {guestProfile?.special_requests || '—'}
                       </div>
@@ -180,7 +188,7 @@ export default function GuestInfo() {
                     onClick={() => setEditMode((v) => !v)}
                     className="px-6 py-3 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium"
                   >
-                    {editMode ? 'Cancel editing' : 'Edit here'}
+                    {editMode ? t('guestInfoCancelEditing') : t('guestInfoEditHere')}
                   </button>
                   <button
                     onClick={() => {
@@ -192,7 +200,7 @@ export default function GuestInfo() {
                     }}
                     className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all"
                   >
-                    Open your Wedding Pass
+                    {t('guestInfoOpenPass')}
                   </button>
                   <button
                     onClick={() => {
@@ -201,16 +209,16 @@ export default function GuestInfo() {
                     }}
                     className="px-6 py-3 bg-white border border-gray-200 text-gray-900 rounded-lg hover:bg-gray-50 font-medium"
                   >
-                    Back to information
+                    {t('guestInfoBackToInfo')}
                   </button>
                 </div>
 
                 {editMode && (
                   <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit your answers</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('guestInfoEditAnswers')}</h3>
 
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Coming</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoComing')}</label>
                       <select
                         value={localEdits.rsvp_status}
                         onChange={(e) => {
@@ -223,15 +231,15 @@ export default function GuestInfo() {
                         }}
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
                       >
-                        <option value="confirmed">Yes</option>
-                        <option value="declined">No</option>
-                        <option value="pending">Pending</option>
+                        <option value="confirmed">{t('yes')}</option>
+                        <option value="declined">{t('no')}</option>
+                        <option value="pending">{t('pending')}</option>
                       </select>
                     </div>
 
                     {inviteeNames.length > 1 && (
                       <div className="mb-4">
-                        <div className="text-sm font-medium text-gray-700 mb-2">Who is coming?</div>
+                        <div className="text-sm font-medium text-gray-700 mb-2">{t('guestInfoWhoIsComing')}</div>
                         <div className="space-y-2">
                           {inviteeNames.map((name) => {
                             const checked = (localEdits.attending_names || []).includes(name)
@@ -253,25 +261,25 @@ export default function GuestInfo() {
                           })}
                         </div>
                         <p className="text-xs text-gray-500 mt-2">
-                          Leave at least one selected if you are coming.
+                          {t('guestInfoWhoIsComingHint')}
                         </p>
                       </div>
                     )}
 
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Overnight stay</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoOvernight')}</label>
                       <select
                         value={localEdits.overnight_stay ? 'yes' : 'no'}
                         onChange={(e) => setLocalEdits((p) => ({ ...p, overnight_stay: e.target.value === 'yes' }))}
                         className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
                       >
-                        <option value="no">No</option>
-                        <option value="yes">Yes</option>
+                        <option value="no">{t('no')}</option>
+                        <option value="yes">{t('yes')}</option>
                       </select>
                     </div>
 
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Dietary restrictions</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoDietaryRestrictions')}</label>
                       <textarea
                         rows={3}
                         value={localEdits.dietary_restrictions}
@@ -281,7 +289,7 @@ export default function GuestInfo() {
                     </div>
 
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoNotes')}</label>
                       <textarea
                         rows={3}
                         value={localEdits.special_requests}
@@ -310,7 +318,7 @@ export default function GuestInfo() {
                       disabled={updateMutation.isPending}
                       className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all disabled:opacity-50"
                     >
-                      {updateMutation.isPending ? 'Saving…' : 'Save changes'}
+                      {updateMutation.isPending ? t('saving') : t('guestInfoSaveChanges')}
                     </button>
                   </div>
                 )}
@@ -321,41 +329,39 @@ export default function GuestInfo() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <Plane className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">Travel & Accommodation</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{t('guestTravelTitle')}</h2>
                 </div>
                 <div className="space-y-6">
                   <div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
                       <MapPin className="w-5 h-5 text-pink-500" />
-                      Venue Location
+                      {t('guestAccommodationVenueTitle')}
                     </h3>
-                    <p className="text-gray-600">
-                      The wedding will take place at a beautiful venue. Detailed directions and parking information will be sent closer to the date.
-                    </p>
+                    <div className="text-gray-600 whitespace-pre-wrap break-words">
+                      {readContent('guest_accommodation_details') || t('guestAccommodationDetailsFallback')}
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <Plane className="w-5 h-5 text-pink-500" />
-                      Recommended Hotels
-                    </h3>
-                    <p className="text-gray-600 mb-4">
-                      We have reserved blocks of rooms at the following hotels:
-                    </p>
-                    <ul className="list-disc list-inside space-y-2 text-gray-600">
-                      <li>Hotel Option 1 - Contact: (555) 123-4567</li>
-                      <li>Hotel Option 2 - Contact: (555) 234-5678</li>
-                      <li>Hotel Option 3 - Contact: (555) 345-6789</li>
-                    </ul>
-                    <p className="text-sm text-gray-500 mt-4">
-                      * Mention the wedding when booking to receive the group rate
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3">Transportation</h3>
-                    <p className="text-gray-600">
-                      Shuttle service will be provided from the recommended hotels to the venue. More details will be provided in your confirmation email.
-                    </p>
-                  </div>
+                  {readContent('guest_accommodation_venue_name') && (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                      <div className="text-lg font-semibold text-gray-900">{readContent('guest_accommodation_venue_name')}</div>
+                      {readContent('guest_accommodation_venue_address') && (
+                        <div className="text-gray-600">{readContent('guest_accommodation_venue_address')}</div>
+                      )}
+                      {readContent('guest_accommodation_venue_city_region') && (
+                        <div className="text-gray-600">{readContent('guest_accommodation_venue_city_region')}</div>
+                      )}
+                      {readContent('guest_accommodation_venue_website') && (
+                        <a
+                          href={readContent('guest_accommodation_venue_website')}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex mt-3 text-pink-600 hover:underline"
+                        >
+                          {t('guestAccommodationOpenWebsite')}
+                        </a>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -364,15 +370,29 @@ export default function GuestInfo() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <Gift className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">Event & Gifts</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{t('guestGiftsTitle')}</h2>
                 </div>
                 <div className="space-y-8">
                   <div>
                     <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
                       <Calendar className="w-5 h-5 text-pink-500" />
-                      Event Schedule
+                      {t('guestGiftsScheduleTitle')}
                     </h3>
-                    <Timeline />
+                    {readContent('guest_event_gifts_event_label') && (
+                      <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
+                        <div className="text-sm text-gray-600">{t('guestGiftsFeaturedEvent')}</div>
+                        <div className="text-gray-900 font-semibold">{readContent('guest_event_gifts_event_label')}</div>
+                      </div>
+                    )}
+                    {readContent('guest_event_gifts_timeline_details') && (
+                      <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
+                        <div className="text-sm text-gray-600">{t('guestGiftsDetailsTitle')}</div>
+                        <div className="text-gray-900 whitespace-pre-wrap break-words">
+                          {readContent('guest_event_gifts_timeline_details')}
+                        </div>
+                      </div>
+                    )}
+                    <Timeline showTitle={false} />
                   </div>
                   <div>
                     <GiftRegistry />
@@ -385,7 +405,7 @@ export default function GuestInfo() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <Camera className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">Photo Gallery</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{t('guestGalleryTitle')}</h2>
                 </div>
                 <PhotoGallery />
               </div>
@@ -395,7 +415,7 @@ export default function GuestInfo() {
               <div>
                 <div className="flex items-center gap-3 mb-6">
                   <Mail className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">Contact Us</h2>
+                  <h2 className="text-3xl font-bold text-gray-900">{t('guestContactTitle')}</h2>
                 </div>
                 <Contact />
               </div>
@@ -422,10 +442,10 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center px-4">
                 <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                  Wedding Information
+                  {t('guestInfoTitle')}
                 </h1>
                 <p className="text-xl text-white/90 drop-shadow-md">
-                  Everything you need to know
+                  {t('guestInfoSubtitle')}
                 </p>
               </div>
             </div>
@@ -434,10 +454,10 @@ export default function GuestInfo() {
           <div className="relative h-64 md:h-96 bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 flex items-center justify-center">
             <div className="text-center">
               <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                Wedding Information
+                {t('guestInfoTitle')}
               </h1>
               <p className="text-xl text-white/90 drop-shadow-md">
-                Everything you need to know
+                {t('guestInfoSubtitle')}
               </p>
             </div>
           </div>
@@ -467,8 +487,8 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white">
                 <Edit className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">Change your information</h3>
-                <p className="text-white/90">Review and update your Wedding Pass</p>
+                <h3 className="text-2xl font-bold mb-2">{t('guestInfoChangeTitle')}</h3>
+                <p className="text-white/90">{t('guestInfoChangeCardSubtitle')}</p>
               </div>
             </div>
           </div>
@@ -493,8 +513,8 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white">
                 <Plane className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">Travel & Accommodation</h3>
-                <p className="text-white/90">Hotels and directions</p>
+                <h3 className="text-2xl font-bold mb-2">{t('guestTravelTitle')}</h3>
+                <p className="text-white/90">{t('guestTravelCardSubtitle')}</p>
               </div>
             </div>
           </div>
@@ -519,8 +539,8 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white">
                 <Gift className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">Event & Gifts</h3>
-                <p className="text-white/90">Schedule and registry</p>
+                <h3 className="text-2xl font-bold mb-2">{t('guestGiftsTitle')}</h3>
+                <p className="text-white/90">{t('guestGiftsCardSubtitle')}</p>
               </div>
             </div>
           </div>
@@ -537,8 +557,8 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white">
                 <Camera className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">Photo Gallery</h3>
-                <p className="text-white/90">Share your photos</p>
+                <h3 className="text-2xl font-bold mb-2">{t('guestGalleryTitle')}</h3>
+                <p className="text-white/90">{t('guestGalleryCardSubtitle')}</p>
               </div>
             </div>
           </div>
@@ -555,8 +575,8 @@ export default function GuestInfo() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="text-center text-white">
                 <Mail className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">Contact Us</h3>
-                <p className="text-white/90">Send us a message</p>
+                <h3 className="text-2xl font-bold mb-2">{t('guestContactTitle')}</h3>
+                <p className="text-white/90">{t('guestContactCardSubtitle')}</p>
               </div>
             </div>
           </div>

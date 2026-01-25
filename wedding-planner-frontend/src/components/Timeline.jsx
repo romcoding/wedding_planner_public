@@ -1,8 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '../lib/api'
 import { Calendar, MapPin, Clock } from 'lucide-react'
+import { useLanguage } from '../contexts/LanguageContext'
 
-export default function Timeline() {
+export default function Timeline({ showTitle = true }) {
+  const { language, t } = useLanguage()
+  const locale = language === 'de' ? 'de-CH' : language === 'fr' ? 'fr-CH' : 'en-US'
+
   const { data: events, isLoading } = useQuery({
     queryKey: ['events'],
     queryFn: () => api.get('/events').then((res) => res.data),
@@ -13,21 +17,21 @@ export default function Timeline() {
     : []
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading timeline...</div>
+    return <div className="text-center py-8">{t('timelineLoading')}</div>
   }
 
   if (!visibleEvents || visibleEvents.length === 0) {
     return (
       <div className="text-center py-12 text-gray-500">
         <Calendar className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-        <p>No events scheduled yet.</p>
+        <p>{t('timelineEmpty')}</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">Wedding Timeline</h2>
+      {showTitle && <h2 className="text-3xl font-bold text-gray-900 mb-6">{t('timelineTitle')}</h2>}
       <div className="relative">
         {/* Timeline line */}
         <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gradient-to-b from-pink-300 via-purple-300 to-pink-300"></div>
@@ -55,7 +59,7 @@ export default function Timeline() {
                       <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-pink-500" />
                         <span>
-                          {startDate.toLocaleDateString('en-US', { 
+                          {startDate.toLocaleDateString(locale, { 
                             weekday: 'long', 
                             year: 'numeric', 
                             month: 'long', 
@@ -64,11 +68,12 @@ export default function Timeline() {
                         </span>
                         <span className="text-gray-400">•</span>
                         <span>
-                          {startDate.toLocaleTimeString('en-US', { 
+                          {startDate.toLocaleTimeString(locale, { 
                             hour: 'numeric', 
                             minute: '2-digit' 
                           })}
-                          {endDate && ` - ${endDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`}
+                          {endDate &&
+                            ` - ${endDate.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit' })}`}
                         </span>
                       </div>
                       
@@ -81,7 +86,7 @@ export default function Timeline() {
                       
                       {event.dress_code && (
                         <div className="mt-2">
-                          <span className="font-medium text-gray-700">Dress Code: </span>
+                          <span className="font-medium text-gray-700">{t('dressCodeLabel')} </span>
                           <span className="text-gray-600">{event.dress_code}</span>
                         </div>
                       )}

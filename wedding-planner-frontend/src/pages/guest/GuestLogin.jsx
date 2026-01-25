@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../../lib/api'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function GuestLogin() {
+  const { t } = useLanguage()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -23,7 +25,7 @@ export default function GuestLogin() {
       
       navigate('/')
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed. Please check your credentials.')
+      setError(err.response?.data?.error || t('guestLoginFailed'))
     } finally {
       setLoading(false)
     }
@@ -34,10 +36,10 @@ export default function GuestLogin() {
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-4xl font-bold text-gray-900 mb-2">
-            Welcome Back
+            {t('guestLoginTitle')}
           </h2>
           <p className="text-gray-600">
-            Please sign in to access your RSVP
+            {t('guestLoginSubtitle')}
           </p>
         </div>
         
@@ -51,7 +53,7 @@ export default function GuestLogin() {
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div>
               <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+                {t('guestLoginUsername')}
               </label>
               <input
                 id="username"
@@ -61,13 +63,13 @@ export default function GuestLogin() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                placeholder="Enter your username"
+                placeholder={t('guestLoginUsernamePlaceholder')}
               />
             </div>
             
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+                {t('guestLoginPassword')}
               </label>
               <input
                 id="password"
@@ -77,7 +79,7 @@ export default function GuestLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-pink-500"
-                placeholder="Enter your password"
+                placeholder={t('guestLoginPasswordPlaceholder')}
               />
             </div>
 
@@ -86,7 +88,7 @@ export default function GuestLogin() {
               disabled={loading}
               className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 disabled:opacity-50 transition-all"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
+              {loading ? t('guestLoginSigningIn') : t('guestLoginSignIn')}
             </button>
           </form>
         </div>

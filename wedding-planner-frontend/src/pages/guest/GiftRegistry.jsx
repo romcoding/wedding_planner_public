@@ -1,15 +1,34 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { Gift, ExternalLink, DollarSign, Sparkles } from 'lucide-react'
+import { useLanguage } from '../../contexts/LanguageContext'
 
 export default function GiftRegistry() {
+  const { t } = useLanguage()
+  const BASE_CURRENCY = 'CHF'
+  const formatMoney = (amount, currency = BASE_CURRENCY) => {
+    const n = Number(amount || 0)
+    try {
+      return new Intl.NumberFormat('de-CH', {
+        style: 'currency',
+        currency,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Number.isFinite(n) ? n : 0)
+    } catch {
+      const safe = Number.isFinite(n) ? n : 0
+      return `${currency} ${Math.round(safe)}`
+    }
+  }
+
   const { data: registryItems, isLoading } = useQuery({
     queryKey: ['gift-registry'],
     queryFn: () => api.get('/gift-registry').then((res) => res.data),
   })
 
   if (isLoading) {
-    return <div className="text-center py-8">Loading registry...</div>
+    return <div className="text-center py-8">{t('giftRegistryLoading')}</div>
   }
 
   const getIcon = (type) => {
@@ -28,22 +47,21 @@ export default function GiftRegistry() {
   const getTypeLabel = (type) => {
     switch (type) {
       case 'external_link':
-        return 'Registry Link'
+        return t('giftRegistryTypeExternal')
       case 'cash_fund':
-        return 'Cash Fund'
+        return t('giftRegistryTypeCash')
       case 'experience':
-        return 'Experience Fund'
+        return t('giftRegistryTypeExperience')
       default:
-        return 'Gift'
+        return t('giftRegistryTypeDefault')
     }
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">Gift Registry</h2>
+      <h2 className="text-3xl font-bold text-gray-900 mb-6">{t('giftRegistryTitle')}</h2>
       <p className="text-gray-600 mb-8">
-        Your presence at our wedding is the greatest gift of all. However, if you wish to honor us with a gift, 
-        we have registered at the following places:
+        {t('giftRegistryIntro')}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -74,7 +92,7 @@ export default function GiftRegistry() {
                   className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
                 >
                   <ExternalLink className="w-4 h-4" />
-                  Visit Registry
+                  {t('giftRegistryVisit')}
                 </a>
               )}
 
@@ -82,9 +100,9 @@ export default function GiftRegistry() {
                 <div className="space-y-3">
                   <div>
                     <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Progress</span>
+                      <span>{t('giftRegistryProgress')}</span>
                       <span>
-                        ${item.current_amount?.toFixed(2) || '0.00'} / ${item.target_amount?.toFixed(2) || '0.00'}
+                        {formatMoney(item.current_amount || 0)} / {formatMoney(item.target_amount || 0)}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -97,7 +115,7 @@ export default function GiftRegistry() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-500">
-                    Contributions can be made through the link provided by the couple.
+                    {t('giftRegistryCashHint')}
                   </p>
                 </div>
               )}
@@ -106,9 +124,9 @@ export default function GiftRegistry() {
                 <div className="space-y-3">
                   <div>
                     <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Progress</span>
+                      <span>{t('giftRegistryProgress')}</span>
                       <span>
-                        ${item.current_amount?.toFixed(2) || '0.00'} / ${item.target_amount?.toFixed(2) || '0.00'}
+                        {formatMoney(item.current_amount || 0)} / {formatMoney(item.target_amount || 0)}
                       </span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
@@ -121,7 +139,7 @@ export default function GiftRegistry() {
                     </div>
                   </div>
                   <p className="text-sm text-gray-500">
-                    Help us create unforgettable memories!
+                    {t('giftRegistryExperienceHint')}
                   </p>
                 </div>
               )}
@@ -130,7 +148,7 @@ export default function GiftRegistry() {
         ) : (
           <div className="col-span-full text-center py-12 text-gray-500">
             <Gift className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p>No registry items available yet.</p>
+            <p>{t('giftRegistryEmpty')}</p>
           </div>
         )}
       </div>
