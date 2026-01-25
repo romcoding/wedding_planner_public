@@ -12,7 +12,7 @@ class Cost(db.Model):
     description = db.Column(db.Text)
     category = db.Column(db.String(50), nullable=False)  # venue, catering, decoration, etc.
     amount = db.Column(db.Numeric(10, 2), nullable=False)
-    currency = db.Column(db.String(3), default='EUR')  # EUR, USD, GBP, CHF
+    currency = db.Column(db.String(3), default='CHF')  # CHF, EUR, USD, GBP
     status = db.Column(db.String(20), default='planned')  # planned, paid, pending
     payment_date = db.Column(db.Date)
     vendor_name = db.Column(db.String(200))  # Renamed from vendor for clarity
@@ -39,7 +39,7 @@ class Cost(db.Model):
             'description': self.description,
             'category': self.category,
             'amount': float(self.amount),
-            'currency': self.currency or 'EUR',
+            'currency': self.currency or 'CHF',
             'status': self.status,
             'payment_date': self.payment_date.isoformat() if self.payment_date else None,
             'vendor_name': self.vendor_name or self.vendor,  # Fallback to vendor for backward compatibility

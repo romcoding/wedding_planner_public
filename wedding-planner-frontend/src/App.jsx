@@ -6,6 +6,7 @@ import { LanguageProvider } from './contexts/LanguageContext'
 import { trackRouteChange } from './utils/analytics'
 import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
+import GuestThemeShell from './layouts/GuestThemeShell'
 import LoginPage from './pages/admin/LoginPage'
 import AdminDashboard from './pages/admin/Dashboard'
 import GuestsPage from './pages/admin/GuestsPage'
@@ -49,12 +50,14 @@ function GuestRoutes() {
   return (
     <LanguageProvider initialLanguage={guest?.language || 'en'}>
       <Routes>
-        <Route path="/login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
-        <Route path="/register" element={<GuestRegister />} />
-        <Route path="/rsvp/:token" element={<RSVP />} />
-        <Route path="/" element={<GuestLayout />}>
-          <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
-          <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
+        <Route element={<GuestThemeShell />}>
+          <Route path="login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
+          <Route path="register" element={<GuestRegister />} />
+          <Route path="rsvp/:token" element={<RSVP />} />
+          <Route element={<GuestLayout />}>
+            <Route index element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
+            <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
+          </Route>
         </Route>
       </Routes>
     </LanguageProvider>

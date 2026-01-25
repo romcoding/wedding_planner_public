@@ -20,6 +20,23 @@ const CATEGORIES = [
 ]
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0', '#FFB347']
+const BASE_CURRENCY = 'CHF'
+
+function formatMoney(amount, currency = BASE_CURRENCY) {
+  const n = Number(amount || 0)
+  try {
+    return new Intl.NumberFormat('de-CH', {
+      style: 'currency',
+      currency,
+      currencyDisplay: 'code',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(n) ? n : 0)
+  } catch {
+    const safe = Number.isFinite(n) ? n : 0
+    return `${currency} ${safe.toFixed(2)}`
+  }
+}
 
 const CostsPage = () => {
   const queryClient = useQueryClient()
@@ -30,7 +47,7 @@ const CostsPage = () => {
     name: '',
     description: '',
     amount: '',
-    currency: 'EUR',
+    currency: BASE_CURRENCY,
     category: '',
     status: 'planned',
     payment_date: '',
@@ -109,7 +126,7 @@ const CostsPage = () => {
       name: '',
       description: '',
       amount: '',
-      currency: 'EUR',
+      currency: BASE_CURRENCY,
       category: '',
       status: 'planned',
       payment_date: '',
@@ -129,7 +146,7 @@ const CostsPage = () => {
       name: cost.name || '',
       description: cost.description || '',
       amount: cost.amount || '',
-      currency: cost.currency || 'EUR',
+      currency: cost.currency || BASE_CURRENCY,
       category: cost.category || '',
       status: cost.status || 'planned',
       payment_date: cost.payment_date ? new Date(cost.payment_date).toISOString().split('T')[0] : '',
@@ -230,15 +247,15 @@ const CostsPage = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 mb-1">Total Planned</p>
-          <p className="text-2xl font-bold text-gray-900">${planned.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-gray-900">{formatMoney(planned, BASE_CURRENCY)}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 mb-1">Total Pending</p>
-          <p className="text-2xl font-bold text-yellow-600">${pending.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-yellow-600">{formatMoney(pending, BASE_CURRENCY)}</p>
         </div>
         <div className="bg-white rounded-lg shadow p-4">
           <p className="text-sm text-gray-600 mb-1">Total Paid</p>
-          <p className="text-2xl font-bold text-green-600">${paid.toFixed(2)}</p>
+          <p className="text-2xl font-bold text-green-600">{formatMoney(paid, BASE_CURRENCY)}</p>
         </div>
       </div>
 
@@ -252,7 +269,7 @@ const CostsPage = () => {
           <div className="space-y-2">
             {analytics.alerts.map((alert, index) => (
               <div key={index} className="text-sm text-yellow-700">
-                <strong>{alert.category}:</strong> {alert.percentage}% of planned budget spent ({alert.spent.toFixed(2)} / {alert.planned.toFixed(2)})
+                  <strong>{alert.category}:</strong> {alert.percentage}% of planned budget spent ({formatMoney(alert.spent, BASE_CURRENCY)} / {formatMoney(alert.planned, BASE_CURRENCY)})
               </div>
             ))}
           </div>
@@ -280,7 +297,7 @@ const CostsPage = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip formatter={(value) => formatMoney(value, BASE_CURRENCY)} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -291,7 +308,7 @@ const CostsPage = () => {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="name" />
                 <YAxis />
-                <Tooltip />
+                <Tooltip formatter={(value) => formatMoney(value, BASE_CURRENCY)} />
                 <Legend />
                 <Bar dataKey="planned" fill="#8884d8" name="Planned" />
                 <Bar dataKey="paid" fill="#82ca9d" name="Paid" />
@@ -355,10 +372,10 @@ const CostsPage = () => {
                         onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                       >
+                        <option value="CHF">CHF</option>
                         <option value="EUR">EUR</option>
                         <option value="USD">USD</option>
                         <option value="GBP">GBP</option>
-                        <option value="CHF">CHF</option>
                       </select>
                       <input
                         type="number"
@@ -562,7 +579,7 @@ const CostsPage = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        ${parseFloat(cost.amount).toFixed(2)}
+                        {formatMoney(cost.amount, cost.currency || BASE_CURRENCY)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {cost.category || '-'}

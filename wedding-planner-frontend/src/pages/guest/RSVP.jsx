@@ -652,24 +652,55 @@ export default function RSVP() {
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">{t('joinOurCelebration')}</h2>
             <p className="text-gray-600">{t('passIntro')}</p>
-            <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               {rsvpImages && rsvpImages.length > 0 ? (
-                rsvpImages.map((image, index) => (
-                  <div
-                    key={image.id}
-                    className="relative rounded-2xl overflow-hidden shadow-lg bg-white"
-                    style={{ aspectRatio: '4/5' }}
-                  >
-                    <img
-                      src={image.url}
-                      alt={image.alt_text || `Wedding Photo ${index + 1}`}
-                      className="w-full h-full object-cover object-center"
-                    />
-                  </div>
-                ))
+                <>
+                  {/* Big lead image */}
+                  {rsvpImages[0] && (
+                    <div className="col-span-2 relative rounded-2xl overflow-hidden shadow-lg bg-white" style={{ aspectRatio: '16/9' }}>
+                      <img
+                        src={rsvpImages[0].url}
+                        alt={rsvpImages[0].alt_text || 'Wedding photo'}
+                        className="w-full h-full object-cover object-center"
+                        loading="lazy"
+                      />
+                    </div>
+                  )}
+                  {/* Two supporting images */}
+                  {rsvpImages.slice(1, 3).map((image) => (
+                    <div key={image.id} className="relative rounded-2xl overflow-hidden shadow-lg bg-white" style={{ aspectRatio: '4/5' }}>
+                      <img
+                        src={image.url}
+                        alt={image.alt_text || 'Wedding photo'}
+                        className="w-full h-full object-cover object-center"
+                        loading="lazy"
+                      />
+                    </div>
+                  ))}
+                  {/* If only one image exists, fill the second row with a soft placeholder */}
+                  {(!rsvpImages[1] || !rsvpImages[2]) &&
+                    Array.from({ length: 2 - rsvpImages.slice(1, 3).length }).map((_, idx) => (
+                      <div
+                        key={`ph-${idx}`}
+                        className="relative bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center"
+                        style={{ aspectRatio: '4/5' }}
+                      >
+                        <div className="text-center">
+                          <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
+                          <p className="text-white/90 text-sm">{t('comingSoon')}</p>
+                        </div>
+                      </div>
+                    ))}
+                </>
               ) : (
                 <>
-                  {[1, 2, 3].map((num) => (
+                  <div className="col-span-2 relative bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 rounded-2xl overflow-hidden flex items-center justify-center" style={{ aspectRatio: '16/9' }}>
+                    <div className="text-center">
+                      <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />
+                      <p className="text-white/90 text-sm">Photo</p>
+                    </div>
+                  </div>
+                  {[1, 2].map((num) => (
                     <div
                       key={num}
                       className="relative bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center"

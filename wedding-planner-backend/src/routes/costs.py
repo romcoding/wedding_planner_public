@@ -72,7 +72,7 @@ def create_cost():
         description=data.get('description'),
         category=data['category'],
         amount=amount,  # Use parsed float
-        currency=data.get('currency', 'EUR'),
+        currency=data.get('currency', 'CHF'),
         status=data.get('status', 'planned'),
         payment_date=payment_date,
         vendor_name=data.get('vendor_name') or data.get('vendor'),  # Support both
