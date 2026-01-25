@@ -657,13 +657,13 @@ export default function RSVP() {
                 rsvpImages.map((image, index) => (
                   <div
                     key={image.id}
-                    className="relative rounded-2xl overflow-hidden shadow-lg"
-                    style={{ aspectRatio: '21/29' }}
+                    className="relative rounded-2xl overflow-hidden shadow-lg bg-white"
+                    style={{ aspectRatio: '4/5' }}
                   >
                     <img
                       src={image.url}
                       alt={image.alt_text || `Wedding Photo ${index + 1}`}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover object-center"
                     />
                   </div>
                 ))
@@ -673,7 +673,7 @@ export default function RSVP() {
                     <div
                       key={num}
                       className="relative bg-gradient-to-br from-pink-200 to-purple-200 rounded-2xl overflow-hidden flex items-center justify-center"
-                      style={{ aspectRatio: '21/29' }}
+                      style={{ aspectRatio: '4/5' }}
                     >
                       <div className="text-center">
                         <Camera className="w-12 h-12 text-white/80 mx-auto mb-2" />

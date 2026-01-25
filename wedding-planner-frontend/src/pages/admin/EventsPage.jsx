@@ -10,6 +10,30 @@ import { PlusCircle, Trash, Edit, Calendar as CalendarIcon, MapPin, X, List, Gri
 moment.locale('en')
 const localizer = momentLocalizer(moment)
 
+function pad2(n) {
+  return String(n).padStart(2, '0')
+}
+
+// `datetime-local` expects a local time string: "YYYY-MM-DDTHH:mm"
+// We store/send "naive" ISO strings (no timezone) to avoid UTC shifts in the admin UI.
+function toDateTimeLocalValue(isoString) {
+  if (!isoString) return ''
+  const s = String(isoString).trim()
+
+  // If the string carries timezone info, convert to local date parts.
+  const hasTz = s.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(s)
+  if (hasTz) {
+    const d = new Date(s)
+    if (Number.isNaN(d.getTime())) return ''
+    return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+  }
+
+  // Otherwise treat as local/naive and just shape it for the input.
+  const normalized = s.replace(' ', 'T')
+  // fromisoformat() returns "YYYY-MM-DDTHH:mm:ss" -> trim seconds
+  return normalized.length >= 16 ? normalized.slice(0, 16) : normalized
+}
+
 const EventsPage = () => {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
@@ -177,8 +201,8 @@ const EventsPage = () => {
       name: event.name,
       description: event.description || '',
       location: event.location || '',
-      start_time: event.start_time ? new Date(event.start_time).toISOString().slice(0, 16) : '',
-      end_time: event.end_time ? new Date(event.end_time).toISOString().slice(0, 16) : '',
+      start_time: event.start_time ? toDateTimeLocalValue(event.start_time) : '',
+      end_time: event.end_time ? toDateTimeLocalValue(event.end_time) : '',
       end_date: event.end_date || '',
       order: event.order || 0,
       is_public: event.is_public,
@@ -208,13 +232,13 @@ const EventsPage = () => {
       return
     }
     
-    // Convert local datetime to ISO format
+    // Keep local datetime values as-is (avoid UTC conversion / time shifting).
     let payload
     try {
       payload = {
         ...formData,
-        start_time: new Date(formData.start_time).toISOString(),
-        end_time: formData.end_time ? new Date(formData.end_time).toISOString() : null,
+        start_time: String(formData.start_time || '').trim(),
+        end_time: formData.end_time ? String(formData.end_time).trim() : null,
         end_date: formData.end_date || null,
         order: parseInt(formData.order, 10) || 0,
       }

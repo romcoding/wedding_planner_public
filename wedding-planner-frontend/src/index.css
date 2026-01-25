@@ -95,18 +95,68 @@ body {
    Guest theme overrides (scoped to guest portal)
    These map Tailwind's pink/purple utilities to the admin-configured theme colors.
    ========================================= */
+.guest-theme .text-pink-700 { color: var(--wp-primary) !important; }
 .guest-theme .text-pink-500 { color: var(--wp-primary) !important; }
 .guest-theme .text-pink-600 { color: var(--wp-primary) !important; }
+.guest-theme .text-purple-500 { color: var(--wp-secondary) !important; }
 .guest-theme .text-purple-600 { color: var(--wp-secondary) !important; }
 .guest-theme .text-purple-700 { color: var(--wp-secondary) !important; }
 
+.guest-theme .bg-pink-50 { background-color: var(--wp-primary-5) !important; }
+.guest-theme .bg-pink-100 { background-color: var(--wp-primary-12) !important; }
+.guest-theme .bg-pink-200 { background-color: var(--wp-primary-20) !important; }
+.guest-theme .bg-pink-300 { background-color: var(--wp-primary-30) !important; }
 .guest-theme .bg-pink-500 { background-color: var(--wp-primary) !important; }
 .guest-theme .bg-pink-600 { background-color: var(--wp-primary) !important; }
+.guest-theme .bg-purple-50 { background-color: var(--wp-secondary-5) !important; }
+.guest-theme .bg-purple-100 { background-color: var(--wp-secondary-12) !important; }
+.guest-theme .bg-purple-200 { background-color: var(--wp-secondary-20) !important; }
+.guest-theme .bg-purple-300 { background-color: var(--wp-secondary-30) !important; }
+.guest-theme .bg-purple-500 { background-color: var(--wp-secondary) !important; }
 .guest-theme .bg-purple-600 { background-color: var(--wp-secondary) !important; }
 .guest-theme .bg-purple-700 { background-color: var(--wp-secondary) !important; }
 
+/* Borders */
+.guest-theme .border-pink-200 { border-color: var(--wp-primary-20) !important; }
+.guest-theme .border-pink-300 { border-color: var(--wp-primary-30) !important; }
+.guest-theme .border-pink-500 { border-color: var(--wp-primary) !important; }
+.guest-theme .border-purple-200 { border-color: var(--wp-secondary-20) !important; }
+.guest-theme .border-purple-300 { border-color: var(--wp-secondary-30) !important; }
+.guest-theme .border-purple-500 { border-color: var(--wp-secondary) !important; }
+
 /* Tailwind gradient stop utilities */
+.guest-theme .from-pink-50 { --tw-gradient-from: var(--wp-primary-5) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .from-pink-100 { --tw-gradient-from: var(--wp-primary-12) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .from-pink-200 { --tw-gradient-from: var(--wp-primary-20) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .from-pink-300 { --tw-gradient-from: var(--wp-primary-30) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
 .guest-theme .from-pink-500 { --tw-gradient-from: var(--wp-primary) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
 .guest-theme .from-pink-600 { --tw-gradient-from: var(--wp-primary) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .via-pink-200 { --tw-gradient-via: var(--wp-primary-20) !important; }
+.guest-theme .via-pink-300 { --tw-gradient-via: var(--wp-primary-30) !important; }
+.guest-theme .to-pink-300 { --tw-gradient-to: var(--wp-primary-30) var(--tw-gradient-to-position) !important; }
+.guest-theme .to-pink-500 { --tw-gradient-to: var(--wp-primary) var(--tw-gradient-to-position) !important; }
+.guest-theme .to-pink-600 { --tw-gradient-to: var(--wp-primary) var(--tw-gradient-to-position) !important; }
+.guest-theme .from-purple-200 { --tw-gradient-from: var(--wp-secondary-20) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .from-purple-300 { --tw-gradient-from: var(--wp-secondary-30) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .via-purple-200 { --tw-gradient-via: var(--wp-secondary-20) !important; }
+.guest-theme .via-purple-300 { --tw-gradient-via: var(--wp-secondary-30) !important; }
+.guest-theme .to-purple-50 { --tw-gradient-to: var(--wp-secondary-5) var(--tw-gradient-to-position) !important; }
+.guest-theme .to-purple-100 { --tw-gradient-to: var(--wp-secondary-12) var(--tw-gradient-to-position) !important; }
+.guest-theme .to-purple-200 { --tw-gradient-to: var(--wp-secondary-20) var(--tw-gradient-to-position) !important; }
+.guest-theme .to-purple-300 { --tw-gradient-to: var(--wp-secondary-30) var(--tw-gradient-to-position) !important; }
+.guest-theme .to-purple-500 { --tw-gradient-to: var(--wp-secondary) var(--tw-gradient-to-position) !important; }
 .guest-theme .to-purple-600 { --tw-gradient-to: var(--wp-secondary) var(--tw-gradient-to-position) !important; }
 .guest-theme .to-purple-700 { --tw-gradient-to: var(--wp-secondary) var(--tw-gradient-to-position) !important; }
+
+/* Hover gradient stops used by buttons */
+.guest-theme .hover\\:from-pink-600:hover { --tw-gradient-from: var(--wp-primary) var(--tw-gradient-from-position) !important; --tw-gradient-to: rgb(0 0 0 / 0) var(--tw-gradient-to-position) !important; }
+.guest-theme .hover\\:to-purple-700:hover { --tw-gradient-to: var(--wp-secondary) var(--tw-gradient-to-position) !important; }
+
+/* Hover background helpers */
+.guest-theme .hover\\:bg-pink-600:hover { background-color: var(--wp-primary) !important; }
+.guest-theme .hover\\:bg-purple-600:hover { background-color: var(--wp-secondary) !important; }
+
+/* Ring/focus helpers commonly used across guest pages */
+.guest-theme .ring-pink-500 { --tw-ring-color: var(--wp-primary) !important; }
+.guest-theme .focus\\:ring-pink-500:focus { --tw-ring-color: var(--wp-primary) !important; }
+.guest-theme .focus\\:border-pink-500:focus { border-color: var(--wp-primary) !important; }
