@@ -337,31 +337,32 @@ export default function GuestInfo() {
                       <MapPin className="w-5 h-5 text-pink-500" />
                       {t('guestAccommodationVenueTitle')}
                     </h3>
+                    {readContent('guest_accommodation_venue_name') && (
+                      <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
+                        <div className="text-lg font-semibold text-gray-900">{readContent('guest_accommodation_venue_name')}</div>
+                        {readContent('guest_accommodation_venue_address') && (
+                          <div className="text-gray-600">{readContent('guest_accommodation_venue_address')}</div>
+                        )}
+                        {readContent('guest_accommodation_venue_city_region') && (
+                          <div className="text-gray-600">{readContent('guest_accommodation_venue_city_region')}</div>
+                        )}
+                        {readContent('guest_accommodation_venue_website') && (
+                          <a
+                            href={readContent('guest_accommodation_venue_website')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex mt-3 text-pink-600 hover:underline"
+                          >
+                            {t('guestAccommodationOpenWebsite')}
+                          </a>
+                        )}
+                      </div>
+                    )}
+
                     <div className="text-gray-600 whitespace-pre-wrap break-words">
                       {readContent('guest_accommodation_details') || t('guestAccommodationDetailsFallback')}
                     </div>
                   </div>
-                  {readContent('guest_accommodation_venue_name') && (
-                    <div className="bg-white border border-gray-200 rounded-2xl p-5">
-                      <div className="text-lg font-semibold text-gray-900">{readContent('guest_accommodation_venue_name')}</div>
-                      {readContent('guest_accommodation_venue_address') && (
-                        <div className="text-gray-600">{readContent('guest_accommodation_venue_address')}</div>
-                      )}
-                      {readContent('guest_accommodation_venue_city_region') && (
-                        <div className="text-gray-600">{readContent('guest_accommodation_venue_city_region')}</div>
-                      )}
-                      {readContent('guest_accommodation_venue_website') && (
-                        <a
-                          href={readContent('guest_accommodation_venue_website')}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex mt-3 text-pink-600 hover:underline"
-                        >
-                          {t('guestAccommodationOpenWebsite')}
-                        </a>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             )}
@@ -378,20 +379,6 @@ export default function GuestInfo() {
                       <Calendar className="w-5 h-5 text-pink-500" />
                       {t('guestGiftsScheduleTitle')}
                     </h3>
-                    {readContent('guest_event_gifts_event_label') && (
-                      <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
-                        <div className="text-sm text-gray-600">{t('guestGiftsFeaturedEvent')}</div>
-                        <div className="text-gray-900 font-semibold">{readContent('guest_event_gifts_event_label')}</div>
-                      </div>
-                    )}
-                    {readContent('guest_event_gifts_timeline_details') && (
-                      <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
-                        <div className="text-sm text-gray-600">{t('guestGiftsDetailsTitle')}</div>
-                        <div className="text-gray-900 whitespace-pre-wrap break-words">
-                          {readContent('guest_event_gifts_timeline_details')}
-                        </div>
-                      </div>
-                    )}
                     <Timeline showTitle={false} />
                   </div>
                   <div>
@@ -585,6 +572,20 @@ export default function GuestInfo() {
         {/* Timeline Section */}
         <div className="max-w-4xl mx-auto mt-12">
           <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
+            {(t('guest_event_gifts_event_label') || '').trim() && (
+              <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
+                <div className="text-sm text-gray-600">{t('guestGiftsFeaturedEvent')}</div>
+                <div className="text-gray-900 font-semibold">{t('guest_event_gifts_event_label')}</div>
+              </div>
+            )}
+            {(t('guest_event_gifts_timeline_details') || '').trim() && (
+              <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
+                <div className="text-sm text-gray-600">{t('guestGiftsDetailsTitle')}</div>
+                <div className="text-gray-900 whitespace-pre-wrap break-words">
+                  {t('guest_event_gifts_timeline_details')}
+                </div>
+              </div>
+            )}
             <Timeline />
           </div>
         </div>

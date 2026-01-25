@@ -27,23 +27,23 @@ import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart
 import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageComponents'
 import VenueSetupWizard from './VenueSetupWizard'
 
-export default function VenuesPage() {
-  const formatMoney = (amount, currency = 'CHF') => {
-    const n = Number(amount || 0)
-    if (!Number.isFinite(n)) return `${currency} 0`
-    try {
-      return new Intl.NumberFormat('de-CH', {
-        style: 'currency',
-        currency,
-        currencyDisplay: 'code',
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 0,
-      }).format(n)
-    } catch {
-      return `${currency} ${Math.round(n)}`
-    }
+function formatMoney(amount, currency = 'CHF') {
+  const n = Number(amount || 0)
+  if (!Number.isFinite(n)) return `${currency} 0`
+  try {
+    return new Intl.NumberFormat('de-CH', {
+      style: 'currency',
+      currency,
+      currencyDisplay: 'code',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(n)
+  } catch {
+    return `${currency} ${Math.round(n)}`
   }
+}
 
+export default function VenuesPage() {
   const queryClient = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [showWizard, setShowWizard] = useState(false)

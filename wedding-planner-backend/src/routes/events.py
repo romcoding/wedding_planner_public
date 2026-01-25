@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Event, User
+from src.models import db, Event, User, Content, Venue
 from src.utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
@@ -187,4 +187,186 @@ def delete_event(event_id):
     except IntegrityError:
         db.session.rollback()
         return jsonify({'error': 'Failed to delete event'}), 500
+
+
+def _upsert_public_content_key(key: str, title: str, content_en: str, content_de: str, content_fr: str):
+    existing = Content.query.filter_by(key=key).first()
+    if existing:
+        existing.title = title
+        existing.content_type = 'text'
+        existing.is_public = True
+        existing.content_en = content_en
+        existing.content_de = content_de
+        existing.content_fr = content_fr
+        # legacy field
+        existing.content = content_en
+        return existing
+    c = Content(
+        key=key,
+        title=title,
+        content_type='text',
+        is_public=True,
+        content_en=content_en,
+        content_de=content_de,
+        content_fr=content_fr,
+        content=content_en,
+    )
+    db.session.add(c)
+    return c
+
+
+@events_bp.route('/guest-portal-settings', methods=['GET'])
+@jwt_required()
+def get_guest_portal_settings():
+    """Get guest-portal card settings (admin/planner) without opening full content editing."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    keys = [
+        'guest_event_gifts_event_id',
+        'guest_event_gifts_event_label',
+        'guest_event_gifts_timeline_details',
+        'guest_accommodation_venue_id',
+        'guest_accommodation_venue_name',
+        'guest_accommodation_venue_address',
+        'guest_accommodation_venue_city_region',
+        'guest_accommodation_venue_website',
+        'guest_accommodation_details',
+    ]
+    items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
+
+    def pack(key):
+        c = items.get(key)
+        return {
+            'en': (c.content_en or c.content or '') if c else '',
+            'de': (c.content_de or c.content or '') if c else '',
+            'fr': (c.content_fr or c.content or '') if c else '',
+        }
+
+    def one(key):
+        c = items.get(key)
+        return (c.content_en or c.content or '') if c else ''
+
+    return jsonify({
+        'guestEventId': one('guest_event_gifts_event_id'),
+        'guestEventLabel': pack('guest_event_gifts_event_label'),
+        'guestEventDetails': pack('guest_event_gifts_timeline_details'),
+        'guestAccommodationVenueId': one('guest_accommodation_venue_id'),
+        'guestAccommodationVenueName': pack('guest_accommodation_venue_name'),
+        'guestAccommodationVenueAddress': pack('guest_accommodation_venue_address'),
+        'guestAccommodationVenueCityRegion': pack('guest_accommodation_venue_city_region'),
+        'guestAccommodationVenueWebsite': pack('guest_accommodation_venue_website'),
+        'guestAccommodationDetails': pack('guest_accommodation_details'),
+    }), 200
+
+
+@events_bp.route('/guest-portal-settings', methods=['POST'])
+@jwt_required()
+def set_guest_portal_settings():
+    """Save guest-portal card settings (admin/planner)."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    data = request.get_json() or {}
+    guest_event_id = str(data.get('guestEventId') or '').strip()
+    guest_event_details = data.get('guestEventDetails') or {}
+    guest_accommodation_venue_id = str(data.get('guestAccommodationVenueId') or '').strip()
+    guest_accommodation_details = data.get('guestAccommodationDetails') or {}
+
+    selected_event = None
+    if guest_event_id:
+        try:
+            selected_event = Event.query.get(int(guest_event_id))
+        except Exception:
+            selected_event = None
+
+    selected_venue = None
+    if guest_accommodation_venue_id:
+        try:
+            selected_venue = Venue.query.get(int(guest_accommodation_venue_id))
+        except Exception:
+            selected_venue = None
+
+    def fmt_label(event: Event, locale: str):
+        if not event or not event.start_time:
+            return event.name if event else ''
+        # Format in a stable way; timezone conversion is handled client-side for display anyway
+        dt = event.start_time
+        date = dt.strftime('%Y-%m-%d')
+        time = dt.strftime('%H:%M')
+        return f"{event.name} — {date} {time}"
+
+    _upsert_public_content_key(
+        'guest_event_gifts_event_id',
+        'Guest: Event & Gifts featured event id',
+        guest_event_id, guest_event_id, guest_event_id
+    )
+    _upsert_public_content_key(
+        'guest_event_gifts_event_label',
+        'Guest: Event & Gifts featured event label',
+        fmt_label(selected_event, 'en-US') if selected_event else '',
+        fmt_label(selected_event, 'de-CH') if selected_event else '',
+        fmt_label(selected_event, 'fr-CH') if selected_event else '',
+    )
+    _upsert_public_content_key(
+        'guest_event_gifts_timeline_details',
+        'Guest: Event & Gifts timeline details',
+        str(guest_event_details.get('en') or ''),
+        str(guest_event_details.get('de') or ''),
+        str(guest_event_details.get('fr') or ''),
+    )
+
+    _upsert_public_content_key(
+        'guest_accommodation_venue_id',
+        'Guest: Accommodation venue id',
+        guest_accommodation_venue_id, guest_accommodation_venue_id, guest_accommodation_venue_id
+    )
+    _upsert_public_content_key(
+        'guest_accommodation_venue_name',
+        'Guest: Accommodation venue name',
+        (selected_venue.name if selected_venue else ''),
+        (selected_venue.name if selected_venue else ''),
+        (selected_venue.name if selected_venue else ''),
+    )
+    _upsert_public_content_key(
+        'guest_accommodation_venue_address',
+        'Guest: Accommodation venue address',
+        (selected_venue.address if selected_venue else ''),
+        (selected_venue.address if selected_venue else ''),
+        (selected_venue.address if selected_venue else ''),
+    )
+    city_region = ''
+    if selected_venue:
+        if selected_venue.city and selected_venue.region:
+            city_region = f"{selected_venue.city}, {selected_venue.region}"
+        else:
+            city_region = selected_venue.location or selected_venue.city or ''
+    _upsert_public_content_key(
+        'guest_accommodation_venue_city_region',
+        'Guest: Accommodation venue city/region',
+        city_region, city_region, city_region
+    )
+    _upsert_public_content_key(
+        'guest_accommodation_venue_website',
+        'Guest: Accommodation venue website',
+        (selected_venue.website if selected_venue else ''),
+        (selected_venue.website if selected_venue else ''),
+        (selected_venue.website if selected_venue else ''),
+    )
+    _upsert_public_content_key(
+        'guest_accommodation_details',
+        'Guest: Accommodation details',
+        str(guest_accommodation_details.get('en') or ''),
+        str(guest_accommodation_details.get('de') or ''),
+        str(guest_accommodation_details.get('fr') or ''),
+    )
+
+    try:
+        db.session.commit()
+        return jsonify({'ok': True}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': 'Failed to save guest portal settings', 'details': str(e)}), 500
 

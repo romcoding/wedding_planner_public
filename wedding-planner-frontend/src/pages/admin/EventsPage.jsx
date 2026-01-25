@@ -58,10 +58,11 @@ const EventsPage = () => {
     queryFn: () => api.get('/events').then((res) => res.data),
   })
 
-  // Admin content (for setting wedding date keys)
+  // Admin content (for setting wedding date keys) - admin-only on backend.
   const { data: adminContent } = useQuery({
     queryKey: ['content', 'admin'],
     queryFn: () => api.get('/content?admin=true').then((res) => res.data),
+    retry: false,
   })
 
   // Venues (for guest accommodation selection)
@@ -97,30 +98,30 @@ const EventsPage = () => {
   const [guestAccommodationDetails, setGuestAccommodationDetails] = useState({ en: '', de: '', fr: '' })
   const didInitGuestSettingsRef = useRef(false)
 
+  const { data: guestPortalSettings } = useQuery({
+    queryKey: ['events', 'guest-portal-settings'],
+    queryFn: () => api.get('/events/guest-portal-settings').then((r) => r.data),
+    retry: false,
+  })
+
   useEffect(() => {
     if (didInitGuestSettingsRef.current) return
-    if (!adminContent) return
+    if (!guestPortalSettings) return
 
-    const readOne = (key) => {
-      const item = adminContent?.find((c) => c.key === key)
-      const v = item?.content_en ?? item?.content ?? ''
-      return (v || '').toString()
-    }
-    const readAll = (key) => {
-      const item = adminContent?.find((c) => c.key === key)
-      return {
-        en: (item?.content_en ?? item?.content ?? '').toString(),
-        de: (item?.content_de ?? item?.content ?? '').toString(),
-        fr: (item?.content_fr ?? item?.content ?? '').toString(),
-      }
-    }
-
-    setGuestEventId(readOne('guest_event_gifts_event_id'))
-    setGuestEventDetails(readAll('guest_event_gifts_timeline_details'))
-    setGuestAccommodationVenueId(readOne('guest_accommodation_venue_id'))
-    setGuestAccommodationDetails(readAll('guest_accommodation_details'))
+    setGuestEventId(String(guestPortalSettings.guestEventId || ''))
+    setGuestEventDetails({
+      en: String(guestPortalSettings.guestEventDetails?.en || ''),
+      de: String(guestPortalSettings.guestEventDetails?.de || ''),
+      fr: String(guestPortalSettings.guestEventDetails?.fr || ''),
+    })
+    setGuestAccommodationVenueId(String(guestPortalSettings.guestAccommodationVenueId || ''))
+    setGuestAccommodationDetails({
+      en: String(guestPortalSettings.guestAccommodationDetails?.en || ''),
+      de: String(guestPortalSettings.guestAccommodationDetails?.de || ''),
+      fr: String(guestPortalSettings.guestAccommodationDetails?.fr || ''),
+    })
     didInitGuestSettingsRef.current = true
-  }, [adminContent])
+  }, [guestPortalSettings])
 
   const setWeddingDateFromEvent = useMutation({
     mutationFn: async (event) => {
@@ -171,91 +172,18 @@ const EventsPage = () => {
 
   const saveGuestPortalSettings = useMutation({
     mutationFn: async () => {
-      const selectedEvent = sortedEvents.find((e) => String(e.id) === String(guestEventId))
-      const selectedVenue = venues.find((v) => String(v.id) === String(guestAccommodationVenueId))
-
-      const fmtLabel = (event, locale) => {
-        if (!event?.start_time) return event?.name || ''
-        const d = new Date(event.start_time)
-        const date = new Intl.DateTimeFormat(locale, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).format(d)
-        const time = new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit' }).format(d)
-        return `${event.name} — ${date} ${time}`
-      }
-
-      // Event & Gifts timeline extras
-      await upsertContentKey({
-        key: 'guest_event_gifts_event_id',
-        title: 'Guest: Event & Gifts featured event id',
-        content_en: guestEventId ? String(guestEventId) : '',
-        content_de: guestEventId ? String(guestEventId) : '',
-        content_fr: guestEventId ? String(guestEventId) : '',
-      })
-      await upsertContentKey({
-        key: 'guest_event_gifts_event_label',
-        title: 'Guest: Event & Gifts featured event label',
-        content_en: selectedEvent ? fmtLabel(selectedEvent, 'en-US') : '',
-        content_de: selectedEvent ? fmtLabel(selectedEvent, 'de-CH') : '',
-        content_fr: selectedEvent ? fmtLabel(selectedEvent, 'fr-CH') : '',
-      })
-      await upsertContentKey({
-        key: 'guest_event_gifts_timeline_details',
-        title: 'Guest: Event & Gifts timeline details',
-        content_en: guestEventDetails.en || '',
-        content_de: guestEventDetails.de || '',
-        content_fr: guestEventDetails.fr || '',
-      })
-
-      // Accommodation selection + details
-      await upsertContentKey({
-        key: 'guest_accommodation_venue_id',
-        title: 'Guest: Accommodation venue id',
-        content_en: guestAccommodationVenueId ? String(guestAccommodationVenueId) : '',
-        content_de: guestAccommodationVenueId ? String(guestAccommodationVenueId) : '',
-        content_fr: guestAccommodationVenueId ? String(guestAccommodationVenueId) : '',
-      })
-      await upsertContentKey({
-        key: 'guest_accommodation_venue_name',
-        title: 'Guest: Accommodation venue name',
-        content_en: selectedVenue?.name || '',
-        content_de: selectedVenue?.name || '',
-        content_fr: selectedVenue?.name || '',
-      })
-      await upsertContentKey({
-        key: 'guest_accommodation_venue_address',
-        title: 'Guest: Accommodation venue address',
-        content_en: selectedVenue?.address || '',
-        content_de: selectedVenue?.address || '',
-        content_fr: selectedVenue?.address || '',
-      })
-      await upsertContentKey({
-        key: 'guest_accommodation_venue_city_region',
-        title: 'Guest: Accommodation venue city/region',
-        content_en:
-          selectedVenue?.city && selectedVenue?.region ? `${selectedVenue.city}, ${selectedVenue.region}` : (selectedVenue?.location || selectedVenue?.city || ''),
-        content_de:
-          selectedVenue?.city && selectedVenue?.region ? `${selectedVenue.city}, ${selectedVenue.region}` : (selectedVenue?.location || selectedVenue?.city || ''),
-        content_fr:
-          selectedVenue?.city && selectedVenue?.region ? `${selectedVenue.city}, ${selectedVenue.region}` : (selectedVenue?.location || selectedVenue?.city || ''),
-      })
-      await upsertContentKey({
-        key: 'guest_accommodation_venue_website',
-        title: 'Guest: Accommodation venue website',
-        content_en: selectedVenue?.website || '',
-        content_de: selectedVenue?.website || '',
-        content_fr: selectedVenue?.website || '',
-      })
-      await upsertContentKey({
-        key: 'guest_accommodation_details',
-        title: 'Guest: Accommodation details',
-        content_en: guestAccommodationDetails.en || '',
-        content_de: guestAccommodationDetails.de || '',
-        content_fr: guestAccommodationDetails.fr || '',
+      await api.post('/events/guest-portal-settings', {
+        guestEventId: guestEventId || '',
+        guestEventDetails,
+        guestAccommodationVenueId: guestAccommodationVenueId || '',
+        guestAccommodationDetails,
       })
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['content'])
       queryClient.invalidateQueries(['content', 'public'])
       queryClient.invalidateQueries(['content', 'admin'])
+      queryClient.invalidateQueries(['events', 'guest-portal-settings'])
       alert('Guest portal settings saved.')
     },
     onError: (err) => {
