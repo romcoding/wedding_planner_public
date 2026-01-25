@@ -114,6 +114,8 @@ function MoodboardImageNode({ o, tool, onSelect, onDragEnd, onTransformEnd }) {
       rotation={o.rotation || 0}
       draggable={tool === 'select'}
       onMouseDown={(e) => onSelect(o.id, e)}
+      onTouchStart={(e) => onSelect(o.id, e)}
+      onTap={(e) => onSelect(o.id, e)}
       onDragEnd={onDragEnd}
       onTransformEnd={onTransformEnd}
     />
@@ -231,6 +233,9 @@ export default function MoodboardPage() {
   const containerRef = useRef(null)
   const transformerRef = useRef(null)
   const fileInputRef = useRef(null)
+  const pasteInputRef = useRef(null)
+  const longPressTimerRef = useRef(null)
+  const longPressStartRef = useRef(null) // { x, y }
 
   const didBootstrapRef = useRef(false)
   const gestureRef = useRef({ isPinching: false, startDist: 0, startScale: 1, startCenter: null, startPos: null })
@@ -242,6 +247,8 @@ export default function MoodboardPage() {
   const [keepRatio, setKeepRatio] = useState(true)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false)
+  const [textEditor, setTextEditor] = useState({ open: false, id: null, value: '' })
+  const [pastePrompt, setPastePrompt] = useState({ open: false, pos: null })
 
   const [boardId, setBoardId] = useState(null)
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
@@ -409,6 +416,55 @@ export default function MoodboardPage() {
   const setStageState = (next) => {
     setContent((prev) => ({ ...prev, stage: { ...prev.stage, ...next } }))
   }
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    longPressStartRef.current = null
+  }, [])
+
+  useEffect(() => {
+    return () => cancelLongPress()
+  }, [cancelLongPress])
+
+  const openTextEditor = useCallback(
+    (id) => {
+      const obj = (content.objects || []).find((o) => o.id === id)
+      if (!obj) {
+        setTextEditor({ open: true, id, value: '' })
+        return
+      }
+      if (obj.type !== 'text') return
+      setTextEditor({ open: true, id, value: obj.text || '' })
+    },
+    [content.objects]
+  )
+
+  useEffect(() => {
+    if (!textEditor.open) return
+    const t = setTimeout(() => {
+      try {
+        document.getElementById('moodboard-text-editor')?.focus?.()
+      } catch {
+        // ignore
+      }
+    }, 50)
+    return () => clearTimeout(t)
+  }, [textEditor.open])
+
+  useEffect(() => {
+    if (!pastePrompt.open) return
+    const t = setTimeout(() => {
+      try {
+        pasteInputRef.current?.focus?.()
+      } catch {
+        // ignore
+      }
+    }, 50)
+    return () => clearTimeout(t)
+  }, [pastePrompt.open])
 
   const viewportCenterCanvasPos = useCallback(() => {
     const el = containerRef.current
@@ -624,8 +680,9 @@ export default function MoodboardPage() {
       })
       setActiveTool('select')
     } else if (tool === 'text') {
+      const id = uid('text')
       addObject({
-        id: uid('text'),
+        id,
         type: 'text',
         x: snap(pos.x),
         y: snap(pos.y),
@@ -640,6 +697,7 @@ export default function MoodboardPage() {
         width: 420,
       })
       setActiveTool('select')
+      setTextEditor({ open: true, id, value: 'Text' })
     } else if (tool === 'line') {
       const id = uid('line')
       setDrawingLine({ id, points: [snap(pos.x), snap(pos.y), snap(pos.x), snap(pos.y)] })
@@ -818,6 +876,25 @@ export default function MoodboardPage() {
 
   const handleTouchEnd = () => {
     gestureRef.current = { isPinching: false, startDist: 0, startScale: stageState.scale || 1, startCenter: null, startPos: null }
+  }
+
+  // On tablets, we need single-finger taps to behave like mouse clicks (add/select/draw),
+  // while still supporting pinch-zoom + two-finger pan.
+  const handleStageTouchStart = (e) => {
+    const touches = e?.evt?.touches
+    if (touches && touches.length >= 2) return handleTouchStart(e)
+    return handleStageMouseDown(e)
+  }
+
+  const handleStageTouchMove = (e) => {
+    const touches = e?.evt?.touches
+    if (touches && touches.length >= 2) return handleTouchMove(e)
+    return handleStageMouseMove(e)
+  }
+
+  const handleStageTouchEnd = () => {
+    if (gestureRef.current?.isPinching) return handleTouchEnd()
+    return handleStageMouseUp()
   }
 
   const zoomBy = (delta) => {
@@ -1228,6 +1305,32 @@ export default function MoodboardPage() {
             isDragOverCanvas ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200',
           ].join(' ')}
           style={{ height: 'calc(100vh - 220px)', minHeight: 560, touchAction: 'none' }}
+          onTouchStart={(e) => {
+            // Long-press helper: opens a focusable field so iOS/Android can show "Paste".
+            if (pastePrompt.open) return
+            const t = e.touches?.[0]
+            if (!t) return
+            if ((e.touches?.length || 0) !== 1) return
+
+            cancelLongPress()
+            longPressStartRef.current = { x: t.clientX, y: t.clientY }
+            longPressTimerRef.current = setTimeout(() => {
+              const start = longPressStartRef.current
+              if (!start) return
+              const pos = clientPointToCanvasPos(start.x, start.y)
+              setPastePrompt({ open: true, pos })
+            }, 550)
+          }}
+          onTouchMove={(e) => {
+            const t = e.touches?.[0]
+            const start = longPressStartRef.current
+            if (!t || !start) return
+            const dx = t.clientX - start.x
+            const dy = t.clientY - start.y
+            if (Math.sqrt(dx * dx + dy * dy) > 10) cancelLongPress()
+          }}
+          onTouchEnd={() => cancelLongPress()}
+          onTouchCancel={() => cancelLongPress()}
           onDragEnter={(e) => {
             if (e.dataTransfer?.types?.includes?.('Files')) setIsDragOverCanvas(true)
           }}
@@ -1238,6 +1341,56 @@ export default function MoodboardPage() {
           }}
           onDrop={onDropFiles}
         >
+          {pastePrompt.open && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
+              <div className="absolute inset-0 bg-black/30" onClick={() => setPastePrompt({ open: false, pos: null })} />
+              <div className="relative w-full max-w-sm rounded-2xl bg-white border border-gray-200 shadow-xl p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-bold text-gray-900">Paste image</div>
+                  <button
+                    type="button"
+                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                    onClick={() => setPastePrompt({ open: false, pos: null })}
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="mt-2 text-sm text-gray-700">
+                  Tap below, then choose <span className="font-semibold">Paste</span>.
+                </div>
+                <input
+                  ref={pasteInputRef}
+                  type="text"
+                  inputMode="text"
+                  className="mt-3 w-full px-3 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+                  placeholder="Tap here, then Paste"
+                  onPaste={async (e) => {
+                    const items = Array.from(e.clipboardData?.items || [])
+                    const files = items
+                      .filter((it) => it.kind === 'file' && (it.type || '').startsWith('image/'))
+                      .map((it) => it.getAsFile())
+                      .filter(Boolean)
+                    if (files.length === 0) {
+                      toast.error('No image found in clipboard')
+                      return
+                    }
+                    e.preventDefault()
+                    const base = pastePrompt.pos || viewportCenterCanvasPos()
+                    for (let i = 0; i < files.length; i += 1) {
+                      const pos = { x: base.x + i * 24, y: base.y + i * 24 }
+                      // eslint-disable-next-line no-await-in-loop
+                      await tryUploadFile(files[i], pos)
+                    }
+                    setPastePrompt({ open: false, pos: null })
+                  }}
+                />
+                <div className="mt-3 text-xs text-gray-500">
+                  Tip: for websites that block copying images, download the file and drag & drop it instead.
+                </div>
+              </div>
+            </div>
+          )}
+
           {isDragOverCanvas && (
             <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
               <div className="rounded-2xl bg-white/90 border border-blue-200 shadow px-5 py-4 text-center">
@@ -1260,9 +1413,9 @@ export default function MoodboardPage() {
             onMouseDown={handleStageMouseDown}
             onMouseMove={handleStageMouseMove}
             onMouseUp={handleStageMouseUp}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
+            onTouchStart={handleStageTouchStart}
+            onTouchMove={handleStageTouchMove}
+            onTouchEnd={handleStageTouchEnd}
           >
             <Layer>
               {/* Hard-white canvas background (regardless of admin page bg) */}
@@ -1293,6 +1446,8 @@ export default function MoodboardPage() {
                       rotation={o.rotation || 0}
                       draggable={tool === 'select'}
                       onMouseDown={(e) => handleSelectObject(o.id, e)}
+                      onTouchStart={(e) => handleSelectObject(o.id, e)}
+                      onTap={(e) => handleSelectObject(o.id, e)}
                       onDragEnd={(e) => updateObject(o.id, { x: snap(e.target.x()), y: snap(e.target.y()) })}
                       onTransformEnd={(e) => commitTransform(e.target)}
                     />
@@ -1313,6 +1468,8 @@ export default function MoodboardPage() {
                       rotation={o.rotation || 0}
                       draggable={tool === 'select'}
                       onMouseDown={(e) => handleSelectObject(o.id, e)}
+                      onTouchStart={(e) => handleSelectObject(o.id, e)}
+                      onTap={(e) => handleSelectObject(o.id, e)}
                       onDragEnd={(e) => updateObject(o.id, { x: snap(e.target.x()), y: snap(e.target.y()) })}
                       onTransformEnd={(e) => commitTransform(e.target)}
                     />
@@ -1331,6 +1488,8 @@ export default function MoodboardPage() {
                       lineJoin="round"
                       draggable={tool === 'select'}
                       onMouseDown={(e) => handleSelectObject(o.id, e)}
+                      onTouchStart={(e) => handleSelectObject(o.id, e)}
+                      onTap={(e) => handleSelectObject(o.id, e)}
                       onDragEnd={(e) => updateObject(o.id, { x: snap(e.target.x()), y: snap(e.target.y()) })}
                       onTransformEnd={(e) => commitTransform(e.target)}
                     />
@@ -1354,6 +1513,10 @@ export default function MoodboardPage() {
                       align={o.align || 'left'}
                       draggable={tool === 'select'}
                       onMouseDown={(e) => handleSelectObject(o.id, e)}
+                      onTouchStart={(e) => handleSelectObject(o.id, e)}
+                      onTap={(e) => handleSelectObject(o.id, e)}
+                      onDblClick={() => openTextEditor(o.id)}
+                      onDblTap={() => openTextEditor(o.id)}
                       onDragEnd={(e) => updateObject(o.id, { x: snap(e.target.x()), y: snap(e.target.y()) })}
                       onTransformEnd={(e) => commitTransform(e.target)}
                     />
@@ -1550,6 +1713,13 @@ export default function MoodboardPage() {
 
                 {selectedObject.type === 'text' && (
                   <div className="rounded-xl border border-gray-200 p-3 space-y-4">
+                    <button
+                      type="button"
+                      onClick={() => openTextEditor(selectedObject.id)}
+                      className="w-full px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-sm font-semibold"
+                    >
+                      Edit text (opens keyboard)
+                    </button>
                     <div>
                       <div className="text-xs font-semibold text-gray-700 mb-2">Text</div>
                       <textarea
@@ -1687,6 +1857,54 @@ export default function MoodboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Text editor modal (tablet friendly: auto-focus opens keyboard) */}
+      {textEditor.open && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setTextEditor({ open: false, id: null, value: '' })} />
+          <div className="relative w-full max-w-lg rounded-2xl bg-white border border-gray-200 shadow-xl p-5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="text-sm font-bold text-gray-900">Edit text</div>
+              <button
+                type="button"
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-700"
+                onClick={() => setTextEditor({ open: false, id: null, value: '' })}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <textarea
+              id="moodboard-text-editor"
+              value={textEditor.value}
+              onChange={(e) => setTextEditor((s) => ({ ...s, value: e.target.value }))}
+              className="mt-3 w-full px-3 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
+              rows={5}
+              placeholder="Type your text…"
+              autoFocus
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 font-semibold"
+                onClick={() => {
+                  if (!textEditor.id) return
+                  updateObject(textEditor.id, { text: textEditor.value })
+                  setTextEditor({ open: false, id: null, value: '' })
+                }}
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                className="flex-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-900 hover:bg-gray-300 font-medium"
+                onClick={() => setTextEditor({ open: false, id: null, value: '' })}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
