@@ -1088,6 +1088,39 @@ export default function VenuesPage() {
         </div>
       </div>
 
+      {/* Venue Setup Wizard */}
+      {showWizard && (
+        <VenueSetupWizard
+          wizardStep={wizardStep}
+          setWizardStep={setWizardStep}
+          wizardData={wizardData}
+          setWizardData={setWizardData}
+          skipScrape={skipScrape}
+          setSkipScrape={setSkipScrape}
+          scrapingUrl={scrapingUrl}
+          setScrapingUrl={setScrapingUrl}
+          isScraping={isScraping}
+          setIsScraping={setIsScraping}
+          useLLM={useLLM}
+          setUseLLM={setUseLLM}
+          scrapeVenue={scrapeVenue}
+          createVenue={createVenue}
+          onClose={() => {
+            setShowWizard(false)
+            setWizardStep(1)
+            setWizardData({
+              basicInfo: null,
+              venueDetails: null,
+              documents: [],
+              offers: [],
+            })
+            setScrapingUrl('')
+            setUseLLM(false)
+            setSkipScrape(false)
+          }}
+        />
+      )}
+
       {/* Compare Modal */}
       {showCompare && (
         <CompareVenuesModal

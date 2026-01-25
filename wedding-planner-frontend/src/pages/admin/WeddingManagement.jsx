@@ -3,6 +3,23 @@ import api from '../../lib/api'
 import { Calendar, MapPin, Users, DollarSign, FileText, Heart } from 'lucide-react'
 
 export default function WeddingManagement() {
+  const BASE_CURRENCY = 'CHF'
+  const formatMoney = (amount, currency = BASE_CURRENCY) => {
+    const n = Number(amount || 0)
+    try {
+      return new Intl.NumberFormat('de-CH', {
+        style: 'currency',
+        currency,
+        currencyDisplay: 'code',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Number.isFinite(n) ? n : 0)
+    } catch {
+      const safe = Number.isFinite(n) ? n : 0
+      return `${currency} ${Math.round(safe)}`
+    }
+  }
+
   const { data: overview } = useQuery({
     queryKey: ['analytics', 'overview'],
     queryFn: async () => {
@@ -74,7 +91,7 @@ export default function WeddingManagement() {
             <div>
               <p className="text-sm text-gray-600">Budget Used</p>
               <p className="text-2xl font-bold text-orange-600 mt-1">
-                ${budget?.costs?.total_paid?.toLocaleString() || '0'}
+                {formatMoney(budget?.costs?.total_paid || 0)}
               </p>
             </div>
             <DollarSign className="w-8 h-8 text-orange-500" />
@@ -178,19 +195,19 @@ export default function WeddingManagement() {
             <div className="flex justify-between items-center pb-3 border-b">
               <span className="text-gray-600">Planned</span>
               <span className="font-semibold text-gray-900">
-                ${budget?.costs?.total_planned?.toLocaleString() || '0'}
+                {formatMoney(budget?.costs?.total_planned || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center pb-3 border-b">
               <span className="text-gray-600">Paid</span>
               <span className="font-semibold text-green-600">
-                ${budget?.costs?.total_paid?.toLocaleString() || '0'}
+                {formatMoney(budget?.costs?.total_paid || 0)}
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Remaining</span>
               <span className="font-semibold text-orange-600">
-                ${((budget?.costs?.total_planned || 0) - (budget?.costs?.total_paid || 0)).toLocaleString()}
+                {formatMoney((budget?.costs?.total_planned || 0) - (budget?.costs?.total_paid || 0))}
               </span>
             </div>
           </div>
