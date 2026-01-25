@@ -249,6 +249,7 @@ export default function MoodboardPage() {
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false)
   const [textEditor, setTextEditor] = useState({ open: false, id: null, value: '' })
   const [pastePrompt, setPastePrompt] = useState({ open: false, pos: null })
+  const [pasteMenu, setPasteMenu] = useState({ open: false, localX: 0, localY: 0, pos: null })
 
   const [boardId, setBoardId] = useState(null)
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
@@ -465,6 +466,47 @@ export default function MoodboardPage() {
     }, 50)
     return () => clearTimeout(t)
   }, [pastePrompt.open])
+
+  const tryPasteFromClipboard = useCallback(
+    async (preferredPos) => {
+      // Best-effort clipboard read (works on some browsers; iOS often blocks it).
+      try {
+        if (!navigator.clipboard?.read) {
+          throw new Error('Clipboard read not supported')
+        }
+        const items = await navigator.clipboard.read()
+        const files = []
+        for (const item of items) {
+          const types = item.types || []
+          const imgType =
+            types.find((t) => (t || '').startsWith('image/')) ||
+            // sometimes Safari uses png explicitly
+            types.find((t) => t === 'image/png')
+          if (!imgType) continue
+          // eslint-disable-next-line no-await-in-loop
+          const blob = await item.getType(imgType)
+          if (!blob) continue
+          const ext = (imgType || '').split('/')[1] || 'png'
+          const file = new File([blob], `pasted.${ext}`, { type: imgType })
+          files.push(file)
+        }
+        if (files.length === 0) {
+          toast.error('Clipboard has no image')
+          return true
+        }
+        const base = preferredPos || viewportCenterCanvasPos()
+        for (let i = 0; i < files.length; i += 1) {
+          const pos = { x: base.x + i * 24, y: base.y + i * 24 }
+          // eslint-disable-next-line no-await-in-loop
+          await tryUploadFile(files[i], pos)
+        }
+        return true
+      } catch (e) {
+        return false
+      }
+    },
+    [toast, tryUploadFile, viewportCenterCanvasPos]
+  )
 
   const viewportCenterCanvasPos = useCallback(() => {
     const el = containerRef.current
@@ -1307,7 +1349,7 @@ export default function MoodboardPage() {
           style={{ height: 'calc(100vh - 220px)', minHeight: 560, touchAction: 'none' }}
           onTouchStart={(e) => {
             // Long-press helper: opens a focusable field so iOS/Android can show "Paste".
-            if (pastePrompt.open) return
+            if (pastePrompt.open || pasteMenu.open) return
             const t = e.touches?.[0]
             if (!t) return
             if ((e.touches?.length || 0) !== 1) return
@@ -1318,7 +1360,11 @@ export default function MoodboardPage() {
               const start = longPressStartRef.current
               if (!start) return
               const pos = clientPointToCanvasPos(start.x, start.y)
-              setPastePrompt({ open: true, pos })
+              const el = containerRef.current
+              const r = el?.getBoundingClientRect?.()
+              const localX = r ? start.x - r.left : 16
+              const localY = r ? start.y - r.top : 16
+              setPasteMenu({ open: true, localX, localY, pos })
             }, 550)
           }}
           onTouchMove={(e) => {
@@ -1341,6 +1387,54 @@ export default function MoodboardPage() {
           }}
           onDrop={onDropFiles}
         >
+          {/* Long-press context menu (tablet friendly) */}
+          {pasteMenu.open && (
+            <div
+              className="absolute inset-0 z-20"
+              onClick={() => setPasteMenu({ open: false, localX: 0, localY: 0, pos: null })}
+            >
+              <div
+                className="absolute"
+                style={{
+                  left: clamp(pasteMenu.localX, 16, (viewport?.w || 900) - 220),
+                  top: clamp(pasteMenu.localY, 16, (viewport?.h || 600) - 160),
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="rounded-2xl bg-white border border-gray-200 shadow-xl p-3 w-[220px]">
+                  <div className="text-xs font-semibold text-gray-700 mb-2">Insert</div>
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 font-semibold text-sm"
+                    onClick={async () => {
+                      const ok = await tryPasteFromClipboard(pasteMenu.pos)
+                      if (!ok) {
+                        // fallback to system paste helper
+                        setPastePrompt({ open: true, pos: pasteMenu.pos })
+                      }
+                      setPasteMenu({ open: false, localX: 0, localY: 0, pos: null })
+                    }}
+                  >
+                    Paste image
+                  </button>
+                  <button
+                    type="button"
+                    className="mt-2 w-full px-3 py-2 rounded-xl bg-gray-100 text-gray-900 hover:bg-gray-200 font-medium text-sm"
+                    onClick={() => {
+                      setPastePrompt({ open: true, pos: pasteMenu.pos })
+                      setPasteMenu({ open: false, localX: 0, localY: 0, pos: null })
+                    }}
+                  >
+                    System paste…
+                  </button>
+                  <div className="mt-2 text-[11px] text-gray-500">
+                    Tip: tap text to edit. Drag to move.
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {pastePrompt.open && (
             <div className="absolute inset-0 z-20 flex items-center justify-center p-4">
               <div className="absolute inset-0 bg-black/30" onClick={() => setPastePrompt({ open: false, pos: null })} />
@@ -1514,7 +1608,10 @@ export default function MoodboardPage() {
                       draggable={tool === 'select'}
                       onMouseDown={(e) => handleSelectObject(o.id, e)}
                       onTouchStart={(e) => handleSelectObject(o.id, e)}
-                      onTap={(e) => handleSelectObject(o.id, e)}
+                      onTap={(e) => {
+                        handleSelectObject(o.id, e)
+                        if (isCoarsePointer && tool === 'select') openTextEditor(o.id)
+                      }}
                       onDblClick={() => openTextEditor(o.id)}
                       onDblTap={() => openTextEditor(o.id)}
                       onDragEnd={(e) => updateObject(o.id, { x: snap(e.target.x()), y: snap(e.target.y()) })}
