@@ -241,6 +241,7 @@ export default function MoodboardPage() {
   const [isSpaceDown, setIsSpaceDown] = useState(false)
   const [keepRatio, setKeepRatio] = useState(true)
   const [isCoarsePointer, setIsCoarsePointer] = useState(false)
+  const [isDragOverCanvas, setIsDragOverCanvas] = useState(false)
 
   const [boardId, setBoardId] = useState(null)
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
@@ -408,6 +409,33 @@ export default function MoodboardPage() {
   const setStageState = (next) => {
     setContent((prev) => ({ ...prev, stage: { ...prev.stage, ...next } }))
   }
+
+  const viewportCenterCanvasPos = useCallback(() => {
+    const el = containerRef.current
+    const scale = stageState.scale || 1
+    const cx = (el?.clientWidth || viewport.w || 900) / 2
+    const cy = (el?.clientHeight || viewport.h || 600) / 2
+    return {
+      x: (cx - (stageState.x || 0)) / scale,
+      y: (cy - (stageState.y || 0)) / scale,
+    }
+  }, [stageState.scale, stageState.x, stageState.y, viewport.h, viewport.w])
+
+  const clientPointToCanvasPos = useCallback(
+    (clientX, clientY) => {
+      const el = containerRef.current
+      const scale = stageState.scale || 1
+      if (!el) return viewportCenterCanvasPos()
+      const r = el.getBoundingClientRect()
+      const localX = clientX - r.left
+      const localY = clientY - r.top
+      return {
+        x: (localX - (stageState.x || 0)) / scale,
+        y: (localY - (stageState.y || 0)) / scale,
+      }
+    },
+    [stageState.scale, stageState.x, stageState.y, viewportCenterCanvasPos]
+  )
 
   const snap = useCallback(
     (value) => {
@@ -819,7 +847,7 @@ export default function MoodboardPage() {
     setContent((prev) => ({ ...prev, grid: { ...prev.grid, snap: !prev.grid?.snap } }))
   }
 
-  const tryUploadFile = async (file) => {
+  const tryUploadFile = async (file, preferredPos) => {
     if (!file) return
     const name = (file.name || '').toLowerCase()
     const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif')
@@ -853,7 +881,8 @@ export default function MoodboardPage() {
       if (img?.id) {
         queryClient.setQueryData(['image', img.id], img)
       }
-      const pos = getPointerCanvasPos()
+      const fallback = getPointerCanvasPos()
+      const pos = preferredPos || fallback
       addObject({
         id: uid('image'),
         type: 'image',
@@ -873,9 +902,54 @@ export default function MoodboardPage() {
 
   const onDropFiles = async (e) => {
     e.preventDefault()
-    const file = e.dataTransfer?.files?.[0]
-    await tryUploadFile(file)
+    setIsDragOverCanvas(false)
+
+    const dt = e.dataTransfer
+    const files = Array.from(dt?.files || []).filter(Boolean)
+    if (files.length === 0) {
+      const uri = dt?.getData?.('text/uri-list') || dt?.getData?.('text/plain')
+      if (uri && /^https?:\/\//i.test(uri.trim())) {
+        toast.error('Dropping image URLs is not supported yet. Please download the image and drop the file, or use Upload.')
+      }
+      return
+    }
+
+    const base = clientPointToCanvasPos(e.clientX, e.clientY)
+    for (let i = 0; i < files.length; i += 1) {
+      // slight offset so multiple dropped files don't stack perfectly
+      const pos = { x: base.x + i * 24, y: base.y + i * 24 }
+      // eslint-disable-next-line no-await-in-loop
+      await tryUploadFile(files[i], pos)
+    }
   }
+
+  // Paste (Ctrl/Cmd+V) images directly into the moodboard.
+  useEffect(() => {
+    const onPaste = async (e) => {
+      // If user is typing into an input/textarea, don't hijack paste.
+      const tag = (e.target?.tagName || '').toLowerCase()
+      if (tag === 'input' || tag === 'textarea' || e.target?.isContentEditable) return
+
+      const items = Array.from(e.clipboardData?.items || [])
+      const files = items
+        .filter((it) => it.kind === 'file' && (it.type || '').startsWith('image/'))
+        .map((it) => it.getAsFile())
+        .filter(Boolean)
+
+      if (files.length === 0) return
+
+      e.preventDefault()
+      const base = viewportCenterCanvasPos()
+      for (let i = 0; i < files.length; i += 1) {
+        const pos = { x: base.x + i * 24, y: base.y + i * 24 }
+        // eslint-disable-next-line no-await-in-loop
+        await tryUploadFile(files[i], pos)
+      }
+    }
+
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [tryUploadFile, viewportCenterCanvasPos])
 
   const onToolbarUploadClick = () => {
     fileInputRef.current?.click()
@@ -1149,11 +1223,29 @@ export default function MoodboardPage() {
         {/* Canvas */}
         <div
           ref={containerRef}
-          className="bg-white border border-gray-200 rounded-2xl overflow-hidden"
+          className={[
+            'relative bg-white border rounded-2xl overflow-hidden',
+            isDragOverCanvas ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200',
+          ].join(' ')}
           style={{ height: 'calc(100vh - 220px)', minHeight: 560, touchAction: 'none' }}
-          onDragOver={(e) => e.preventDefault()}
+          onDragEnter={(e) => {
+            if (e.dataTransfer?.types?.includes?.('Files')) setIsDragOverCanvas(true)
+          }}
+          onDragLeave={() => setIsDragOverCanvas(false)}
+          onDragOver={(e) => {
+            e.preventDefault()
+            if (e.dataTransfer?.types?.includes?.('Files')) setIsDragOverCanvas(true)
+          }}
           onDrop={onDropFiles}
         >
+          {isDragOverCanvas && (
+            <div className="absolute inset-0 z-10 pointer-events-none flex items-center justify-center">
+              <div className="rounded-2xl bg-white/90 border border-blue-200 shadow px-5 py-4 text-center">
+                <div className="text-sm font-semibold text-gray-900">Drop to add image</div>
+                <div className="text-xs text-gray-600 mt-1">Tip: you can also paste (Ctrl/Cmd+V)</div>
+              </div>
+            </div>
+          )}
           <Stage
             ref={stageRef}
             width={viewport.w}
