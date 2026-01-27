@@ -97,7 +97,8 @@ export default function GuestRegister() {
             </p>
             <button
               onClick={() => navigate('/login')}
-              className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+              className="px-6 py-2 text-white rounded-lg hover:opacity-90"
+              style={{ backgroundColor: 'var(--wp-primary)' }}
             >
               {t('guestRegisterGoToLogin')}
             </button>
@@ -160,7 +161,7 @@ export default function GuestRegister() {
               {t('guestRegisterCompleteSubtitle')}
             </p>
             {invitationData?.plus_one_allowed && (
-              <div className="inline-block bg-pink-50 border border-pink-200 rounded-lg px-4 py-2 mb-4">
+              <div className="inline-block rounded-lg px-4 py-2 mb-4" style={{ backgroundColor: 'color-mix(in srgb, var(--wp-primary) 10%, white)', borderWidth: '1px', borderStyle: 'solid', borderColor: 'color-mix(in srgb, var(--wp-primary) 30%, white)' }}>
                 <p className="text-sm text-pink-700">
                   <span className="font-semibold">{t('guestRegisterPlusOneLabel')}</span>{' '}
                   {t('guestRegisterPlusOneBody')

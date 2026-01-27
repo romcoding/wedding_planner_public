@@ -52,7 +52,8 @@ export default function GuestRegistration() {
           </p>
           <button
             onClick={() => setSubmitted(false)}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            className="px-6 py-2 text-white rounded-lg hover:opacity-90"
+            style={{ backgroundColor: 'var(--wp-primary)' }}
           >
             Update Information
           </button>
@@ -218,7 +219,8 @@ export default function GuestRegistration() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 px-6 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 font-medium"
+            className="w-full py-3 px-6 text-white rounded-lg hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 font-medium"
+            style={{ backgroundColor: 'var(--wp-primary)' }}
           >
             {loading ? 'Submitting...' : 'Submit RSVP'}
           </button>

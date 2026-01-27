@@ -162,7 +162,8 @@ export default function PhotoGallery() {
                       <button
                         onClick={handleUpload}
                         disabled={uploadMutation.isPending}
-                        className="px-6 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50"
+                        className="px-6 py-2 text-white rounded-lg disabled:opacity-50 hover:opacity-90"
+                        style={{ backgroundColor: 'var(--wp-primary)' }}
                       >
                         {uploadMutation.isPending ? t('photoGalleryUploading') : t('photoGalleryUploadButton')}
                       </button>
@@ -174,7 +175,8 @@ export default function PhotoGallery() {
                     <p className="text-gray-600 mb-2">{t('photoGalleryDropHint')}</p>
                     <button
                       onClick={() => fileInputRef.current?.click()}
-                      className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
+                      className="px-4 py-2 text-white rounded-lg hover:opacity-90"
+                      style={{ backgroundColor: 'var(--wp-primary)' }}
                     >
                       {t('photoGallerySelectPhoto')}
                     </button>

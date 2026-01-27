@@ -69,7 +69,7 @@ export default function GiftRegistry() {
           registryItems.map((item) => (
             <div key={item.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
               <div className="flex items-start gap-4 mb-4">
-                <div className="p-3 bg-pink-100 rounded-lg text-pink-600">
+                <div className="p-3 rounded-lg" style={{ backgroundColor: 'color-mix(in srgb, var(--wp-primary) 15%, white)', color: 'var(--wp-primary)' }}>
                   {getIcon(item.registry_type)}
                 </div>
                 <div className="flex-1">
@@ -89,7 +89,8 @@ export default function GiftRegistry() {
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg hover:opacity-90 transition-colors"
+                  style={{ backgroundColor: 'var(--wp-primary)' }}
                 >
                   <ExternalLink className="w-4 h-4" />
                   {t('giftRegistryVisit')}
@@ -107,7 +108,8 @@ export default function GiftRegistry() {
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
-                        className="bg-pink-500 h-2 rounded-full transition-all"
+                        className="h-2 rounded-full transition-all"
+                        style={{ backgroundColor: 'var(--wp-primary)' }}
                         style={{
                           width: `${item.target_amount ? (item.current_amount / item.target_amount) * 100 : 0}%`
                         }}
