@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -21,17 +21,6 @@ export default function PhotoGallery() {
   const hasExternalUploadUrl = externalUploadUrl && externalUploadUrl !== 'photo_gallery_upload_url'
   const useExternalOnly = hasExternalFolderUrl || hasExternalUploadUrl
   const redirectUrl = (hasExternalUploadUrl ? externalUploadUrl : (hasExternalFolderUrl ? externalFolderUrl : null))
-
-  // If links are configured, keep guest UX simple: clicking Photo Gallery immediately redirects.
-  useEffect(() => {
-    if (!useExternalOnly) return
-    if (!redirectUrl) return
-    // Small timeout lets UI paint and avoids weirdness on some mobile browsers
-    const t = setTimeout(() => {
-      window.location.assign(redirectUrl)
-    }, 50)
-    return () => clearTimeout(t)
-  }, [useExternalOnly, redirectUrl])
 
   const { data: photos, isLoading } = useQuery({
     queryKey: ['guest-photos'],
@@ -117,7 +106,7 @@ export default function PhotoGallery() {
         <div className="bg-white rounded-lg shadow-md p-6">
           <h3 className="text-xl font-semibold mb-2">{t('photoGallerySharedFolderTitle')}</h3>
           <p className="text-sm text-gray-600 mb-4">
-            {t('photoGalleryRedirecting')}
+            {t('photoGalleryRedirectHint')}
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
             {hasExternalFolderUrl && (
@@ -141,12 +130,6 @@ export default function PhotoGallery() {
               </a>
             )}
           </div>
-        </div>
-      )}
-
-      {useExternalOnly && (
-        <div className="text-sm text-gray-600">
-          {t('photoGalleryRedirectHint')}
         </div>
       )}
 

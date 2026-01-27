@@ -27,7 +27,7 @@ function PrimaryButton({ children, onClick, disabled, variant = 'primary', class
     'w-full py-4 px-5 rounded-xl font-semibold text-lg transition-all active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed'
   const styles =
     variant === 'primary'
-      ? 'bg-gradient-to-r from-pink-500 to-purple-600 text-white hover:from-pink-600 hover:to-purple-700'
+      ? 'text-white'
       : 'bg-white border border-gray-200 text-gray-900 hover:bg-gray-50'
   return (
     <button
@@ -35,6 +35,13 @@ function PrimaryButton({ children, onClick, disabled, variant = 'primary', class
       disabled={disabled}
       onClick={onClick}
       className={`${base} ${styles} ${className}`}
+      style={
+        variant === 'primary'
+          ? {
+              background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))',
+            }
+          : undefined
+      }
     >
       {children}
     </button>
@@ -84,8 +91,9 @@ function TopTabs({ tabs, activeTab, setActiveTab, comingSoonLabel }) {
 
 // Note: we intentionally keep deeper info on the /info page, not on the final step here.
 
-export default function RSVP() {
-  const { token } = useParams()
+export default function RSVP({ token: tokenOverride, embedded = false, onClose }) {
+  const { token: tokenFromRoute } = useParams()
+  const token = tokenOverride || tokenFromRoute
   const navigate = useNavigate()
   const { guest, loginWithToken } = useGuestAuth()
   const { t, setLanguage } = useLanguage()
@@ -569,9 +577,16 @@ export default function RSVP() {
 
   if (loading || loadingGuest || authMutation.isPending) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      <div
+        className={embedded ? 'flex items-center justify-center' : 'min-h-screen flex items-center justify-center'}
+        style={
+          embedded
+            ? undefined
+            : { background: 'linear-gradient(135deg, var(--wp-primary-5), var(--wp-background), var(--wp-secondary-5))' }
+        }
+      >
         <div className="text-center">
-          <Loader className="w-12 h-12 text-pink-500 animate-spin mx-auto mb-4" />
+          <Loader className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: 'var(--wp-primary)' }} />
           <p className="text-gray-600">{t('loadingWeddingPass')}</p>
         </div>
       </div>
@@ -580,7 +595,14 @@ export default function RSVP() {
 
   if (!guestData) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-pink-50 via-white to-purple-50">
+      <div
+        className={embedded ? 'flex items-center justify-center' : 'min-h-screen flex items-center justify-center'}
+        style={
+          embedded
+            ? undefined
+            : { background: 'linear-gradient(135deg, var(--wp-primary-5), var(--wp-background), var(--wp-secondary-5))' }
+        }
+      >
         <div className="max-w-md w-full mx-4">
           <div className="bg-white rounded-2xl shadow-xl p-8 text-center">
             <Heart className="w-16 h-16 text-red-500 mx-auto mb-4" />
@@ -593,16 +615,26 @@ export default function RSVP() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
+    <div
+      className={embedded ? '' : 'min-h-screen'}
+      style={
+        embedded
+          ? undefined
+          : { background: 'linear-gradient(135deg, var(--wp-primary-5), var(--wp-background), var(--wp-secondary-5))' }
+      }
+    >
       <HeartBurstAnimation show={showHearts} onComplete={() => setShowHearts(false)} />
 
       {/* Language Switcher */}
-      <div className="absolute top-4 right-4 z-10">
-        <LanguageSwitcher />
-      </div>
+      {!embedded ? (
+        <div className="absolute top-4 right-4 z-10">
+          <LanguageSwitcher />
+        </div>
+      ) : null}
 
       {/* Hero */}
-      <div className="relative overflow-hidden">
+      {!embedded ? (
+        <div className="relative overflow-hidden">
         {heroImage ? (
           <div className="relative h-64 md:h-96 overflow-hidden">
             <img
@@ -643,13 +675,15 @@ export default function RSVP() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Main */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <div className={embedded ? 'px-4 sm:px-6 py-6' : 'max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12'}>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
           {/* Left: photos */}
-          <div className="space-y-6">
+          {!embedded ? (
+            <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-900">{t('joinOurCelebration')}</h2>
             <p className="text-gray-600">{t('passIntro')}</p>
             <div className="grid grid-cols-2 gap-4">
@@ -715,7 +749,8 @@ export default function RSVP() {
                 </>
               )}
             </div>
-          </div>
+            </div>
+          ) : null}
 
           {/* Right: widget */}
           <div>
@@ -888,7 +923,8 @@ export default function RSVP() {
                         setPass((p) => ({ ...p, dietary_restrictions: e.target.value }))
                       }
                       placeholder={t('dietaryPlaceholderShort')}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 bg-white"
+                      style={{ outline: 'none' }}
                     />
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
@@ -912,7 +948,8 @@ export default function RSVP() {
                       value={pass.special_requests}
                       onChange={(e) => setPass((p) => ({ ...p, special_requests: e.target.value }))}
                       placeholder={t('notesPlaceholder')}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 bg-white"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 bg-white"
+                      style={{ outline: 'none' }}
                     />
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
@@ -958,7 +995,8 @@ export default function RSVP() {
                                 }))
                               }
                               placeholder={t('photoCaptionPlaceholder')}
-                              className="mt-3 w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-pink-500 focus:border-pink-500 text-gray-900 bg-white"
+                              className="mt-3 w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 bg-white"
+                              style={{ outline: 'none' }}
                             />
                             {pass.photo.uploaded ? (
                               <p className="mt-2 text-sm text-green-700 flex items-center gap-2">
@@ -1043,6 +1081,18 @@ export default function RSVP() {
                 )}
                 </div>
               </PassCard>
+              {embedded ? (
+                <div className="mt-3 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => onClose?.()}
+                    className="text-sm font-semibold hover:underline"
+                    style={{ color: 'var(--wp-secondary)' }}
+                  >
+                    Close
+                  </button>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

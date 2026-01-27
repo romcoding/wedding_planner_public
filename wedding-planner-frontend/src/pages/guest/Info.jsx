@@ -10,12 +10,15 @@ import Contact from './Contact'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
+import RSVP from './RSVP'
+import { X } from 'lucide-react'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
   const { t } = useLanguage()
   const { guest } = useGuestAuth()
   const [activeMenu, setActiveMenu] = useState('pass')
+  const [showPassModal, setShowPassModal] = useState(false)
 
   const inviteToken = useMemo(() => {
     try {
@@ -167,17 +170,21 @@ export default function GuestInfo() {
                   <button
                     type="button"
                     onClick={() => {
-                      if (inviteToken) navigate(`/rsvp/${inviteToken}`)
-                      else navigate('/')
+                      if (!inviteToken) return
+                      setShowPassModal(true)
                     }}
                     className="px-6 py-3 rounded-xl font-semibold text-white"
                     style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+                    disabled={!inviteToken}
                   >
                     {t('guestInfoOpenPass')}
                   </button>
                   <button
                     type="button"
-                    onClick={() => navigate('/rsvp/' + (inviteToken || ''))}
+                    onClick={() => {
+                      if (!inviteToken) return
+                      setShowPassModal(true)
+                    }}
                     className="px-6 py-3 rounded-xl font-semibold bg-white border border-black/10 text-gray-900 hover:bg-black/5"
                     disabled={!inviteToken}
                   >
@@ -314,6 +321,31 @@ export default function GuestInfo() {
           </footer>
         </div>
       </main>
+
+      {/* Wedding Pass modal overlay */}
+      {showPassModal && (
+        <div className="fixed inset-0 z-[10000]">
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setShowPassModal(false)}
+          />
+          <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
+            <div className="relative w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
+              <button
+                type="button"
+                onClick={() => setShowPassModal(false)}
+                className="absolute top-4 right-4 z-10 rounded-full bg-white/90 border border-black/10 p-2 hover:bg-white"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <div className="p-4 sm:p-6">
+                <RSVP token={inviteToken} embedded onClose={() => setShowPassModal(false)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
