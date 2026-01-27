@@ -20,6 +20,38 @@ from src.services.embedding_service import get_embedding, find_similar_chunks
 from src.models import DocumentChunk, VenueDocument
 
 
+def _create_chat_completion(client, model: str, messages: List[Dict], temperature: float, max_out: int):
+    """
+    Create a chat completion with compatibility across model parameter differences.
+    Some models / API versions require `max_completion_tokens` instead of `max_tokens`.
+    """
+    try:
+        # Prefer newer parameter first (some models reject max_tokens)
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            temperature=temperature,
+            max_completion_tokens=max_out
+        )
+    except Exception as e:
+        msg = str(e)
+        if "max_completion_tokens" in msg and "not supported" in msg:
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_out
+            )
+        if "max_tokens" in msg and "not supported" in msg:
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_completion_tokens=max_out
+            )
+        raise
+
+
 def retrieve_relevant_chunks(venue_id: int, query: str, top_k: int = 5) -> List[Dict]:
     """
     Retrieve relevant document chunks for a query using semantic search
@@ -163,12 +195,7 @@ Please provide a helpful answer and cite relevant documents using [Document X] n
         # Try GPT-5 model first, fallback to gpt-4o if not available
         logger.info(f"🤖 Attempting to use model: {model}")
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0.7,
-                max_tokens=1000
-            )
+            response = _create_chat_completion(client, model, messages, temperature=0.7, max_out=1000)
             logger.info(f"✅ Successfully used model: {model}")
         except openai.RateLimitError as e:
             # Check if it's a quota issue
@@ -187,12 +214,7 @@ Please provide a helpful answer and cite relevant documents using [Document X] n
                 if model.startswith('gpt-5'):
                     model = "gpt-4o"
                     logger.info(f"🔄 Falling back to model: {model}")
-                    response = client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=1000
-                    )
+                    response = _create_chat_completion(client, model, messages, temperature=0.7, max_out=1000)
                 else:
                     raise
         except Exception as e:
@@ -201,12 +223,7 @@ Please provide a helpful answer and cite relevant documents using [Document X] n
                 logger.warning(f"⚠️  GPT-5 model {model} not available, falling back to gpt-4o: {e}")
                 model = "gpt-4o"
                 try:
-                    response = client.chat.completions.create(
-                        model=model,
-                        messages=messages,
-                        temperature=0.7,
-                        max_tokens=1000
-                    )
+                    response = _create_chat_completion(client, model, messages, temperature=0.7, max_out=1000)
                 except Exception as fallback_error:
                     logger.error(f"❌ Fallback model also failed: {fallback_error}")
                     raise

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Calendar, momentLocalizer } from 'react-big-calendar'
 import moment from 'moment'
@@ -65,13 +65,6 @@ const EventsPage = () => {
     retry: false,
   })
 
-  // Venues (for guest accommodation selection)
-  const { data: venuesData } = useQuery({
-    queryKey: ['venues', 'all'],
-    queryFn: () => api.get('/venues').then((res) => res.data),
-  })
-  const venues = Array.isArray(venuesData?.venues) ? venuesData.venues : []
-
   const upsertContentKey = async ({ key, title, content_en, content_de, content_fr }) => {
     const existing = adminContent?.find((c) => c.key === key)
     const payload = {
@@ -90,38 +83,6 @@ const EventsPage = () => {
     }
     return api.post('/content', payload).then((r) => r.data)
   }
-
-  // Guest portal card settings (saved into public content keys)
-  const [guestEventId, setGuestEventId] = useState('')
-  const [guestEventDetails, setGuestEventDetails] = useState({ en: '', de: '', fr: '' })
-  const [guestAccommodationVenueId, setGuestAccommodationVenueId] = useState('')
-  const [guestAccommodationDetails, setGuestAccommodationDetails] = useState({ en: '', de: '', fr: '' })
-  const didInitGuestSettingsRef = useRef(false)
-
-  const { data: guestPortalSettings } = useQuery({
-    queryKey: ['events', 'guest-portal-settings'],
-    queryFn: () => api.get('/events/guest-portal-settings').then((r) => r.data),
-    retry: false,
-  })
-
-  useEffect(() => {
-    if (didInitGuestSettingsRef.current) return
-    if (!guestPortalSettings) return
-
-    setGuestEventId(String(guestPortalSettings.guestEventId || ''))
-    setGuestEventDetails({
-      en: String(guestPortalSettings.guestEventDetails?.en || ''),
-      de: String(guestPortalSettings.guestEventDetails?.de || ''),
-      fr: String(guestPortalSettings.guestEventDetails?.fr || ''),
-    })
-    setGuestAccommodationVenueId(String(guestPortalSettings.guestAccommodationVenueId || ''))
-    setGuestAccommodationDetails({
-      en: String(guestPortalSettings.guestAccommodationDetails?.en || ''),
-      de: String(guestPortalSettings.guestAccommodationDetails?.de || ''),
-      fr: String(guestPortalSettings.guestAccommodationDetails?.fr || ''),
-    })
-    didInitGuestSettingsRef.current = true
-  }, [guestPortalSettings])
 
   const setWeddingDateFromEvent = useMutation({
     mutationFn: async (event) => {
@@ -169,28 +130,6 @@ const EventsPage = () => {
     const dateB = new Date(b.start_time)
     return dateA - dateB
   }) : []
-
-  const saveGuestPortalSettings = useMutation({
-    mutationFn: async () => {
-      await api.post('/events/guest-portal-settings', {
-        guestEventId: guestEventId || '',
-        guestEventDetails,
-        guestAccommodationVenueId: guestAccommodationVenueId || '',
-        guestAccommodationDetails,
-      })
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries(['content'])
-      queryClient.invalidateQueries(['content', 'public'])
-      queryClient.invalidateQueries(['content', 'admin'])
-      queryClient.invalidateQueries(['events', 'guest-portal-settings'])
-      alert('Guest portal settings saved.')
-    },
-    onError: (err) => {
-      console.error('Failed to save guest portal settings:', err)
-      alert(err?.message || 'Failed to save guest portal settings.')
-    },
-  })
 
   const [fieldErrors, setFieldErrors] = useState({})
 
@@ -394,131 +333,11 @@ const EventsPage = () => {
         </div>
       </div>
 
-      {/* Guest portal cards */}
       <div className="bg-white rounded-lg shadow p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Guest portal cards</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Configure what guests see in “Event & Gifts” and “Travel & Accommodation”.
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Guest page cards</h2>
+        <p className="text-sm text-gray-600">
+          Moved to <strong>Web page</strong> settings. Configure the accommodation card and the highlighted agenda there.
         </p>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold text-gray-900 mb-3">Event & Gifts — extra schedule info</div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Featured timeline item</label>
-            <select
-              value={guestEventId}
-              onChange={(e) => setGuestEventId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-            >
-              <option value="">(none)</option>
-              {sortedEvents.map((ev) => {
-                const d = ev?.start_time ? new Date(ev.start_time) : null
-                const label = d
-                  ? `${ev.name} — ${d.toLocaleDateString('de-CH')} ${d.toLocaleTimeString('de-CH', { hour: '2-digit', minute: '2-digit' })}`
-                  : ev.name
-                return (
-                  <option key={ev.id} value={String(ev.id)}>
-                    {label}
-                  </option>
-                )
-              })}
-            </select>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
-                <textarea
-                  rows={4}
-                  value={guestEventDetails.en}
-                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, en: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Extra schedule details (EN)…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
-                <textarea
-                  rows={4}
-                  value={guestEventDetails.de}
-                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, de: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Zusätzliche Ablauf-Details (DE)…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
-                <textarea
-                  rows={4}
-                  value={guestEventDetails.fr}
-                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, fr: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Détails du planning (FR)…"
-                />
-              </div>
-            </div>
-          </div>
-
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold text-gray-900 mb-3">Travel & Accommodation — accommodation card</div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Accommodation venue</label>
-            <select
-              value={guestAccommodationVenueId}
-              onChange={(e) => setGuestAccommodationVenueId(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-            >
-              <option value="">(none)</option>
-              {venues.map((v) => (
-                <option key={v.id} value={String(v.id)}>
-                  {v.name}
-                </option>
-              ))}
-            </select>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
-                <textarea
-                  rows={4}
-                  value={guestAccommodationDetails.en}
-                  onChange={(e) => setGuestAccommodationDetails((p) => ({ ...p, en: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Accommodation details (EN)…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
-                <textarea
-                  rows={4}
-                  value={guestAccommodationDetails.de}
-                  onChange={(e) => setGuestAccommodationDetails((p) => ({ ...p, de: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Unterkunftsdetails (DE)…"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
-                <textarea
-                  rows={4}
-                  value={guestAccommodationDetails.fr}
-                  onChange={(e) => setGuestAccommodationDetails((p) => ({ ...p, fr: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Détails hébergement (FR)…"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={() => saveGuestPortalSettings.mutate()}
-            disabled={saveGuestPortalSettings.isPending}
-            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
-          >
-            {saveGuestPortalSettings.isPending ? 'Saving…' : 'Save guest page settings'}
-          </button>
-        </div>
       </div>
 
       {/* Form Modal */}
