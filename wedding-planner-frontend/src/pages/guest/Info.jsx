@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
@@ -29,10 +29,25 @@ export default function GuestInfo() {
   }, [])
 
   // Fetch guest profile (uses guest_token JWT)
-  const { data: guestProfile } = useQuery({
+  const { data: guestProfile, isSuccess: profileLoaded } = useQuery({
     queryKey: ['guest-profile'],
     queryFn: () => api.get('/guest-auth/profile').then((res) => res.data),
   })
+
+  // Auto-open wizard on first visit (only once per guest)
+  useEffect(() => {
+    if (!profileLoaded || !inviteToken) return
+    const wizardKey = `wp_wizard_shown_${inviteToken}`
+    try {
+      const alreadyShown = localStorage.getItem(wizardKey)
+      if (!alreadyShown) {
+        setShowPassModal(true)
+        localStorage.setItem(wizardKey, '1')
+      }
+    } catch {
+      // localStorage not available
+    }
+  }, [profileLoaded, inviteToken])
 
   const readContent = (key) => {
     const v = t(key)
@@ -46,11 +61,25 @@ export default function GuestInfo() {
     return t('pending')
   }
 
-  const guestName = useMemo(() => {
-    const fromProfile = `${guestProfile?.first_name || ''} ${guestProfile?.last_name || ''}`.trim()
-    const fromAuth = `${guest?.first_name || ''} ${guest?.last_name || ''}`.trim()
-    return fromProfile || fromAuth || ''
-  }, [guestProfile?.first_name, guestProfile?.last_name, guest?.first_name, guest?.last_name])
+  // Display greeting: first names only. For couples, show both first names.
+  const guestGreeting = useMemo(() => {
+    // Check if there are invitee_names (for couples/groups)
+    const inviteeNames = guestProfile?.invitee_names
+    if (Array.isArray(inviteeNames) && inviteeNames.length > 1) {
+      // Extract first names only from each invitee name
+      const firstNames = inviteeNames.map((name) => {
+        const parts = String(name).trim().split(/\s+/)
+        return parts[0] || ''
+      }).filter(Boolean)
+      if (firstNames.length >= 2) {
+        // Join with " & " for couples
+        return firstNames.slice(0, 2).join(' & ')
+      }
+    }
+    // Fallback: use first_name from profile or auth
+    const firstName = guestProfile?.first_name || guest?.first_name || ''
+    return firstName
+  }, [guestProfile?.invitee_names, guestProfile?.first_name, guest?.first_name])
 
   const carouselImages = useMemo(() => {
     const files = [
@@ -92,7 +121,7 @@ export default function GuestInfo() {
           <div className="text-center">
             <div className="text-lg md:text-xl tracking-wide opacity-90 mb-2">
               {t('guestNavHello')}
-              {guestName ? `, ${guestName}` : ''}
+              {guestGreeting ? ` ${guestGreeting}` : ''}
             </div>
             <div className="font-serif text-4xl md:text-5xl lg:text-6xl leading-tight font-medium">
               {t('guestNavWeddingPass')}
@@ -321,18 +350,6 @@ export default function GuestInfo() {
               <Contact />
             </div>
           )}
-
-          {/* Footer navigation */}
-          <footer className="text-center text-sm text-gray-600 pt-8">
-            <button
-              type="button"
-              onClick={() => setActiveTab('pass')}
-              className="font-semibold hover:underline"
-              style={{ color: 'var(--wp-primary)' }}
-            >
-              {t('guestNavWeddingPass')}
-            </button>
-          </footer>
         </div>
       </main>
 
