@@ -28,6 +28,33 @@ body {
   min-height: 100vh;
 }
 
+/* =========================================
+   Guest homepage carousel (infinite marquee)
+   ========================================= */
+@keyframes wp-marquee-left {
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+.wp-marquee {
+  overflow: hidden;
+}
+
+.wp-marquee__track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+  animation: wp-marquee-left var(--wp-marquee-duration, 45s) linear infinite;
+}
+
+.wp-marquee__track:hover {
+  animation-play-state: paused;
+}
+
+.wp-marquee__item {
+  flex: 0 0 auto;
+}
+
 /* React Big Calendar - Ensure dates are visible with strong contrast */
 .rbc-date-cell {
   min-height: 40px;

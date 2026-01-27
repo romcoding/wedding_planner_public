@@ -1,27 +1,21 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { Edit, Plane, Gift, ArrowLeft, Calendar, MapPin, Music, Camera, Mail } from 'lucide-react'
+import { MapPin } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
 import Contact from './Contact'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useGuestAuth } from '../../contexts/GuestAuthContext'
+import LanguageSwitcher from '../../components/LanguageSwitcher'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
-  const [activeSection, setActiveSection] = useState(null)
-  const queryClient = useQueryClient()
-  const [editMode, setEditMode] = useState(false)
   const { t } = useLanguage()
-  const [localEdits, setLocalEdits] = useState({
-    rsvp_status: 'pending',
-    overnight_stay: false,
-    dietary_restrictions: '',
-    special_requests: '',
-    attending_names: [],
-  })
+  const { guest } = useGuestAuth()
+  const [activeMenu, setActiveMenu] = useState('pass')
 
   const inviteToken = useMemo(() => {
     try {
@@ -31,38 +25,10 @@ export default function GuestInfo() {
     }
   }, [])
 
-  // Fetch images from API
-  const { data: images, isLoading: imagesLoading } = useQuery({
-    queryKey: ['images'],
-    queryFn: () => api.get('/images').then((res) => res.data),
-  })
-
   // Fetch guest profile (uses guest_token JWT)
   const { data: guestProfile } = useQuery({
     queryKey: ['guest-profile'],
     queryFn: () => api.get('/guest-auth/profile').then((res) => res.data),
-  })
-
-  useEffect(() => {
-    if (!guestProfile) return
-    setLocalEdits({
-      rsvp_status: guestProfile.rsvp_status || 'pending',
-      overnight_stay: !!guestProfile.overnight_stay,
-      dietary_restrictions: guestProfile.dietary_restrictions || '',
-      special_requests: guestProfile.special_requests || '',
-      attending_names: Array.isArray(guestProfile.attending_names)
-        ? guestProfile.attending_names
-        : [],
-    })
-  }, [guestProfile])
-
-  const updateMutation = useMutation({
-    mutationFn: (payload) => api.put('/guests/update-rsvp', payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['guest-profile'])
-      setEditMode(false)
-      setActiveSection(null) // return to overview grid
-    },
   })
 
   const readContent = (key) => {
@@ -77,519 +43,277 @@ export default function GuestInfo() {
     return t('pending')
   }
 
-  const getInviteTypeLabel = (n) => {
-    const count = Number(n || 1)
-    if (count === 1) return t('inviteTypeIndividual')
-    if (count === 2) return t('inviteTypeCouple')
-    return t('inviteTypeGroup')
+  const guestName = useMemo(() => {
+    const fromProfile = `${guestProfile?.first_name || ''} ${guestProfile?.last_name || ''}`.trim()
+    const fromAuth = `${guest?.first_name || ''} ${guest?.last_name || ''}`.trim()
+    return fromProfile || fromAuth || ''
+  }, [guestProfile?.first_name, guestProfile?.last_name, guest?.first_name, guest?.last_name])
+
+  const carouselImages = useMemo(() => {
+    const files = [
+      '/images/20240709_172842.jpg',
+      '/images/36ce974e-6449-4491-a3a4-0c1741df5616.jpg',
+      '/images/DSC_3034.jpeg',
+      // NOTE: HEIC files are not reliably supported in browsers; excluded intentionally.
+    ]
+    return files
+  }, [])
+
+  const scrollTo = (id) => {
+    setActiveMenu(id)
+    const el = document.getElementById(`wp-section-${id}`)
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
   }
 
-  const inviteeNames = useMemo(() => {
-    const names = Array.isArray(guestProfile?.invitee_names) ? guestProfile.invitee_names : []
-    const cleaned = names.map((n) => (n || '').trim()).filter(Boolean)
-    if (cleaned.length) return cleaned
-    const primary = `${guestProfile?.first_name || ''} ${guestProfile?.last_name || ''}`.trim()
-    return primary ? [primary] : []
-  }, [guestProfile?.invitee_names, guestProfile?.first_name, guestProfile?.last_name])
+  const SectionShell = ({ id, title, children }) => (
+    <section id={`wp-section-${id}`} className="scroll-mt-28">
+      <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+        <div className="text-sm uppercase tracking-[0.18em] text-gray-500 mb-2">{title}</div>
+        {children}
+      </div>
+    </section>
+  )
 
-  const toggleAttending = (name) => {
-    setLocalEdits((prev) => {
-      const set = new Set(prev.attending_names || [])
-      if (set.has(name)) set.delete(name)
-      else set.add(name)
-      return { ...prev, attending_names: Array.from(set) }
-    })
-  }
+  return (
+    <div className="min-h-screen">
+      {/* Banner */}
+      <header
+        className="w-full"
+        style={{
+          backgroundColor: 'var(--wp-primary)',
+          color: 'var(--wp-secondary)',
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="text-sm tracking-wide opacity-90">
+                {t('guestNavHello')}
+                {guestName ? `, ${guestName}` : ''}
+              </div>
+              <div className="font-serif text-3xl md:text-4xl leading-tight">
+                {t('guestNavWeddingPass')}
+              </div>
+            </div>
 
-  // Get images by position
-  const infoTopImage = images?.find(img => img.position === 'info_top' && img.is_active && img.is_public)
-  const editRsvpImage = images?.find(img => img.position === 'edit_rsvp' && img.is_active && img.is_public)
-  const travelImage = images?.find(img => img.position === 'travel' && img.is_active && img.is_public)
-  const giftsImage = images?.find(img => img.position === 'gifts' && img.is_active && img.is_public)
+            <div className="shrink-0">
+              <LanguageSwitcher />
+            </div>
+          </div>
 
-  const handleSectionClick = (section) => {
-    setActiveSection(section)
-  }
+          {/* Menu */}
+          <nav className="mt-5 -mx-2 px-2">
+            <div className="flex items-center gap-5 overflow-x-auto whitespace-nowrap pb-2">
+              {[
+                { id: 'pass', label: t('guestNavWeddingPass') },
+                { id: 'travel', label: t('guestNavTravelAccommodation') },
+                { id: 'program', label: t('guestNavWeddingProgram') },
+                { id: 'gifts', label: t('guestNavGifts') },
+                { id: 'photos', label: t('guestNavPhotos') },
+                { id: 'contact', label: t('guestNavContact') },
+              ].map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => scrollTo(item.id)}
+                  className={`text-sm md:text-base font-medium tracking-wide transition-opacity ${
+                    activeMenu === item.id ? 'opacity-100 underline underline-offset-8' : 'opacity-90 hover:opacity-100'
+                  }`}
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </nav>
+        </div>
+      </header>
 
-  const handleBack = () => {
-    if (activeSection) {
-      setActiveSection(null)
-    } else {
-      navigate('/')
-    }
-  }
+      {/* Carousel */}
+      <div className="wp-marquee bg-black/5 border-b border-black/10">
+        <div
+          className="wp-marquee__track"
+          style={{
+            // Smoothness: longer duration when more images are added later
+            '--wp-marquee-duration': `${Math.max(30, carouselImages.length * 12)}s`,
+          }}
+        >
+          {[...carouselImages, ...carouselImages].map((src, idx) => (
+            <div key={`${src}-${idx}`} className="wp-marquee__item">
+              <img
+                src={src}
+                alt=""
+                className="h-44 sm:h-56 md:h-64 w-[68vw] sm:w-[46vw] md:w-[34vw] object-cover"
+                loading="lazy"
+              />
+            </div>
+          ))}
+        </div>
+      </div>
 
-  // If a section is active, show its content
-  if (activeSection) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-        <div className="max-w-4xl mx-auto px-4 py-12">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            {t('back')}
-          </button>
-
-          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
-            {activeSection === 'edit_rsvp' && (
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <Edit className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">{t('guestInfoChangeTitle')}</h2>
+      {/* Eggshell content */}
+      <main style={{ backgroundColor: '#F7F3EA' }}>
+        <div className="max-w-6xl mx-auto px-4 py-10 md:py-14 space-y-10 md:space-y-14">
+          <SectionShell id="pass" title={t('guestNavWeddingPass')}>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div className="lg:col-span-2">
+                <div className="text-2xl md:text-3xl font-semibold text-gray-900">
+                  {t('guestInfoChangeTitle')}
                 </div>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-700 mt-2">
                   {t('guestInfoChangeBody')}
                 </p>
 
-                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-200 mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('guestInfoCurrentAnswers')}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">{t('guestInfoComing')}</span>
-                      <span className="font-semibold text-gray-900">{getStatusLabel(guestProfile?.rsvp_status)}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">{t('guestInfoInviteType')}</span>
-                      <span className="font-semibold text-gray-900">{getInviteTypeLabel(guestProfile?.number_of_guests)}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">{t('guestInfoGuests')}</span>
-                      <span className="font-semibold text-gray-900">{guestProfile?.number_of_guests || 1}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">{t('guestInfoOvernight')}</span>
-                      <span className="font-semibold text-gray-900">{guestProfile?.overnight_stay ? t('yes') : t('no')}</span>
-                    </div>
-                    <div className="flex items-center justify-between bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <span className="text-gray-600">{t('guestInfoDietary')}</span>
-                      <span className="font-semibold text-gray-900">
-                        {guestProfile?.dietary_restrictions ? t('guestInfoProvided') : '—'}
-                      </span>
-                    </div>
-                    <div className="md:col-span-2 bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <div className="text-gray-600 mb-1">{t('guestInfoDietaryDetails')}</div>
-                      <div className="text-gray-900 whitespace-pre-wrap break-words">
-                        {guestProfile?.dietary_restrictions || '—'}
-                      </div>
-                    </div>
-                    <div className="md:col-span-2 bg-white rounded-xl px-4 py-3 border border-gray-200">
-                      <div className="text-gray-600 mb-1">{t('guestInfoNotes')}</div>
-                      <div className="text-gray-900 whitespace-pre-wrap break-words">
-                        {guestProfile?.special_requests || '—'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="mt-6 flex flex-col sm:flex-row gap-3">
                   <button
-                    onClick={() => setEditMode((v) => !v)}
-                    className="px-6 py-3 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium"
-                  >
-                    {editMode ? t('guestInfoCancelEditing') : t('guestInfoEditHere')}
-                  </button>
-                  <button
+                    type="button"
                     onClick={() => {
-                      if (inviteToken) {
-                        navigate(`/rsvp/${inviteToken}`)
-                      } else {
-                        navigate('/')
-                      }
+                      if (inviteToken) navigate(`/rsvp/${inviteToken}`)
+                      else navigate('/')
                     }}
-                    className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all"
+                    className="px-6 py-3 rounded-xl font-semibold text-white"
+                    style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
                   >
                     {t('guestInfoOpenPass')}
                   </button>
                   <button
-                    onClick={() => {
-                      setActiveSection(null)
-                      setEditMode(false)
-                    }}
-                    className="px-6 py-3 bg-white border border-gray-200 text-gray-900 rounded-lg hover:bg-gray-50 font-medium"
+                    type="button"
+                    onClick={() => navigate('/rsvp/' + (inviteToken || ''))}
+                    className="px-6 py-3 rounded-xl font-semibold bg-white border border-black/10 text-gray-900 hover:bg-black/5"
+                    disabled={!inviteToken}
                   >
-                    {t('guestInfoBackToInfo')}
+                    {t('editAnswers')}
                   </button>
                 </div>
+              </div>
 
-                {editMode && (
-                  <div className="mt-6 bg-white border border-gray-200 rounded-2xl p-5">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('guestInfoEditAnswers')}</h3>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoComing')}</label>
-                      <select
-                        value={localEdits.rsvp_status}
-                        onChange={(e) => {
-                          const next = e.target.value
-                          setLocalEdits((p) => ({
-                            ...p,
-                            rsvp_status: next,
-                            attending_names: next === 'declined' ? [] : p.attending_names,
-                          }))
-                        }}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-                      >
-                        <option value="confirmed">{t('yes')}</option>
-                        <option value="declined">{t('no')}</option>
-                        <option value="pending">{t('pending')}</option>
-                      </select>
-                    </div>
-
-                    {inviteeNames.length > 1 && (
-                      <div className="mb-4">
-                        <div className="text-sm font-medium text-gray-700 mb-2">{t('guestInfoWhoIsComing')}</div>
-                        <div className="space-y-2">
-                          {inviteeNames.map((name) => {
-                            const checked = (localEdits.attending_names || []).includes(name)
-                            return (
-                              <label
-                                key={name}
-                                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white cursor-pointer"
-                              >
-                                <span className="text-gray-900 font-medium">{name}</span>
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  disabled={localEdits.rsvp_status !== 'confirmed'}
-                                  onChange={() => toggleAttending(name)}
-                                  className="w-5 h-5"
-                                />
-                              </label>
-                            )
-                          })}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-2">
-                          {t('guestInfoWhoIsComingHint')}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoOvernight')}</label>
-                      <select
-                        value={localEdits.overnight_stay ? 'yes' : 'no'}
-                        onChange={(e) => setLocalEdits((p) => ({ ...p, overnight_stay: e.target.value === 'yes' }))}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-                      >
-                        <option value="no">{t('no')}</option>
-                        <option value="yes">{t('yes')}</option>
-                      </select>
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoDietaryRestrictions')}</label>
-                      <textarea
-                        rows={3}
-                        value={localEdits.dietary_restrictions}
-                        onChange={(e) => setLocalEdits((p) => ({ ...p, dietary_restrictions: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-                      />
-                    </div>
-
-                    <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">{t('guestInfoNotes')}</label>
-                      <textarea
-                        rows={3}
-                        value={localEdits.special_requests}
-                        onChange={(e) => setLocalEdits((p) => ({ ...p, special_requests: e.target.value }))}
-                        className="w-full px-4 py-3 rounded-xl border border-gray-200 bg-white text-gray-900"
-                      />
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        const nextStatus = localEdits.rsvp_status
-                        const payload = {
-                          rsvp_status: nextStatus,
-                          overnight_stay: localEdits.overnight_stay,
-                          dietary_restrictions: localEdits.dietary_restrictions,
-                          special_requests: localEdits.special_requests,
-                        }
-                        if (inviteeNames.length > 1) {
-                          payload.attending_names =
-                            nextStatus === 'confirmed'
-                              ? (localEdits.attending_names || []).filter((n) => inviteeNames.includes(n))
-                              : []
-                        }
-                        updateMutation.mutate(payload)
-                      }}
-                      disabled={updateMutation.isPending}
-                      className="w-full px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 font-medium transition-all disabled:opacity-50"
-                    >
-                      {updateMutation.isPending ? t('saving') : t('guestInfoSaveChanges')}
-                    </button>
+              <div className="bg-white rounded-2xl border border-black/5 p-5">
+                <div className="text-sm uppercase tracking-[0.18em] text-gray-500 mb-3">
+                  {t('guestInfoCurrentAnswers')}
+                </div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600">{t('guestInfoComing')}</span>
+                    <span className="font-semibold text-gray-900">{getStatusLabel(guestProfile?.rsvp_status)}</span>
                   </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600">{t('guestInfoGuests')}</span>
+                    <span className="font-semibold text-gray-900">{guestProfile?.number_of_guests || 1}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-gray-600">{t('guestInfoOvernight')}</span>
+                    <span className="font-semibold text-gray-900">{guestProfile?.overnight_stay ? t('yes') : t('no')}</span>
+                  </div>
+                  <div className="pt-3 border-t border-black/10">
+                    <div className="text-gray-600">{t('guestInfoDietaryDetails')}</div>
+                    <div className="text-gray-900 whitespace-pre-wrap break-words mt-1">
+                      {guestProfile?.dietary_restrictions || '—'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SectionShell>
+
+          <SectionShell id="travel" title={t('guestNavTravelAccommodation')}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div>
+                <div className="text-2xl md:text-3xl font-semibold text-gray-900">{t('guestTravelTitle')}</div>
+                <p className="text-gray-700 mt-2">
+                  {t('guestTravelCardSubtitle')}
+                </p>
+
+                <div className="mt-6 text-gray-800 whitespace-pre-wrap break-words">
+                  {readContent('guest_accommodation_details') || t('guestAccommodationDetailsFallback')}
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-black/5 p-6">
+                <div className="flex items-center gap-2 text-gray-900 font-semibold">
+                  <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                  {t('guestAccommodationVenueTitle')}
+                </div>
+
+                {readContent('guest_accommodation_venue_name') ? (
+                  <div className="mt-4">
+                    <div className="text-lg font-semibold text-gray-900">{readContent('guest_accommodation_venue_name')}</div>
+                    {readContent('guest_accommodation_venue_address') && (
+                      <div className="text-gray-700">{readContent('guest_accommodation_venue_address')}</div>
+                    )}
+                    {readContent('guest_accommodation_venue_city_region') && (
+                      <div className="text-gray-700">{readContent('guest_accommodation_venue_city_region')}</div>
+                    )}
+                    {readContent('guest_accommodation_venue_website') && (
+                      <a
+                        href={readContent('guest_accommodation_venue_website')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex mt-4 font-semibold hover:underline"
+                        style={{ color: 'var(--wp-primary)' }}
+                      >
+                        {t('guestAccommodationOpenWebsite')}
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <div className="mt-4 text-gray-600">{t('guestAccommodationDetailsFallback')}</div>
                 )}
               </div>
-            )}
+            </div>
+          </SectionShell>
 
-            {activeSection === 'travel' && (
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <Plane className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">{t('guestTravelTitle')}</h2>
+          <SectionShell id="program" title={t('guestNavWeddingProgram')}>
+            <div className="text-2xl md:text-3xl font-semibold text-gray-900">{t('timelineTitle')}</div>
+            <p className="text-gray-700 mt-2">{t('guestGiftsScheduleTitle')}</p>
+
+            <div className="mt-6 space-y-4">
+              {(t('guest_event_gifts_event_label') || '').trim() && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                  <div className="text-sm text-gray-600">{t('guestGiftsFeaturedEvent')}</div>
+                  <div className="text-gray-900 font-semibold">{t('guest_event_gifts_event_label')}</div>
                 </div>
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                      <MapPin className="w-5 h-5 text-pink-500" />
-                      {t('guestAccommodationVenueTitle')}
-                    </h3>
-                    {readContent('guest_accommodation_venue_name') && (
-                      <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
-                        <div className="text-lg font-semibold text-gray-900">{readContent('guest_accommodation_venue_name')}</div>
-                        {readContent('guest_accommodation_venue_address') && (
-                          <div className="text-gray-600">{readContent('guest_accommodation_venue_address')}</div>
-                        )}
-                        {readContent('guest_accommodation_venue_city_region') && (
-                          <div className="text-gray-600">{readContent('guest_accommodation_venue_city_region')}</div>
-                        )}
-                        {readContent('guest_accommodation_venue_website') && (
-                          <a
-                            href={readContent('guest_accommodation_venue_website')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex mt-3 text-pink-600 hover:underline"
-                          >
-                            {t('guestAccommodationOpenWebsite')}
-                          </a>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="text-gray-600 whitespace-pre-wrap break-words">
-                      {readContent('guest_accommodation_details') || t('guestAccommodationDetailsFallback')}
-                    </div>
+              )}
+              {(t('guest_event_gifts_timeline_details') || '').trim() && (
+                <div className="bg-white border border-gray-200 rounded-2xl p-5">
+                  <div className="text-sm text-gray-600">{t('guestGiftsDetailsTitle')}</div>
+                  <div className="text-gray-900 whitespace-pre-wrap break-words">
+                    {t('guest_event_gifts_timeline_details')}
                   </div>
                 </div>
+              )}
+              <div className="bg-white rounded-2xl border border-black/5 p-6">
+                <Timeline showTitle={false} />
               </div>
-            )}
+            </div>
+          </SectionShell>
 
-            {activeSection === 'gifts' && (
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <Gift className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">{t('guestGiftsTitle')}</h2>
-                </div>
-                <div className="space-y-8">
-                  <div>
-                    <h3 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-pink-500" />
-                      {t('guestGiftsScheduleTitle')}
-                    </h3>
-                    <Timeline showTitle={false} />
-                  </div>
-                  <div>
-                    <GiftRegistry />
-                  </div>
-                </div>
-              </div>
-            )}
+          <SectionShell id="gifts" title={t('guestNavGifts')}>
+            <div className="text-2xl md:text-3xl font-semibold text-gray-900">{t('guestGiftsInfoTitle')}</div>
+            <p className="text-gray-700 mt-2">{t('guestGiftsInfoBody')}</p>
+            <div className="mt-8">
+              <GiftRegistry />
+            </div>
+          </SectionShell>
 
-            {activeSection === 'gallery' && (
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <Camera className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">{t('guestGalleryTitle')}</h2>
-                </div>
-                <PhotoGallery />
-              </div>
-            )}
+          <SectionShell id="photos" title={t('guestNavPhotos')}>
+            <PhotoGallery />
+          </SectionShell>
 
-            {activeSection === 'contact' && (
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <Mail className="w-8 h-8 text-pink-500" />
-                  <h2 className="text-3xl font-bold text-gray-900">{t('guestContactTitle')}</h2>
-                </div>
-                <Contact />
-              </div>
-            )}
-          </div>
+          <SectionShell id="contact" title={t('guestNavContact')}>
+            <Contact />
+          </SectionShell>
+
+          <footer className="text-center text-sm text-gray-600 pt-6">
+            <button
+              type="button"
+              onClick={() => scrollTo('pass')}
+              className="font-semibold hover:underline"
+              style={{ color: 'var(--wp-secondary)' }}
+            >
+              {t('guestNavWeddingPass')}
+            </button>
+          </footer>
         </div>
-      </div>
-    )
-  }
-
-  // Main info page with image grid
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50">
-      {/* Top Image */}
-      <div className="relative overflow-hidden">
-        {infoTopImage ? (
-          <div className="relative h-64 md:h-96 overflow-hidden">
-            <img
-              src={infoTopImage.url}
-              alt={infoTopImage.alt_text || 'Wedding Information'}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-black/20"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center px-4">
-                <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                  {t('guestInfoTitle')}
-                </h1>
-                <p className="text-xl text-white/90 drop-shadow-md">
-                  {t('guestInfoSubtitle')}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="relative h-64 md:h-96 bg-gradient-to-br from-pink-200 via-purple-200 to-pink-300 flex items-center justify-center">
-            <div className="text-center">
-              <h1 className="text-4xl md:text-6xl font-bold text-white mb-4 drop-shadow-lg">
-                {t('guestInfoTitle')}
-              </h1>
-              <p className="text-xl text-white/90 drop-shadow-md">
-                {t('guestInfoSubtitle')}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation Sections */}
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {/* Edit RSVP */}
-          <div
-            onClick={() => handleSectionClick('edit_rsvp')}
-            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
-          >
-            {editRsvpImage ? (
-              <img
-                src={editRsvpImage.url}
-                alt={editRsvpImage.alt_text || 'Change your information'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center">
-                <Edit className="w-16 h-16 text-white/80" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <Edit className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">{t('guestInfoChangeTitle')}</h3>
-                <p className="text-white/90">{t('guestInfoChangeCardSubtitle')}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Travel & Accommodation */}
-          <div
-            onClick={() => handleSectionClick('travel')}
-            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
-          >
-            {travelImage ? (
-              <img
-                src={travelImage.url}
-                alt={travelImage.alt_text || 'Travel & Accommodation'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-purple-200 to-pink-200 flex items-center justify-center">
-                <Plane className="w-16 h-16 text-white/80" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <Plane className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">{t('guestTravelTitle')}</h3>
-                <p className="text-white/90">{t('guestTravelCardSubtitle')}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Event & Gifts */}
-          <div
-            onClick={() => handleSectionClick('gifts')}
-            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
-          >
-            {giftsImage ? (
-              <img
-                src={giftsImage.url}
-                alt={giftsImage.alt_text || 'Event & Gifts'}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-pink-200 to-purple-200 flex items-center justify-center">
-                <Gift className="w-16 h-16 text-white/80" />
-              </div>
-            )}
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <Gift className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">{t('guestGiftsTitle')}</h3>
-                <p className="text-white/90">{t('guestGiftsCardSubtitle')}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Photo Gallery */}
-          <div
-            onClick={() => handleSectionClick('gallery')}
-            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
-          >
-            <div className="w-full h-full bg-gradient-to-br from-blue-200 to-purple-200 flex items-center justify-center">
-              <Camera className="w-16 h-16 text-white/80" />
-            </div>
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <Camera className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">{t('guestGalleryTitle')}</h3>
-                <p className="text-white/90">{t('guestGalleryCardSubtitle')}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div
-            onClick={() => handleSectionClick('contact')}
-            className="relative h-80 rounded-2xl overflow-hidden shadow-xl cursor-pointer transform transition-all hover:scale-105 hover:shadow-2xl group"
-          >
-            <div className="w-full h-full bg-gradient-to-br from-green-200 to-teal-200 flex items-center justify-center">
-              <Mail className="w-16 h-16 text-white/80" />
-            </div>
-            <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition-all"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center text-white">
-                <Mail className="w-12 h-12 mx-auto mb-3 group-hover:scale-110 transition-transform" />
-                <h3 className="text-2xl font-bold mb-2">{t('guestContactTitle')}</h3>
-                <p className="text-white/90">{t('guestContactCardSubtitle')}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Timeline Section */}
-        <div className="max-w-4xl mx-auto mt-12">
-          <div className="bg-white rounded-2xl shadow-xl p-8 md:p-12">
-            {(t('guest_event_gifts_event_label') || '').trim() && (
-              <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
-                <div className="text-sm text-gray-600">{t('guestGiftsFeaturedEvent')}</div>
-                <div className="text-gray-900 font-semibold">{t('guest_event_gifts_event_label')}</div>
-              </div>
-            )}
-            {(t('guest_event_gifts_timeline_details') || '').trim() && (
-              <div className="mb-4 bg-white border border-gray-200 rounded-2xl p-5">
-                <div className="text-sm text-gray-600">{t('guestGiftsDetailsTitle')}</div>
-                <div className="text-gray-900 whitespace-pre-wrap break-words">
-                  {t('guest_event_gifts_timeline_details')}
-                </div>
-              </div>
-            )}
-            <Timeline />
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   )
 }

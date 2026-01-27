@@ -206,6 +206,18 @@ const translations = {
     guestContactTitle: 'Contact us',
     guestContactCardSubtitle: 'Send us a message',
 
+    // Guest website top navigation
+    guestNavHello: 'Hello',
+    guestNavWeddingPass: 'Wedding Pass',
+    guestNavTravelAccommodation: 'Accommodation & Travel',
+    guestNavWeddingProgram: 'Wedding Programme',
+    guestNavGifts: 'Gifts',
+    guestNavPhotos: 'Photos',
+    guestNavContact: 'Contact',
+    guestGiftsInfoTitle: 'Gifts',
+    guestGiftsInfoBody:
+      'Your presence means the world to us. If you’d like to give something, you’ll find the details here.',
+
     // Photo gallery
     photoGalleryTitle: 'Photo Gallery',
     photoGalleryLoading: 'Loading gallery...',
@@ -472,6 +484,18 @@ const translations = {
     guestContactTitle: 'Kontakt',
     guestContactCardSubtitle: 'Schreib uns eine Nachricht',
 
+    // Guest website top navigation
+    guestNavHello: 'Hallo',
+    guestNavWeddingPass: 'Wedding Pass',
+    guestNavTravelAccommodation: 'Unterkunft & Anreise',
+    guestNavWeddingProgram: 'Hochzeitsprogramm',
+    guestNavGifts: 'Geschenke',
+    guestNavPhotos: 'Fotos',
+    guestNavContact: 'Kontakt',
+    guestGiftsInfoTitle: 'Geschenke',
+    guestGiftsInfoBody:
+      'Deine Anwesenheit ist für uns das schönste Geschenk. Falls du trotzdem etwas schenken möchtest, findest du hier die Infos.',
+
     // Photo gallery
     photoGalleryTitle: 'Fotogalerie',
     photoGalleryLoading: 'Galerie wird geladen…',
@@ -737,6 +761,18 @@ const translations = {
     // Guest portal - Contact
     guestContactTitle: 'Contact',
     guestContactCardSubtitle: 'Envoyez-nous un message',
+
+    // Guest website top navigation
+    guestNavHello: 'Salut',
+    guestNavWeddingPass: 'Pass Mariage',
+    guestNavTravelAccommodation: 'Hébergement & Voyage',
+    guestNavWeddingProgram: 'Programme du mariage',
+    guestNavGifts: 'Cadeaux',
+    guestNavPhotos: 'Photos',
+    guestNavContact: 'Contact',
+    guestGiftsInfoTitle: 'Cadeaux',
+    guestGiftsInfoBody:
+      'Votre présence est le plus beau des cadeaux. Si vous souhaitez offrir quelque chose, vous trouverez les informations ici.',
 
     // Photo gallery
     photoGalleryTitle: 'Galerie photo',
