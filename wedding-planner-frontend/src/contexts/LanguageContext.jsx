@@ -196,6 +196,9 @@ const translations = {
     guestAccommodationVenueTitle: 'Accommodation',
     guestAccommodationDetailsFallback: 'Accommodation details will be shared here.',
     guestAccommodationOpenWebsite: 'Open website',
+    guestAccommodationBookingTitle: 'Room Booking',
+    guestAccommodationBookNow: 'Book your room',
+    guestAccommodationBookingStayTuned: 'Stay tuned for booking information',
 
     // Guest portal - Event & Gifts
     guestGiftsTitle: 'Event & Gifts',
@@ -480,6 +483,9 @@ const translations = {
     guestAccommodationVenueTitle: 'Unterkunft',
     guestAccommodationDetailsFallback: 'Unterkunftsdetails werden hier geteilt.',
     guestAccommodationOpenWebsite: 'Website öffnen',
+    guestAccommodationBookingTitle: 'Zimmerreservierung',
+    guestAccommodationBookNow: 'Zimmer buchen',
+    guestAccommodationBookingStayTuned: 'Buchungsinformationen folgen',
 
     // Guest portal - Event & Gifts
     guestGiftsTitle: 'Event & Geschenke',
@@ -764,6 +770,9 @@ const translations = {
     guestAccommodationVenueTitle: 'Hébergement',
     guestAccommodationDetailsFallback: 'Les informations d’hébergement seront indiquées ici.',
     guestAccommodationOpenWebsite: 'Ouvrir le site',
+    guestAccommodationBookingTitle: 'Réservation de chambre',
+    guestAccommodationBookNow: 'Réserver une chambre',
+    guestAccommodationBookingStayTuned: 'Informations de réservation à venir',
 
     // Guest portal - Event & Gifts
     guestGiftsTitle: 'Événement & cadeaux',

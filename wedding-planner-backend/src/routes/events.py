@@ -240,6 +240,7 @@ def get_guest_portal_settings():
         'guest_accommodation_venue_website',
         'guest_accommodation_details',
         'guest_accommodation_map_address',
+        'guest_accommodation_booking_link',
     ]
     items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
 
@@ -272,6 +273,7 @@ def get_guest_portal_settings():
         'guestAccommodationVenueWebsite': pack('guest_accommodation_venue_website'),
         'guestAccommodationDetails': pack('guest_accommodation_details'),
         'guestAccommodationMapAddress': one('guest_accommodation_map_address'),
+        'guestAccommodationBookingLink': one('guest_accommodation_booking_link'),
     }), 200
 
 
@@ -291,6 +293,7 @@ def set_guest_portal_settings():
     guest_dresscode = data.get('guestDresscode') or {}
     guest_accommodation_venue_id = str(data.get('guestAccommodationVenueId') or '').strip()
     guest_accommodation_details = data.get('guestAccommodationDetails') or {}
+    guest_accommodation_booking_link = str(data.get('guestAccommodationBookingLink') or '').strip()
 
     selected_event = None
     if guest_event_id:
@@ -458,6 +461,11 @@ def set_guest_portal_settings():
         'guest_accommodation_map_address',
         'Guest: Accommodation map address (for Google Maps)',
         map_address, map_address, map_address
+    )
+    _upsert_public_content_key(
+        'guest_accommodation_booking_link',
+        'Guest: Accommodation booking link',
+        guest_accommodation_booking_link, guest_accommodation_booking_link, guest_accommodation_booking_link
     )
 
     try:

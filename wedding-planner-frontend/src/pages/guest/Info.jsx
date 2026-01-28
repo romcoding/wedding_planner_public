@@ -499,6 +499,28 @@ export default function GuestInfo() {
                   </div>
                 )}
 
+                {/* Booking Link Section */}
+                <div className="text-center pt-6 border-t border-black/10">
+                  <div className="text-sm font-medium mb-3" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
+                    {t('guestAccommodationBookingTitle')}
+                  </div>
+                  {readContent('guest_accommodation_booking_link') ? (
+                    <a
+                      href={readContent('guest_accommodation_booking_link')}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex px-6 py-3 rounded-xl font-semibold text-white"
+                      style={{ backgroundColor: 'var(--wp-primary)' }}
+                    >
+                      {t('guestAccommodationBookNow')}
+                    </a>
+                  ) : (
+                    <div style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
+                      {t('guestAccommodationBookingStayTuned')}
+                    </div>
+                  )}
+                </div>
+
                 {/* Google Maps Embed */}
                 {readContent('guest_accommodation_map_address') && (
                   <div className="max-w-lg mx-auto">
@@ -587,44 +609,46 @@ export default function GuestInfo() {
                       <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
                     </div>
                     
-                    {/* Timeline items - clean vertical layout */}
-                    <div className="relative pl-8 sm:pl-12">
-                      {/* Timeline line */}
-                      <div 
-                        className="absolute left-3 sm:left-5 top-2 bottom-2 w-0.5"
-                        style={{ backgroundColor: 'var(--wp-primary)', opacity: 0.2 }}
-                      />
-                      
-                      <div className="space-y-6">
-                        {agendaItems.map((item) => (
-                          <div key={item.id} className="relative">
-                            {/* Timeline dot */}
-                            <div 
-                              className="absolute -left-5 sm:-left-7 top-1.5 w-3 h-3 rounded-full"
-                              style={{ backgroundColor: 'var(--wp-primary)' }}
-                            />
-                            
-                            {/* Content */}
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-lg font-bold" style={{ color: 'var(--wp-primary)' }}>
-                                  {item.time_display}
-                                </span>
-                                {item.icon && (
-                                  <span className="text-xl">{getIconEmoji(item.icon)}</span>
+                    {/* Timeline items - centered vertical layout */}
+                    <div className="max-w-sm mx-auto">
+                      <div className="relative pl-8 sm:pl-10">
+                        {/* Timeline line */}
+                        <div 
+                          className="absolute left-3 sm:left-4 top-2 bottom-2 w-0.5"
+                          style={{ backgroundColor: 'var(--wp-primary)', opacity: 0.2 }}
+                        />
+                        
+                        <div className="space-y-6">
+                          {agendaItems.map((item) => (
+                            <div key={item.id} className="relative">
+                              {/* Timeline dot */}
+                              <div 
+                                className="absolute -left-5 sm:-left-6 top-1.5 w-3 h-3 rounded-full"
+                                style={{ backgroundColor: 'var(--wp-primary)' }}
+                              />
+                              
+                              {/* Content */}
+                              <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-lg font-bold" style={{ color: 'var(--wp-primary)' }}>
+                                    {item.time_display}
+                                  </span>
+                                  {item.icon && (
+                                    <span className="text-xl">{getIconEmoji(item.icon)}</span>
+                                  )}
+                                </div>
+                                <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                                  {getLocalizedText(item, 'title')}
+                                </div>
+                                {getLocalizedText(item, 'description') && (
+                                  <div className="text-sm mt-1" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                                    {getLocalizedText(item, 'description')}
+                                  </div>
                                 )}
                               </div>
-                              <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>
-                                {getLocalizedText(item, 'title')}
-                              </div>
-                              {getLocalizedText(item, 'description') && (
-                                <div className="text-sm mt-1" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
-                                  {getLocalizedText(item, 'description')}
-                                </div>
-                              )}
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
