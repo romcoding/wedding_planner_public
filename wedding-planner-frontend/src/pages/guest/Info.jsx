@@ -335,7 +335,7 @@ export default function GuestInfo() {
                       type="button"
                       onClick={() => setIsEditing(true)}
                       className="px-6 py-3 rounded-xl font-semibold text-white"
-                      style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+                      style={{ backgroundColor: 'var(--wp-primary)' }}
                     >
                       {t('editAnswers')}
                     </button>
@@ -359,7 +359,7 @@ export default function GuestInfo() {
                               ? 'text-white'
                               : 'bg-white border-black/10 hover:bg-black/5'
                           }`}
-                          style={editForm.overnight_stay ? { background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' } : { color: 'var(--wp-primary)' }}
+                          style={editForm.overnight_stay ? { backgroundColor: 'var(--wp-primary)' } : { color: 'var(--wp-primary)' }}
                         >
                           {t('yes')}
                         </button>
@@ -371,7 +371,7 @@ export default function GuestInfo() {
                               ? 'text-white'
                               : 'bg-white border-black/10 hover:bg-black/5'
                           }`}
-                          style={!editForm.overnight_stay ? { background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' } : { color: 'var(--wp-primary)' }}
+                          style={!editForm.overnight_stay ? { backgroundColor: 'var(--wp-primary)' } : { color: 'var(--wp-primary)' }}
                         >
                           {t('no')}
                         </button>
@@ -415,7 +415,7 @@ export default function GuestInfo() {
                       onClick={handleSaveChanges}
                       disabled={updateMutation.isPending}
                       className="px-6 py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
-                      style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+                      style={{ backgroundColor: 'var(--wp-primary)' }}
                     >
                       {updateMutation.isPending ? (
                         <>

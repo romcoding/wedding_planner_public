@@ -115,7 +115,7 @@ export default function PhotoGallery() {
               target="_blank"
               rel="noreferrer"
               className="inline-flex px-6 py-3 rounded-xl font-semibold text-white"
-              style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+              style={{ backgroundColor: 'var(--wp-primary)' }}
             >
               {t('photoGalleryOpenFolder')}
             </a>

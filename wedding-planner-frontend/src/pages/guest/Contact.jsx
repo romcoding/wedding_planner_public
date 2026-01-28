@@ -91,7 +91,7 @@ export default function Contact() {
             type="submit"
             disabled={sendMessage.isPending}
             className="w-full flex items-center justify-center gap-2 px-6 py-3 text-white rounded-lg disabled:opacity-50 font-medium transition-all"
-            style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+            style={{ backgroundColor: 'var(--wp-primary)' }}
           >
             <Send className="w-5 h-5" />
             {sendMessage.isPending ? t('contactSending') : t('contactSendButton')}

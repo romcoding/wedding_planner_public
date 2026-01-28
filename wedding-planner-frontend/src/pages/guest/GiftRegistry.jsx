@@ -59,11 +59,6 @@ export default function GiftRegistry() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold mb-6" style={{ color: 'var(--wp-primary)' }}>{t('giftRegistryTitle')}</h2>
-      <p className="mb-8" style={{ color: 'var(--wp-primary)' }}>
-        {t('giftRegistryIntro')}
-      </p>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {registryItems && registryItems.length > 0 ? (
           registryItems.map((item) => (
