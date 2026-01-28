@@ -78,8 +78,10 @@ export default function StyledGoogleMap({
       { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: background }] },
       { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
       { featureType: 'transit', elementType: 'geometry', stylers: [{ color: background }] },
-      { featureType: 'poi', elementType: 'geometry', stylers: [{ color: background }] },
-      { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
+      // Hide all POIs (restaurants, hotels, etc.)
+      { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+      // Keep parks visible for context
+      { featureType: 'poi.park', stylers: [{ visibility: 'on' }] },
       { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: background }] },
       { featureType: 'road', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: primary }] },
@@ -114,10 +116,22 @@ export default function StyledGoogleMap({
         geocoder.geocode({ address }, (results, geocodeStatus) => {
           if (!isMounted) return
           if (geocodeStatus === 'OK' && results?.[0]?.geometry?.location) {
-            map.setCenter(results[0].geometry.location)
+            const loc = results[0].geometry.location
+            map.setCenter(loc)
+            const { secondary } = getThemeColors()
+            const svgMarker = {
+              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
+                <svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="22" cy="22" r="18" fill="${secondary}" stroke="white" stroke-width="4"/>
+                  <path d="M17 14h3v16h-3zM24 14h3v16h-3z" fill="white"/>
+                </svg>
+              `)}`,
+              scaledSize: new window.google.maps.Size(44, 44),
+            }
             new window.google.maps.Marker({
-              position: results[0].geometry.location,
+              position: loc,
               map,
+              icon: svgMarker,
             })
             setStatus('ready')
           } else {
