@@ -34,6 +34,12 @@ export default function GuestInfo() {
     queryFn: () => api.get('/guest-auth/profile').then((res) => res.data),
   })
 
+  // Fetch images for carousel (all positions except moodboard)
+  const { data: allImages } = useQuery({
+    queryKey: ['images'],
+    queryFn: () => api.get('/images').then((res) => res.data),
+  })
+
   // Auto-open wizard on first visit (only once per guest)
   useEffect(() => {
     if (!profileLoaded || !inviteToken) return
@@ -81,15 +87,37 @@ export default function GuestInfo() {
     return firstName
   }, [guestProfile?.invitee_names, guestProfile?.first_name, guest?.first_name])
 
+  // Build carousel images from API - include all positions except moodboard
   const carouselImages = useMemo(() => {
-    const files = [
-      '/images/20240709_172842.jpg',
-      '/images/36ce974e-6449-4491-a3a4-0c1741df5616.jpg',
-      '/images/DSC_3034.jpeg',
-      // NOTE: HEIC files are not reliably supported in browsers; excluded intentionally.
-    ]
-    return files
-  }, [])
+    if (!allImages || !Array.isArray(allImages)) {
+      // Fallback to local images if API not loaded yet
+      return [
+        '/images/20240709_172842.jpg',
+        '/images/36ce974e-6449-4491-a3a4-0c1741df5616.jpg',
+        '/images/DSC_3034.jpeg',
+      ]
+    }
+    // Filter out moodboard images, include all others (carousel, hero, photo1, photo2, photo3, travel, gifts, etc.)
+    const carouselImgs = allImages
+      .filter((img) => img.is_active && img.is_public && img.position !== 'moodboard' && img.url)
+      .sort((a, b) => {
+        // Prioritize 'carousel' position first, then by order
+        if (a.position === 'carousel' && b.position !== 'carousel') return -1
+        if (b.position === 'carousel' && a.position !== 'carousel') return 1
+        return (a.order || 0) - (b.order || 0)
+      })
+      .map((img) => img.url)
+    
+    // If no images from API, fall back to local files
+    if (carouselImgs.length === 0) {
+      return [
+        '/images/20240709_172842.jpg',
+        '/images/36ce974e-6449-4491-a3a4-0c1741df5616.jpg',
+        '/images/DSC_3034.jpeg',
+      ]
+    }
+    return carouselImgs
+  }, [allImages])
 
   // Menu items for tab navigation
   const menuItems = [

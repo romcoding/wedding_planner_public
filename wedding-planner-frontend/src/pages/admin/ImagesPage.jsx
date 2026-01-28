@@ -747,6 +747,7 @@ const ImagesPage = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select position...</option>
+                <option value="carousel">Carousel (Guest Page Banner)</option>
                 <option value="hero">Hero (Main Couple Photo)</option>
                 <option value="photo1">Photo 1 (RSVP Left)</option>
                 <option value="photo2">Photo 2 (RSVP Left)</option>
@@ -755,7 +756,12 @@ const ImagesPage = () => {
                 <option value="edit_rsvp">Edit RSVP</option>
                 <option value="travel">Travel & Accommodation</option>
                 <option value="gifts">Event & Gifts</option>
+                <option value="moodboard">Moodboard (Admin only)</option>
               </select>
+              <p className="text-xs text-gray-500 mt-1">
+                Carousel images appear on the guest page banner. Multiple images can have this position.
+                All positions except "Moodboard" will also be included in the carousel.
+              </p>
             </div>
 
             <div className="flex gap-2">
