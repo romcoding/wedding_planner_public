@@ -72,10 +72,20 @@ def login():
 @auth_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
-    """Get current user profile"""
+    """Get current user profile (admin users only)"""
     user_id = get_jwt_identity()
+    
+    # Check if this is a guest token (guest tokens have identity like 'guest_13')
+    if isinstance(user_id, str) and user_id.startswith('guest_'):
+        # Guest tokens should use /api/guest-auth/profile instead
+        return jsonify({'error': 'Guest tokens should use /api/guest-auth/profile'}), 401
+    
     # Convert to int if it's a string (JWT identity is now a string)
-    user_id = int(user_id) if isinstance(user_id, str) else user_id
+    try:
+        user_id = int(user_id) if isinstance(user_id, str) else user_id
+    except ValueError:
+        return jsonify({'error': 'Invalid token identity'}), 401
+    
     user = User.query.get(user_id)
     
     if not user:
@@ -86,10 +96,19 @@ def get_profile():
 @auth_bp.route('/profile', methods=['PUT'])
 @jwt_required()
 def update_profile():
-    """Update current user profile"""
+    """Update current user profile (admin users only)"""
     user_id = get_jwt_identity()
+    
+    # Check if this is a guest token
+    if isinstance(user_id, str) and user_id.startswith('guest_'):
+        return jsonify({'error': 'Guest tokens cannot update admin profiles'}), 401
+    
     # Convert to int if it's a string (JWT identity is now a string)
-    user_id = int(user_id) if isinstance(user_id, str) else user_id
+    try:
+        user_id = int(user_id) if isinstance(user_id, str) else user_id
+    except ValueError:
+        return jsonify({'error': 'Invalid token identity'}), 401
+    
     user = User.query.get(user_id)
     
     if not user:
