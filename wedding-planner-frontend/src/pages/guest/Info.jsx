@@ -88,27 +88,25 @@ export default function GuestInfo() {
     }
   }, [guestProfile])
 
-  // Show wizard popup for first-time guests (pending RSVP status)
+  // Show wizard popup for guests with pending RSVP status
+  // Once they confirm or decline, they go directly to the wedding page
   useEffect(() => {
     if (!profileLoaded || !inviteToken) return
     
-    // Check if guest hasn't responded yet
+    // Only show wizard for pending status
     const isPending = !guestProfile?.rsvp_status || guestProfile.rsvp_status === 'pending'
     
-    // Check if we've already shown the wizard in this session
-    const wizardShownKey = `wizard_shown_${inviteToken}`
-    const alreadyShown = sessionStorage.getItem(wizardShownKey)
-    
-    if (isPending && !alreadyShown) {
+    if (isPending) {
       setShowWizard(true)
-      sessionStorage.setItem(wizardShownKey, 'true')
+    } else {
+      setShowWizard(false)
     }
   }, [profileLoaded, guestProfile?.rsvp_status, inviteToken])
 
   const handleWizardClose = () => {
-    setShowWizard(false)
     // Refresh profile data after wizard closes
     queryClient.invalidateQueries(['guest-profile'])
+    // The useEffect above will handle closing the wizard if RSVP status is no longer pending
   }
 
   // Mutation to save changes

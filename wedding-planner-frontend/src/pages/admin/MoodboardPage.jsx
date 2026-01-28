@@ -263,6 +263,12 @@ export default function MoodboardPage() {
   const [drawingLine, setDrawingLine] = useState(null) // { id, points: [] } preview
 
   const [history, setHistory] = useState({ past: [], future: [] })
+  const [isMounted, setIsMounted] = useState(false)
+
+  // Ensure component is mounted before using Transformer (prevents "Cannot access before initialization" error)
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   useEffect(() => {
     const mq = window.matchMedia('(pointer: coarse)')
@@ -1647,19 +1653,22 @@ export default function MoodboardPage() {
                 />
               )}
 
-              <Transformer
-                ref={transformerRef}
-                rotateEnabled={true}
-                enabledAnchors={
-                  canTransform
-                    ? ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']
-                    : []
-                }
-                boundBoxFunc={(oldBox, newBox) => {
-                  if (newBox.width < 10 || newBox.height < 10) return oldBox
-                  return newBox
-                }}
-              />
+              {/* Transformer must be rendered after component is mounted (prevents "Cannot access before initialization" error) */}
+              {isMounted && (
+                <Transformer
+                  ref={transformerRef}
+                  rotateEnabled={true}
+                  enabledAnchors={
+                    canTransform
+                      ? ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']
+                      : []
+                  }
+                  boundBoxFunc={(oldBox, newBox) => {
+                    if (newBox.width < 10 || newBox.height < 10) return oldBox
+                    return newBox
+                  }}
+                />
+              )}
             </Layer>
           </Stage>
         </div>
