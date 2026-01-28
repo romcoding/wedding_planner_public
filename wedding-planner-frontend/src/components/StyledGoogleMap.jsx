@@ -94,6 +94,8 @@ export default function StyledGoogleMap({
       { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
       { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
+      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: background }] },
+      { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
       { featureType: 'water', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
     ]
@@ -175,6 +177,11 @@ export default function StyledGoogleMap({
           href={openUrl}
           target="_blank"
           rel="noopener noreferrer"
+          style={{
+            backgroundColor: secondary,    // solid background improves contrast
+            color: '#fff',                 // white text on coloured button
+            boxShadow: '0 3px 6px rgba(0, 0, 0, 0.3)', // subtle shadow to lift it off the map
+          }}
         >
           {openLabel}
         </a>
