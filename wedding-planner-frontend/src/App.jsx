@@ -28,6 +28,7 @@ import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
 import GuestRegister from './pages/guest/Register'
 import RSVP from './pages/guest/RSVP'
+import GuestEntry from './pages/guest/GuestEntry'
 
 function AdminRouteGuard({ allowRoles, user, element, fallbackTo = '/admin/guests' }) {
   if (!user) return <Navigate to="/admin/login" replace />
@@ -53,7 +54,8 @@ function GuestRoutes() {
         <Route element={<GuestThemeShell />}>
           <Route path="login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
           <Route path="register" element={<GuestRegister />} />
-          <Route path="rsvp/:token" element={<RSVP />} />
+          {/* Guest entry point - authenticates with token and redirects to /info */}
+          <Route path="rsvp/:token" element={<GuestEntry />} />
           <Route element={<GuestLayout />}>
             <Route index element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
             <Route path="home" element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />

@@ -982,30 +982,52 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                     }
                   >
                     <div className="space-y-3">
-                      <PrimaryButton onClick={downloadIcs} disabled={!canAddToCalendar}>
-                        <span className="flex items-center justify-center gap-2">
-                          <CalendarPlus className="w-5 h-5" />
-                          {t('addToCalendar')}
-                        </span>
-                      </PrimaryButton>
-                      {!canAddToCalendar ? (
-                        <p className="text-xs text-gray-500">{t('calendarNotConfigured')}</p>
-                      ) : null}
+                      {embedded ? (
+                        <>
+                          {/* Embedded mode: show done button to close popup */}
+                          <PrimaryButton onClick={() => onClose?.()}>
+                            <span className="flex items-center justify-center gap-2">
+                              <Check className="w-5 h-5" />
+                              {t('done') || 'Done'}
+                            </span>
+                          </PrimaryButton>
+                          
+                          <PrimaryButton variant="secondary" onClick={downloadIcs} disabled={!canAddToCalendar}>
+                            <span className="flex items-center justify-center gap-2">
+                              <CalendarPlus className="w-5 h-5" />
+                              {t('addToCalendar')}
+                            </span>
+                          </PrimaryButton>
+                        </>
+                      ) : (
+                        <>
+                          {/* Full page mode: show all options */}
+                          <PrimaryButton onClick={downloadIcs} disabled={!canAddToCalendar}>
+                            <span className="flex items-center justify-center gap-2">
+                              <CalendarPlus className="w-5 h-5" />
+                              {t('addToCalendar')}
+                            </span>
+                          </PrimaryButton>
+                          {!canAddToCalendar ? (
+                            <p className="text-xs text-gray-500">{t('calendarNotConfigured')}</p>
+                          ) : null}
 
-                      <PrimaryButton variant="secondary" onClick={savePageOneClick}>
-                        {t('saveThisPageButton')}
-                      </PrimaryButton>
+                          <PrimaryButton variant="secondary" onClick={savePageOneClick}>
+                            {t('saveThisPageButton')}
+                          </PrimaryButton>
 
-                      <div className="rounded-2xl border border-gray-200 bg-white p-4">
-                        <p className="text-sm text-gray-700">
-                          <span className="font-semibold text-gray-900">{t('whyReturnTitle')}</span>{' '}
-                          {t('whyReturnBody')}
-                        </p>
-                      </div>
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                            <p className="text-sm text-gray-700">
+                              <span className="font-semibold text-gray-900">{t('whyReturnTitle')}</span>{' '}
+                              {t('whyReturnBody')}
+                            </p>
+                          </div>
 
-                      <PrimaryButton variant="secondary" onClick={() => navigate('/info')}>
-                        {t('openFullInfo')}
-                      </PrimaryButton>
+                          <PrimaryButton variant="secondary" onClick={() => navigate('/info')}>
+                            {t('openFullInfo')}
+                          </PrimaryButton>
+                        </>
+                      )}
                     </div>
                   </StepShell>
                 )}
