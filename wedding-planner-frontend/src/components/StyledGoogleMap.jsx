@@ -70,23 +70,20 @@ export default function StyledGoogleMap({
 
   const mapStyles = useMemo(() => {
     const { primary, secondary, background } = getThemeColors()
-    // Swap primary/secondary usage for map styling
-    const primaryTone = secondary
-    const secondaryTone = primary
     return [
-      { elementType: 'geometry', stylers: [{ color: adjustColor(background, 4) }] },
-      { elementType: 'labels.text.fill', stylers: [{ color: adjustColor(primaryTone, -10) }] },
-      { elementType: 'labels.text.stroke', stylers: [{ color: adjustColor(background, 12) }] },
-      { featureType: 'poi', elementType: 'geometry', stylers: [{ color: adjustColor(background, -4) }] },
-      { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: adjustColor(background, 10) }] },
-      { featureType: 'road', elementType: 'geometry', stylers: [{ color: adjustColor(primaryTone, 40) }] },
-      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: adjustColor(primaryTone, 20) }] },
-      { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: adjustColor(primaryTone, -20) }] },
-      { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: adjustColor(primaryTone, 25) }] },
-      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: adjustColor(secondaryTone, 10) }] },
-      { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: adjustColor(secondaryTone, -10) }] },
-      { featureType: 'water', elementType: 'geometry', stylers: [{ color: adjustColor(secondaryTone, 60) }] },
-      { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: adjustColor(primaryTone, -20) }] },
+      { elementType: 'geometry', stylers: [{ color: background }] },
+      { elementType: 'labels.text.fill', stylers: [{ color: primary }] },
+      { elementType: 'labels.text.stroke', stylers: [{ color: background }] },
+      { featureType: 'poi', elementType: 'geometry', stylers: [{ color: background }] },
+      { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: background }] },
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: primary }] },
+      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: primary }] },
+      { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
+      { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
+      { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
+      { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: secondary }] },
+      { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
     ]
   }, [])
 
