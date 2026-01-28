@@ -87,7 +87,7 @@ export default function StyledGoogleMap({
       { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
       { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
-      { featureType: 'water', elementType: 'geometry', stylers: [{ color: secondary }] },
+      { featureType: 'water', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
     ]
   }, [])
