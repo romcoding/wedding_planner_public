@@ -61,6 +61,7 @@ const ImagesPage = () => {
   const [guestEventDetails, setGuestEventDetails] = useState({ en: '', de: '', fr: '' })
   const [guestTimelineVenueId, setGuestTimelineVenueId] = useState('')
   const [guestAgenda, setGuestAgenda] = useState({ en: '', de: '', fr: '' })
+  const [newAgendaItem, setNewAgendaItem] = useState({ en: '', de: '', fr: '' })
   const [guestDresscode, setGuestDresscode] = useState({ en: '', de: '', fr: '' })
   const [guestAccommodationVenueId, setGuestAccommodationVenueId] = useState('')
   const [guestAccommodationDetails, setGuestAccommodationDetails] = useState({ en: '', de: '', fr: '' })
@@ -145,6 +146,33 @@ const ImagesPage = () => {
       description_fr: '',
       icon: '',
     })
+  }
+
+  const parseAgendaItems = (value) =>
+    String(value || '')
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
+
+  const updateAgendaItems = (lang, items) => {
+    setGuestAgenda((prev) => ({
+      ...prev,
+      [lang]: items.join('\n'),
+    }))
+  }
+
+  const handleAddAgendaItem = (lang) => {
+    const value = String(newAgendaItem[lang] || '').trim()
+    if (!value) return
+    const items = parseAgendaItems(guestAgenda[lang])
+    updateAgendaItems(lang, [...items, value])
+    setNewAgendaItem((prev) => ({ ...prev, [lang]: '' }))
+  }
+
+  const handleRemoveAgendaItem = (lang, index) => {
+    const items = parseAgendaItems(guestAgenda[lang])
+    items.splice(index, 1)
+    updateAgendaItems(lang, items)
   }
 
   const handleEditAgenda = (item) => {
@@ -679,38 +707,231 @@ const ImagesPage = () => {
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Agenda</label>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
-                <textarea
-                  rows={4}
-                  value={guestAgenda.en}
-                  onChange={(e) => setGuestAgenda((p) => ({ ...p, en: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="e.g. 14:00 Arrival & Welcome&#10;15:00 Ceremony&#10;16:00 Cocktail Hour&#10;18:00 Dinner&#10;21:00 Dancing"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
-                <textarea
-                  rows={4}
-                  value={guestAgenda.de}
-                  onChange={(e) => setGuestAgenda((p) => ({ ...p, de: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="z.B. 14:00 Ankunft & Empfang&#10;15:00 Zeremonie&#10;16:00 Apéro&#10;18:00 Abendessen&#10;21:00 Tanz"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
-                <textarea
-                  rows={4}
-                  value={guestAgenda.fr}
-                  onChange={(e) => setGuestAgenda((p) => ({ ...p, fr: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="p.ex. 14:00 Arrivée & Accueil&#10;15:00 Cérémonie&#10;16:00 Cocktail&#10;18:00 Dîner&#10;21:00 Danse"
-                />
-              </div>
+              {[
+                { lang: 'en', label: 'English', placeholder: 'e.g. 14:00 Arrival & Welcome' },
+                { lang: 'de', label: 'Deutsch', placeholder: 'z.B. 14:00 Ankunft & Empfang' },
+                { lang: 'fr', label: 'Français', placeholder: 'p.ex. 14:00 Arrivée & Accueil' },
+              ].map((row) => (
+                <div key={row.lang} className="border border-gray-200 rounded-md p-3 bg-white">
+                  <label className="block text-xs font-semibold text-gray-700 mb-2">{row.label}</label>
+
+                  <div className="space-y-2">
+                    {parseAgendaItems(guestAgenda[row.lang]).map((item, index) => (
+                      <div key={`${row.lang}-${index}`} className="flex items-center gap-2">
+                        <div className="flex-1 text-sm text-gray-900">{item}</div>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveAgendaItem(row.lang, index)}
+                          className="text-xs text-red-600 hover:text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ))}
+
+                    {parseAgendaItems(guestAgenda[row.lang]).length === 0 && (
+                      <div className="text-xs text-gray-500">No agenda items yet.</div>
+                    )}
+                  </div>
+
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      type="text"
+                      value={newAgendaItem[row.lang]}
+                      onChange={(e) => setNewAgendaItem((p) => ({ ...p, [row.lang]: e.target.value }))}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                      placeholder={row.placeholder}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleAddAgendaItem(row.lang)}
+                      className="px-3 py-2 bg-gray-900 text-white rounded-md text-sm hover:bg-black"
+                    >
+                      Add
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
+
+        {/* Timeline Agenda Items */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">Agenda items (timeline list)</label>
+            <button
+              type="button"
+              onClick={() => {
+                setShowAgendaForm(true)
+                setEditingAgendaId(null)
+                resetAgendaForm()
+              }}
+              className="px-3 py-2 bg-gray-900 text-white rounded-md text-sm hover:bg-black"
+            >
+              Add agenda item
+            </button>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">
+            These items are shown as a timeline on the guest page. You can add, edit, or delete them.
+          </p>
+
+          {agendaLoading && <div className="text-sm text-gray-500">Loading agenda items…</div>}
+
+          {!agendaLoading && (!agendaItems || agendaItems.length === 0) && (
+            <div className="text-sm text-gray-500">No agenda items yet.</div>
+          )}
+
+          <div className="space-y-2">
+            {agendaItems?.map((item) => (
+              <div key={item.id} className="flex items-center justify-between border border-gray-200 rounded-md p-3 bg-white">
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <span>{item.time_display || '—'}</span>
+                    {item.icon && <span>{getIconEmoji(item.icon)}</span>}
+                    <span>{item.title_en || item.title_de || item.title_fr || 'Untitled'}</span>
+                  </div>
+                  {item.description_en && (
+                    <div className="text-xs text-gray-600 mt-1">{item.description_en}</div>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEditAgenda(item)}
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Delete this agenda item?')) {
+                        deleteAgendaItem.mutate(item.id)
+                      }
+                    }}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {showAgendaForm && (
+            <form onSubmit={handleSubmitAgenda} className="mt-4 border border-gray-200 rounded-md p-4 bg-white space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Time</label>
+                  <input
+                    type="text"
+                    value={agendaForm.time_display}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, time_display: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                    placeholder="e.g. 14:00"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Icon</label>
+                  <select
+                    value={agendaForm.icon}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, icon: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  >
+                    <option value="">(none)</option>
+                    {['church', 'rings', 'champagne', 'utensils', 'cake', 'music', 'camera', 'heart', 'sparkles', 'car', 'hotel'].map((icon) => (
+                      <option key={icon} value={icon}>
+                        {getIconEmoji(icon)} {icon}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Title (EN)</label>
+                  <input
+                    type="text"
+                    value={agendaForm.title_en}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, title_en: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                    placeholder="e.g. Ceremony"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Title (DE)</label>
+                  <input
+                    type="text"
+                    value={agendaForm.title_de}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, title_de: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Title (FR)</label>
+                  <input
+                    type="text"
+                    value={agendaForm.title_fr}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, title_fr: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description (EN)</label>
+                  <textarea
+                    rows={2}
+                    value={agendaForm.description_en}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, description_en: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description (DE)</label>
+                  <textarea
+                    rows={2}
+                    value={agendaForm.description_de}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, description_de: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">Description (FR)</label>
+                  <textarea
+                    rows={2}
+                    value={agendaForm.description_fr}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, description_fr: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900 text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-gray-900 text-white rounded-md text-sm hover:bg-black"
+                  disabled={createAgendaItem.isPending || updateAgendaItem.isPending}
+                >
+                  {editingAgendaId ? 'Update item' : 'Create item'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAgendaForm(false)
+                    setEditingAgendaId(null)
+                    resetAgendaForm()
+                  }}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md text-sm hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
 
           {/* Dresscode */}
           <div className="mb-4">

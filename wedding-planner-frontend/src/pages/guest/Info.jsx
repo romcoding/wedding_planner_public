@@ -4,6 +4,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { MapPin, Clock, Shirt, Calendar, Check, Loader, X } from 'lucide-react'
 import Timeline from '../../components/Timeline'
+import BrandedMapEmbed from '../../components/BrandedMapEmbed'
+import StyledGoogleMap from '../../components/StyledGoogleMap'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
 import Contact from './Contact'
@@ -134,6 +136,12 @@ export default function GuestInfo() {
     if (!v || v === key) return ''
     return String(v)
   }
+
+  const parseAgendaItems = (value) =>
+    String(value || '')
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean)
 
   const getStatusLabel = (status) => {
     if (status === 'confirmed') return t('yes')
@@ -493,28 +501,25 @@ export default function GuestInfo() {
 
                 {/* Google Maps Embed */}
                 {readContent('guest_accommodation_map_address') && (
-                  <div className="max-w-lg mx-auto rounded-2xl overflow-hidden border border-black/10">
-                    <iframe
-                      title="Location Map"
-                      width="100%"
-                      height="250"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      allowFullScreen
-                      referrerPolicy="no-referrer-when-downgrade"
-                      src={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
-                    />
-                    <div className="p-3 text-center" style={{ backgroundColor: '#F7F3EA' }}>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-medium hover:underline"
-                        style={{ color: 'var(--wp-primary)' }}
-                      >
-                        {t('openInGoogleMaps') || 'Open in Google Maps'}
-                      </a>
-                    </div>
+                  <div className="max-w-lg mx-auto">
+                    {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
+                      <StyledGoogleMap
+                        title={t('guestAccommodationVenueTitle')}
+                        address={readContent('guest_accommodation_map_address')}
+                        openUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
+                        openLabel={t('openInGoogleMaps') || 'Open in Google Maps'}
+                        height={260}
+                        apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
+                      />
+                    ) : (
+                      <BrandedMapEmbed
+                        title={t('guestAccommodationVenueTitle')}
+                        embedSrc={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
+                        openUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
+                        openLabel={t('openInGoogleMaps') || 'Open in Google Maps'}
+                        height={260}
+                      />
+                    )}
                   </div>
                 )}
 
