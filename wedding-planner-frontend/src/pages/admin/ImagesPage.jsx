@@ -734,7 +734,6 @@ const ImagesPage = () => {
                 />
               </div>
             </div>
-          </div>
         </div>
 
         <div className="mt-4 flex justify-end">
@@ -744,7 +743,7 @@ const ImagesPage = () => {
             disabled={saveGuestPortalItems.isPending}
             className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
           >
-            {saveGuestPortalItems.isPending ? 'Saving…' : 'Save guest portal items'}
+            {saveGuestPortalItems.isPending ? 'Saving...' : 'Save guest portal items'}
           </button>
         </div>
       </div>
