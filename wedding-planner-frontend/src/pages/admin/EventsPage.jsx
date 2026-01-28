@@ -4,7 +4,7 @@ import { Calendar, momentLocalizer } from 'react-big-calendar'
 import moment from 'moment'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Calendar as CalendarIcon, MapPin, X, List, Grid } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Calendar as CalendarIcon, MapPin, X, List, Grid, Camera } from 'lucide-react'
 
 // Set moment locale
 moment.locale('en')
