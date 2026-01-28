@@ -122,8 +122,13 @@ export default function StyledGoogleMap({
             const svgMarker = {
               url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`
                 <svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="22" cy="22" r="18" fill="${secondary}" stroke="white" stroke-width="4"/>
-                  <path d="M17 14h3v16h-3zM24 14h3v16h-3z" fill="white"/>
+                  <path
+                    d="M22 38s-12-7.6-16-15.2C2.6 17.2 5.3 10 12 10c4 0 7.2 2.4 10 5.6C24.8 12.4 28 10 32 10c6.7 0 9.4 7.2 6 12.8C34 30.4 22 38 22 38z"
+                    fill="${secondary}"
+                    stroke="white"
+                    stroke-width="3"
+                    stroke-linejoin="round"
+                  />
                 </svg>
               `)}`,
               scaledSize: new window.google.maps.Size(44, 44),
