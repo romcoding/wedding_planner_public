@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Calendar, Check, Loader } from 'lucide-react'
+import { MapPin, Clock, Shirt, Calendar, Check, Loader, X } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
 import Contact from './Contact'
+import RSVP from './RSVP'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
@@ -18,6 +19,7 @@ export default function GuestInfo() {
   const { guest } = useGuestAuth()
   const [activeTab, setActiveTab] = useState('pass')
   const [isEditing, setIsEditing] = useState(false)
+  const [showWizard, setShowWizard] = useState(false)
   const [editForm, setEditForm] = useState({
     overnight_stay: false,
     dietary_restrictions: '',
@@ -44,6 +46,37 @@ export default function GuestInfo() {
     queryFn: () => api.get('/images').then((res) => res.data),
   })
 
+  // Fetch agenda items for timeline
+  const { data: agendaItems } = useQuery({
+    queryKey: ['agenda'],
+    queryFn: () => api.get('/agenda').then((res) => res.data),
+  })
+
+  // Get localized agenda item text
+  const { language } = useLanguage()
+  const getLocalizedText = (item, field) => {
+    const langKey = `${field}_${language}`
+    return item[langKey] || item[`${field}_en`] || item[field] || ''
+  }
+
+  // Get emoji for icon
+  const getIconEmoji = (iconName) => {
+    const icons = {
+      church: '⛪',
+      rings: '💍',
+      champagne: '🥂',
+      utensils: '🍽️',
+      cake: '🎂',
+      music: '🎵',
+      camera: '📷',
+      heart: '❤️',
+      sparkles: '✨',
+      car: '🚗',
+      hotel: '🏨',
+    }
+    return icons[iconName] || ''
+  }
+
   // Populate edit form when profile loads
   useEffect(() => {
     if (guestProfile) {
@@ -54,6 +87,29 @@ export default function GuestInfo() {
       })
     }
   }, [guestProfile])
+
+  // Show wizard popup for first-time guests (pending RSVP status)
+  useEffect(() => {
+    if (!profileLoaded || !inviteToken) return
+    
+    // Check if guest hasn't responded yet
+    const isPending = !guestProfile?.rsvp_status || guestProfile.rsvp_status === 'pending'
+    
+    // Check if we've already shown the wizard in this session
+    const wizardShownKey = `wizard_shown_${inviteToken}`
+    const alreadyShown = sessionStorage.getItem(wizardShownKey)
+    
+    if (isPending && !alreadyShown) {
+      setShowWizard(true)
+      sessionStorage.setItem(wizardShownKey, 'true')
+    }
+  }, [profileLoaded, guestProfile?.rsvp_status, inviteToken])
+
+  const handleWizardClose = () => {
+    setShowWizard(false)
+    // Refresh profile data after wizard closes
+    queryClient.invalidateQueries(['guest-profile'])
+  }
 
   // Mutation to save changes
   const updateMutation = useMutation({
@@ -226,7 +282,7 @@ export default function GuestInfo() {
         <div className="max-w-6xl mx-auto px-4 py-10 md:py-14">
           {/* Wedding Pass Tab */}
           {activeTab === 'pass' && (
-            <div className="text-center lg:text-left">
+            <div className="max-w-xl mx-auto text-center">
               <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>
                 {t('guestInfoChangeTitle')}
               </div>
@@ -237,7 +293,7 @@ export default function GuestInfo() {
               {!isEditing ? (
                 <>
                   {/* Display current answers */}
-                  <div className="mt-8 space-y-4 max-w-xl mx-auto lg:mx-0">
+                  <div className="mt-8 space-y-4 text-left">
                     <div className="flex items-center justify-between gap-4 py-3 border-b border-black/10">
                       <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoComing')}</span>
                       <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{getStatusLabel(guestProfile?.rsvp_status)}</span>
@@ -268,7 +324,7 @@ export default function GuestInfo() {
                     </div>
                   </div>
 
-                  <div className="mt-8">
+                  <div className="mt-8 text-center">
                     <button
                       type="button"
                       onClick={() => setIsEditing(true)}
@@ -282,7 +338,7 @@ export default function GuestInfo() {
               ) : (
                 <>
                   {/* Editable form */}
-                  <div className="mt-8 space-y-6 max-w-xl mx-auto lg:mx-0">
+                  <div className="mt-8 space-y-6 text-left">
                     {/* Overnight Stay */}
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: 'var(--wp-primary)' }}>
@@ -347,7 +403,7 @@ export default function GuestInfo() {
                     </div>
                   </div>
 
-                  <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                  <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
                     <button
                       type="button"
                       onClick={handleSaveChanges}
@@ -393,99 +449,100 @@ export default function GuestInfo() {
 
           {/* Accommodation & Travel Tab */}
           {activeTab === 'travel' && (
-            <div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="text-center lg:text-left">
-                  <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestTravelTitle')}</div>
-                  <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
-                    {t('guestTravelCardSubtitle')}
-                  </p>
+            <div className="max-w-3xl mx-auto">
+              <div className="text-center mb-8">
+                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestTravelTitle')}</div>
+                <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
+                  {t('guestTravelCardSubtitle')}
+                </p>
+              </div>
 
-                  <div className="mt-6 whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
-                    {readContent('guest_accommodation_details') || t('guestAccommodationDetailsFallback')}
+              <div className="space-y-8">
+                {/* Accommodation Details */}
+                {(readContent('guest_accommodation_details') || '').trim() && (
+                  <div className="text-center whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
+                    {readContent('guest_accommodation_details')}
                   </div>
-                </div>
+                )}
 
-                <div className="space-y-6">
-                  {/* Venue Info */}
-                  <div>
-                    <div className="flex items-center justify-center lg:justify-start gap-2 font-semibold mb-3" style={{ color: 'var(--wp-primary)' }}>
+                {/* Venue Info */}
+                {readContent('guest_accommodation_venue_name') && (
+                  <div className="text-center">
+                    <div className="flex items-center justify-center gap-2 font-semibold mb-3" style={{ color: 'var(--wp-primary)' }}>
                       <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                       {t('guestAccommodationVenueTitle')}
                     </div>
-
-                    {readContent('guest_accommodation_venue_name') ? (
-                      <div className="text-center lg:text-left">
-                        <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>{readContent('guest_accommodation_venue_name')}</div>
-                        {readContent('guest_accommodation_venue_address') && (
-                          <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_address')}</div>
-                        )}
-                        {readContent('guest_accommodation_venue_city_region') && (
-                          <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_city_region')}</div>
-                        )}
-                        {readContent('guest_accommodation_venue_website') && (
-                          <a
-                            href={readContent('guest_accommodation_venue_website')}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex mt-4 font-semibold hover:underline"
-                            style={{ color: 'var(--wp-primary)' }}
-                          >
-                            {t('guestAccommodationOpenWebsite')}
-                          </a>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
+                    <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>{readContent('guest_accommodation_venue_name')}</div>
+                    {readContent('guest_accommodation_venue_address') && (
+                      <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_address')}</div>
+                    )}
+                    {readContent('guest_accommodation_venue_city_region') && (
+                      <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_city_region')}</div>
+                    )}
+                    {readContent('guest_accommodation_venue_website') && (
+                      <a
+                        href={readContent('guest_accommodation_venue_website')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex mt-4 font-semibold hover:underline"
+                        style={{ color: 'var(--wp-primary)' }}
+                      >
+                        {t('guestAccommodationOpenWebsite')}
+                      </a>
                     )}
                   </div>
+                )}
 
-                  {/* Google Maps Embed */}
-                  {readContent('guest_accommodation_map_address') && (
-                    <div className="rounded-2xl overflow-hidden border border-black/10">
-                      <iframe
-                        title="Location Map"
-                        width="100%"
-                        height="250"
-                        style={{ border: 0 }}
-                        loading="lazy"
-                        allowFullScreen
-                        referrerPolicy="no-referrer-when-downgrade"
-                        src={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
-                      />
-                      <div className="p-3 text-center" style={{ backgroundColor: '#F7F3EA' }}>
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium hover:underline"
-                          style={{ color: 'var(--wp-primary)' }}
-                        >
-                          {t('openInGoogleMaps') || 'Open in Google Maps'}
-                        </a>
-                      </div>
+                {/* Google Maps Embed */}
+                {readContent('guest_accommodation_map_address') && (
+                  <div className="max-w-lg mx-auto rounded-2xl overflow-hidden border border-black/10">
+                    <iframe
+                      title="Location Map"
+                      width="100%"
+                      height="250"
+                      style={{ border: 0 }}
+                      loading="lazy"
+                      allowFullScreen
+                      referrerPolicy="no-referrer-when-downgrade"
+                      src={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
+                    />
+                    <div className="p-3 text-center" style={{ backgroundColor: '#F7F3EA' }}>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm font-medium hover:underline"
+                        style={{ color: 'var(--wp-primary)' }}
+                      >
+                        {t('openInGoogleMaps') || 'Open in Google Maps'}
+                      </a>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
+
+                {/* Fallback if no venue info */}
+                {!readContent('guest_accommodation_venue_name') && !(readContent('guest_accommodation_details') || '').trim() && (
+                  <div className="text-center" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
+                )}
               </div>
             </div>
           )}
 
           {/* Wedding Program Tab */}
           {activeTab === 'program' && (
-            <div>
-              <div className="text-center lg:text-left">
+            <div className="max-w-3xl mx-auto">
+              <div className="text-center mb-8">
                 <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('timelineTitle')}</div>
                 <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsScheduleTitle')}</p>
               </div>
 
-              <div className="mt-6 space-y-6">
+              <div className="space-y-8">
                 {/* Venue + Dresscode Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-center">
                   {/* Venue */}
                   {readContent('guest_timeline_venue_name') && (
                     <div>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center justify-center gap-2 mb-3">
                         <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                         <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('venueLabel') || 'Venue'}</div>
                       </div>
@@ -508,7 +565,7 @@ export default function GuestInfo() {
                   {/* Dresscode */}
                   {readContent('guest_dresscode') && (
                     <div>
-                      <div className="flex items-center gap-2 mb-3">
+                      <div className="flex items-center justify-center gap-2 mb-3">
                         <Shirt className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                         <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('dresscodeLabel') || 'Dresscode'}</div>
                       </div>
@@ -519,10 +576,61 @@ export default function GuestInfo() {
                   )}
                 </div>
 
-                {/* Detailed Agenda */}
-                {readContent('guest_agenda') && (
-                  <div className="pt-4 border-t border-black/10">
-                    <div className="flex items-center gap-2 mb-3">
+                {/* Timeline Agenda Items */}
+                {agendaItems && agendaItems.length > 0 && (
+                  <div className="pt-6 border-t border-black/10">
+                    <div className="flex items-center justify-center gap-2 mb-6">
+                      <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                      <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
+                    </div>
+                    
+                    {/* Timeline items - clean vertical layout */}
+                    <div className="relative pl-8 sm:pl-12">
+                      {/* Timeline line */}
+                      <div 
+                        className="absolute left-3 sm:left-5 top-2 bottom-2 w-0.5"
+                        style={{ backgroundColor: 'var(--wp-primary)', opacity: 0.2 }}
+                      />
+                      
+                      <div className="space-y-6">
+                        {agendaItems.map((item) => (
+                          <div key={item.id} className="relative">
+                            {/* Timeline dot */}
+                            <div 
+                              className="absolute -left-5 sm:-left-7 top-1.5 w-3 h-3 rounded-full"
+                              style={{ backgroundColor: 'var(--wp-primary)' }}
+                            />
+                            
+                            {/* Content */}
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-lg font-bold" style={{ color: 'var(--wp-primary)' }}>
+                                  {item.time_display}
+                                </span>
+                                {item.icon && (
+                                  <span className="text-xl">{getIconEmoji(item.icon)}</span>
+                                )}
+                              </div>
+                              <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                                {getLocalizedText(item, 'title')}
+                              </div>
+                              {getLocalizedText(item, 'description') && (
+                                <div className="text-sm mt-1" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                                  {getLocalizedText(item, 'description')}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Detailed Agenda (fallback if no agenda items) */}
+                {(!agendaItems || agendaItems.length === 0) && readContent('guest_agenda') && (
+                  <div className="pt-6 border-t border-black/10 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-3">
                       <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                       <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
                     </div>
@@ -534,8 +642,8 @@ export default function GuestInfo() {
 
                 {/* Featured Event */}
                 {(t('guest_event_gifts_event_label') || '').trim() && (
-                  <div className="pt-4 border-t border-black/10 text-center lg:text-left">
-                    <div className="flex items-center gap-2 mb-2 justify-center lg:justify-start">
+                  <div className="pt-6 border-t border-black/10 text-center">
+                    <div className="flex items-center justify-center gap-2 mb-2">
                       <Calendar className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                       <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsFeaturedEvent')}</div>
                     </div>
@@ -545,7 +653,7 @@ export default function GuestInfo() {
 
                 {/* Additional Notes */}
                 {(t('guest_event_gifts_timeline_details') || '').trim() && (
-                  <div className="pt-4 border-t border-black/10 text-center lg:text-left">
+                  <div className="pt-6 border-t border-black/10 text-center">
                     <div className="text-sm mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsDetailsTitle')}</div>
                     <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                       {t('guest_event_gifts_timeline_details')}
@@ -554,7 +662,7 @@ export default function GuestInfo() {
                 )}
 
                 {/* Timeline */}
-                <div className="pt-4 border-t border-black/10">
+                <div className="pt-6 border-t border-black/10">
                   <Timeline showTitle={false} />
                 </div>
               </div>
@@ -563,14 +671,12 @@ export default function GuestInfo() {
 
           {/* Gifts Tab */}
           {activeTab === 'gifts' && (
-            <div>
-              <div className="text-center lg:text-left">
+            <div className="max-w-3xl mx-auto">
+              <div className="text-center mb-8">
                 <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoTitle')}</div>
                 <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoBody')}</p>
               </div>
-              <div className="mt-8">
-                <GiftRegistry />
-              </div>
+              <GiftRegistry />
             </div>
           )}
 
@@ -590,6 +696,37 @@ export default function GuestInfo() {
         </div>
       </main>
 
+      {/* Wizard Popup Modal for first-time guests */}
+      {showWizard && inviteToken && (
+        <div className="fixed inset-0 z-[10000] overflow-y-auto">
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={handleWizardClose}
+          />
+          
+          {/* Modal Content */}
+          <div className="relative min-h-screen flex items-center justify-center p-4">
+            <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+              {/* Close button */}
+              <button
+                type="button"
+                onClick={handleWizardClose}
+                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/80 hover:bg-white shadow-lg transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+              
+              {/* RSVP Wizard embedded */}
+              <RSVP 
+                token={inviteToken} 
+                embedded={true} 
+                onClose={handleWizardClose}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

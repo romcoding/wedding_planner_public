@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X, Clock, GripVertical, ChevronUp, ChevronDown } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 
 const ImagesPage = () => {
@@ -44,6 +44,20 @@ const ImagesPage = () => {
 
   // Guest portal items (accommodation + timeline agenda)
   const [guestEventId, setGuestEventId] = useState('')
+  
+  // Agenda items state
+  const [showAgendaForm, setShowAgendaForm] = useState(false)
+  const [editingAgendaId, setEditingAgendaId] = useState(null)
+  const [agendaForm, setAgendaForm] = useState({
+    time_display: '',
+    title_en: '',
+    title_de: '',
+    title_fr: '',
+    description_en: '',
+    description_de: '',
+    description_fr: '',
+    icon: '',
+  })
   const [guestEventDetails, setGuestEventDetails] = useState({ en: '', de: '', fr: '' })
   const [guestTimelineVenueId, setGuestTimelineVenueId] = useState('')
   const [guestAgenda, setGuestAgenda] = useState({ en: '', de: '', fr: '' })
@@ -81,6 +95,98 @@ const ImagesPage = () => {
     queryFn: () => api.get('/venues').then((res) => res.data),
   })
   const venues = Array.isArray(venuesData?.venues) ? venuesData.venues : []
+
+  // Agenda items queries and mutations
+  const { data: agendaItems, isLoading: agendaLoading } = useQuery({
+    queryKey: ['agenda', 'admin'],
+    queryFn: () => api.get('/agenda/admin').then((r) => r.data),
+  })
+
+  const createAgendaItem = useMutation({
+    mutationFn: (data) => api.post('/agenda', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['agenda'])
+      setShowAgendaForm(false)
+      resetAgendaForm()
+      toast.success('Agenda item created')
+    },
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to create agenda item'),
+  })
+
+  const updateAgendaItem = useMutation({
+    mutationFn: ({ id, ...data }) => api.put(`/agenda/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['agenda'])
+      setShowAgendaForm(false)
+      setEditingAgendaId(null)
+      resetAgendaForm()
+      toast.success('Agenda item updated')
+    },
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to update agenda item'),
+  })
+
+  const deleteAgendaItem = useMutation({
+    mutationFn: (id) => api.delete(`/agenda/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['agenda'])
+      toast.success('Agenda item deleted')
+    },
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to delete agenda item'),
+  })
+
+  const resetAgendaForm = () => {
+    setAgendaForm({
+      time_display: '',
+      title_en: '',
+      title_de: '',
+      title_fr: '',
+      description_en: '',
+      description_de: '',
+      description_fr: '',
+      icon: '',
+    })
+  }
+
+  const handleEditAgenda = (item) => {
+    setAgendaForm({
+      time_display: item.time_display || '',
+      title_en: item.title_en || '',
+      title_de: item.title_de || '',
+      title_fr: item.title_fr || '',
+      description_en: item.description_en || '',
+      description_de: item.description_de || '',
+      description_fr: item.description_fr || '',
+      icon: item.icon || '',
+    })
+    setEditingAgendaId(item.id)
+    setShowAgendaForm(true)
+  }
+
+  const handleSubmitAgenda = (e) => {
+    e.preventDefault()
+    if (editingAgendaId) {
+      updateAgendaItem.mutate({ id: editingAgendaId, ...agendaForm })
+    } else {
+      createAgendaItem.mutate(agendaForm)
+    }
+  }
+
+  const getIconEmoji = (iconName) => {
+    const icons = {
+      church: '⛪',
+      rings: '💍',
+      champagne: '🥂',
+      utensils: '🍽️',
+      cake: '🎂',
+      music: '🎵',
+      camera: '📷',
+      heart: '❤️',
+      sparkles: '✨',
+      car: '🚗',
+      hotel: '🏨',
+    }
+    return icons[iconName] || ''
+  }
 
   useEffect(() => {
     if (!contentItems) return
@@ -746,6 +852,225 @@ const ImagesPage = () => {
             {saveGuestPortalItems.isPending ? 'Saving...' : 'Save guest portal items'}
           </button>
         </div>
+      </div>
+
+      {/* Timeline Agenda Items */}
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Timeline Agenda Items</h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Add individual schedule items that will be displayed as a timeline on the guest Wedding Programme page.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              resetAgendaForm()
+              setEditingAgendaId(null)
+              setShowAgendaForm(true)
+            }}
+            className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+          >
+            <PlusCircle className="w-5 h-5" />
+            Add Item
+          </button>
+        </div>
+
+        {/* Agenda Form */}
+        {showAgendaForm && (
+          <div className="border rounded-lg p-4 mb-4 bg-gray-50">
+            <h3 className="font-semibold text-gray-900 mb-3">
+              {editingAgendaId ? 'Edit Agenda Item' : 'New Agenda Item'}
+            </h3>
+            <form onSubmit={handleSubmitAgenda} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Time *</label>
+                  <input
+                    type="text"
+                    value={agendaForm.time_display}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, time_display: e.target.value }))}
+                    placeholder="e.g. 14:00 or 14:00 - 15:30"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon (optional)</label>
+                  <select
+                    value={agendaForm.icon}
+                    onChange={(e) => setAgendaForm((p) => ({ ...p, icon: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  >
+                    <option value="">(none)</option>
+                    <option value="church">⛪ Church/Ceremony</option>
+                    <option value="rings">💍 Rings</option>
+                    <option value="champagne">🥂 Champagne/Drinks</option>
+                    <option value="utensils">🍽️ Dinner</option>
+                    <option value="cake">🎂 Cake</option>
+                    <option value="music">🎵 Music/Dance</option>
+                    <option value="camera">📷 Photos</option>
+                    <option value="heart">❤️ Heart</option>
+                    <option value="sparkles">✨ Sparkles</option>
+                    <option value="car">🚗 Transport</option>
+                    <option value="hotel">🏨 Hotel</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                    <input
+                      type="text"
+                      value={agendaForm.title_en}
+                      onChange={(e) => setAgendaForm((p) => ({ ...p, title_en: e.target.value }))}
+                      placeholder="e.g. Ceremony"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                    <input
+                      type="text"
+                      value={agendaForm.title_de}
+                      onChange={(e) => setAgendaForm((p) => ({ ...p, title_de: e.target.value }))}
+                      placeholder="z.B. Zeremonie"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                    <input
+                      type="text"
+                      value={agendaForm.title_fr}
+                      onChange={(e) => setAgendaForm((p) => ({ ...p, title_fr: e.target.value }))}
+                      placeholder="p.ex. Cérémonie"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description (optional)</label>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                    <textarea
+                      rows={2}
+                      value={agendaForm.description_en}
+                      onChange={(e) => setAgendaForm((p) => ({ ...p, description_en: e.target.value }))}
+                      placeholder="Optional details..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                    <textarea
+                      rows={2}
+                      value={agendaForm.description_de}
+                      onChange={(e) => setAgendaForm((p) => ({ ...p, description_de: e.target.value }))}
+                      placeholder="Optionale Details..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                    <textarea
+                      rows={2}
+                      value={agendaForm.description_fr}
+                      onChange={(e) => setAgendaForm((p) => ({ ...p, description_fr: e.target.value }))}
+                      placeholder="Détails optionnels..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAgendaForm(false)
+                    setEditingAgendaId(null)
+                    resetAgendaForm()
+                  }}
+                  className="px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={createAgendaItem.isPending || updateAgendaItem.isPending}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {createAgendaItem.isPending || updateAgendaItem.isPending ? 'Saving...' : editingAgendaId ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Agenda Items List */}
+        {agendaLoading ? (
+          <div className="text-center py-8 text-gray-500">Loading...</div>
+        ) : !agendaItems || agendaItems.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            No agenda items yet. Click "Add Item" to create your first timeline entry.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {agendaItems.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center gap-4 p-3 border rounded-lg bg-white hover:bg-gray-50"
+              >
+                <div className="flex-shrink-0 w-20 text-center">
+                  <div className="flex items-center justify-center gap-1">
+                    <Clock className="w-4 h-4 text-gray-400" />
+                    <span className="font-semibold text-gray-900">{item.time_display}</span>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-gray-900 truncate">
+                    {item.icon && <span className="mr-2">{getIconEmoji(item.icon)}</span>}
+                    {item.title_en}
+                  </div>
+                  {item.description_en && (
+                    <div className="text-sm text-gray-500 truncate">{item.description_en}</div>
+                  )}
+                </div>
+                <div className="flex-shrink-0 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleEditAgenda(item)}
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+                    title="Edit"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (window.confirm('Are you sure you want to delete this agenda item?')) {
+                        deleteAgendaItem.mutate(item.id)
+                      }
+                    }}
+                    className="p-2 text-red-600 hover:bg-red-50 rounded"
+                    title="Delete"
+                  >
+                    <Trash className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {showForm && (
