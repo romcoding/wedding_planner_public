@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader, X } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
 import StyledGoogleMap from '../../components/StyledGoogleMap'
@@ -23,6 +23,7 @@ export default function GuestInfo() {
   const [isEditing, setIsEditing] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const [editForm, setEditForm] = useState({
+    rsvp_status: 'pending',
     overnight_stay: false,
     dietary_restrictions: '',
     special_requests: '',
@@ -83,6 +84,7 @@ export default function GuestInfo() {
   useEffect(() => {
     if (guestProfile) {
       setEditForm({
+        rsvp_status: guestProfile.rsvp_status || 'pending',
         overnight_stay: guestProfile.overnight_stay || false,
         dietary_restrictions: guestProfile.dietary_restrictions || '',
         special_requests: guestProfile.special_requests || '',
@@ -125,6 +127,7 @@ export default function GuestInfo() {
 
   const handleSaveChanges = () => {
     updateMutation.mutate({
+      rsvp_status: editForm.rsvp_status,
       overnight_stay: editForm.overnight_stay,
       dietary_restrictions: editForm.dietary_restrictions,
       special_requests: editForm.special_requests,
@@ -345,6 +348,39 @@ export default function GuestInfo() {
                 <>
                   {/* Editable form */}
                   <div className="mt-8 space-y-6 text-left">
+                    {/* Attendance Decision - First Field */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--wp-primary)' }}>
+                        {t('guestInfoAttending')}
+                      </label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setEditForm((p) => ({ ...p, rsvp_status: 'confirmed' }))}
+                          className={`flex-1 px-4 py-3 rounded-xl font-semibold border transition-all ${
+                            editForm.rsvp_status === 'confirmed'
+                              ? 'text-white'
+                              : 'bg-white border-black/10 hover:bg-black/5'
+                          }`}
+                          style={editForm.rsvp_status === 'confirmed' ? { backgroundColor: 'var(--wp-primary)' } : { color: 'var(--wp-primary)' }}
+                        >
+                          {t('yes')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm((p) => ({ ...p, rsvp_status: 'declined' }))}
+                          className={`flex-1 px-4 py-3 rounded-xl font-semibold border transition-all ${
+                            editForm.rsvp_status === 'declined'
+                              ? 'text-white'
+                              : 'bg-white border-black/10 hover:bg-black/5'
+                          }`}
+                          style={editForm.rsvp_status === 'declined' ? { backgroundColor: 'var(--wp-primary)' } : { color: 'var(--wp-primary)' }}
+                        >
+                          {t('no')}
+                        </button>
+                      </div>
+                    </div>
+
                     {/* Overnight Stay */}
                     <div>
                       <label className="block text-sm font-medium mb-2" style={{ color: 'var(--wp-primary)' }}>
@@ -376,6 +412,29 @@ export default function GuestInfo() {
                           {t('no')}
                         </button>
                       </div>
+                      {/* Booking Link Hint when overnight_stay is yes */}
+                      {editForm.overnight_stay && (
+                        <div className="mt-3 p-3 rounded-xl" style={{ backgroundColor: 'var(--wp-primary-20)' }}>
+                          {readContent('guest_accommodation_booking_link') ? (
+                            <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
+                              {t('bookingLinkHint')}{' '}
+                              <a
+                                href={readContent('guest_accommodation_booking_link')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline font-semibold"
+                                style={{ color: 'var(--wp-primary)' }}
+                              >
+                                {t('bookingLinkClick')}
+                              </a>
+                            </p>
+                          ) : (
+                            <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
+                              {t('bookingLinkComingSoon')}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Dietary Restrictions */}
@@ -436,6 +495,7 @@ export default function GuestInfo() {
                         // Reset form to current profile values
                         if (guestProfile) {
                           setEditForm({
+                            rsvp_status: guestProfile.rsvp_status || 'pending',
                             overnight_stay: guestProfile.overnight_stay || false,
                             dietary_restrictions: guestProfile.dietary_restrictions || '',
                             special_requests: guestProfile.special_requests || '',
@@ -701,24 +761,12 @@ export default function GuestInfo() {
       {/* Wizard Popup Modal for first-time guests */}
       {showWizard && inviteToken && (
         <div className="fixed inset-0 z-[10000] overflow-y-auto">
-          {/* Backdrop */}
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={handleWizardClose}
-          />
+          {/* Backdrop - no click handler, guests must complete wizard */}
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" />
           
           {/* Modal Content */}
           <div className="relative min-h-screen flex items-center justify-center p-4">
             <div className="relative w-full max-w-2xl">
-              {/* Close button - positioned outside the scrolling content container */}
-              <button
-                type="button"
-                onClick={handleWizardClose}
-                className="absolute -top-2 -right-2 z-[10001] p-2 rounded-full bg-white hover:bg-gray-100 shadow-lg transition-colors"
-              >
-                <X className="w-5 h-5 text-gray-600" />
-              </button>
-              
               {/* Inner content container */}
               <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
                 {/* RSVP Wizard embedded */}

@@ -1033,18 +1033,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 )}
                 </div>
               </PassCard>
-              {embedded ? (
-                <div className="mt-3 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => onClose?.()}
-                    className="text-sm font-semibold hover:underline"
-                    style={{ color: 'var(--wp-secondary)' }}
-                  >
-                    Close
-                  </button>
-                </div>
-              ) : null}
+              {/* Close button removed - guests automatically exit wizard after completing it */}
             </div>
           </div>
         </div>
