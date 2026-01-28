@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Calendar, Check, Loader, X } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, X } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
 import StyledGoogleMap from '../../components/StyledGoogleMap'
@@ -643,31 +643,6 @@ export default function GuestInfo() {
                   </div>
                 )}
 
-                {/* Featured Event */}
-                {(t('guest_event_gifts_event_label') || '').trim() && (
-                  <div className="pt-6 border-t border-black/10 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Calendar className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
-                      <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsFeaturedEvent')}</div>
-                    </div>
-                    <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guest_event_gifts_event_label')}</div>
-                  </div>
-                )}
-
-                {/* Additional Notes */}
-                {(t('guest_event_gifts_timeline_details') || '').trim() && (
-                  <div className="pt-6 border-t border-black/10 text-center">
-                    <div className="text-sm mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsDetailsTitle')}</div>
-                    <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
-                      {t('guest_event_gifts_timeline_details')}
-                    </div>
-                  </div>
-                )}
-
-                {/* Timeline */}
-                <div className="pt-6 border-t border-black/10">
-                  <Timeline showTitle={false} />
-                </div>
               </div>
             </div>
           )}
