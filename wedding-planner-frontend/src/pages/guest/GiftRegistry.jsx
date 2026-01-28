@@ -59,29 +59,29 @@ export default function GiftRegistry() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">{t('giftRegistryTitle')}</h2>
-      <p className="text-gray-600 mb-8">
+      <h2 className="text-3xl font-bold mb-6" style={{ color: 'var(--wp-primary)' }}>{t('giftRegistryTitle')}</h2>
+      <p className="mb-8" style={{ color: 'var(--wp-primary)' }}>
         {t('giftRegistryIntro')}
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {registryItems && registryItems.length > 0 ? (
           registryItems.map((item) => (
-            <div key={item.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+            <div key={item.id} className="bg-white/60 rounded-lg border border-black/5 p-6 hover:bg-white/80 transition-all">
               <div className="flex items-start gap-4 mb-4">
                 <div className="p-3 rounded-lg" style={{ backgroundColor: 'color-mix(in srgb, var(--wp-primary) 15%, white)', color: 'var(--wp-primary)' }}>
                   {getIcon(item.registry_type)}
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-xl font-bold text-gray-900 mb-1">{item.name}</h3>
-                  <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  <h3 className="text-xl font-bold mb-1" style={{ color: 'var(--wp-primary)' }}>{item.name}</h3>
+                  <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: 'color-mix(in srgb, var(--wp-primary) 15%, white)', color: 'var(--wp-primary)' }}>
                     {getTypeLabel(item.registry_type)}
                   </span>
                 </div>
               </div>
 
               {item.description && (
-                <p className="text-gray-600 mb-4">{item.description}</p>
+                <p className="mb-4" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{item.description}</p>
               )}
 
               {item.registry_type === 'external_link' && item.url && (
@@ -100,7 +100,7 @@ export default function GiftRegistry() {
               {item.registry_type === 'cash_fund' && (
                 <div className="space-y-3">
                   <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <div className="flex justify-between text-sm mb-1" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
                       <span>{t('giftRegistryProgress')}</span>
                       <span>
                         {formatMoney(item.current_amount || 0)} / {formatMoney(item.target_amount || 0)}
@@ -109,8 +109,8 @@ export default function GiftRegistry() {
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div
                         className="h-2 rounded-full transition-all"
-                        style={{ backgroundColor: 'var(--wp-primary)' }}
                         style={{
+                          backgroundColor: 'var(--wp-primary)',
                           width: `${item.target_amount ? (item.current_amount / item.target_amount) * 100 : 0}%`
                         }}
                       ></div>

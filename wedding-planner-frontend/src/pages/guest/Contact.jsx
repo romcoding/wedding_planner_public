@@ -41,12 +41,12 @@ export default function Contact() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-3xl font-bold text-gray-900 mb-6">{t('contactTitle')}</h2>
-      <p className="text-gray-600 mb-8">
+      <h2 className="text-3xl font-bold mb-6" style={{ color: 'var(--wp-primary)' }}>{t('contactTitle')}</h2>
+      <p className="mb-8" style={{ color: 'var(--wp-primary)' }}>
         {t('contactIntro')}
       </p>
 
-      <div className="bg-white rounded-lg shadow-md p-8">
+      <div className="bg-white/60 rounded-lg border border-black/5 p-8">
         {submitted && (
           <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg mb-6 flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />

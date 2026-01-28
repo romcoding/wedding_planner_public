@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   CalendarPlus,
+  Camera,
   Check,
   ChevronLeft,
   ChevronRight,

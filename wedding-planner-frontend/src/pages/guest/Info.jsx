@@ -178,13 +178,13 @@ export default function GuestInfo() {
         <div className="max-w-6xl mx-auto px-4 py-10 md:py-14">
           {/* Wedding Pass Tab */}
           {activeTab === 'pass' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+            <div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 text-center lg:text-left">
-                  <div className="text-2xl md:text-3xl font-semibold text-gray-900">
+                  <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>
                     {t('guestInfoChangeTitle')}
                   </div>
-                  <p className="text-gray-700 mt-2">
+                  <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
                     {t('guestInfoChangeBody')}
                   </p>
 
@@ -207,7 +207,8 @@ export default function GuestInfo() {
                         if (!inviteToken) return
                         setShowPassModal(true)
                       }}
-                      className="px-6 py-3 rounded-xl font-semibold bg-white border border-black/10 text-gray-900 hover:bg-black/5"
+                      className="px-6 py-3 rounded-xl font-semibold bg-white border border-black/10 hover:bg-black/5"
+                      style={{ color: 'var(--wp-primary)' }}
                       disabled={!inviteToken}
                     >
                       {t('editAnswers')}
@@ -215,26 +216,26 @@ export default function GuestInfo() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-black/5 p-5">
-                  <div className="text-sm uppercase tracking-[0.18em] text-gray-500 mb-3 text-center lg:text-left">
+                <div className="bg-white/60 rounded-2xl border border-black/5 p-5">
+                  <div className="text-sm uppercase tracking-[0.18em] mb-3 text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
                     {t('guestInfoCurrentAnswers')}
                   </div>
                   <div className="space-y-3 text-sm">
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-gray-600">{t('guestInfoComing')}</span>
-                      <span className="font-semibold text-gray-900">{getStatusLabel(guestProfile?.rsvp_status)}</span>
+                      <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoComing')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{getStatusLabel(guestProfile?.rsvp_status)}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-gray-600">{t('guestInfoGuests')}</span>
-                      <span className="font-semibold text-gray-900">{guestProfile?.number_of_guests || 1}</span>
+                      <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoGuests')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{guestProfile?.number_of_guests || 1}</span>
                     </div>
                     <div className="flex items-center justify-between gap-3">
-                      <span className="text-gray-600">{t('guestInfoOvernight')}</span>
-                      <span className="font-semibold text-gray-900">{guestProfile?.overnight_stay ? t('yes') : t('no')}</span>
+                      <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoOvernight')}</span>
+                      <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{guestProfile?.overnight_stay ? t('yes') : t('no')}</span>
                     </div>
                     <div className="pt-3 border-t border-black/10">
-                      <div className="text-gray-600">{t('guestInfoDietaryDetails')}</div>
-                      <div className="text-gray-900 whitespace-pre-wrap break-words mt-1">
+                      <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoDietaryDetails')}</div>
+                      <div className="whitespace-pre-wrap break-words mt-1" style={{ color: 'var(--wp-primary)' }}>
                         {guestProfile?.dietary_restrictions || '—'}
                       </div>
                     </div>
@@ -246,33 +247,33 @@ export default function GuestInfo() {
 
           {/* Accommodation & Travel Tab */}
           {activeTab === 'travel' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+            <div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                 <div className="text-center lg:text-left">
-                  <div className="text-2xl md:text-3xl font-semibold text-gray-900">{t('guestTravelTitle')}</div>
-                  <p className="text-gray-700 mt-2">
+                  <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestTravelTitle')}</div>
+                  <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
                     {t('guestTravelCardSubtitle')}
                   </p>
 
-                  <div className="mt-6 text-gray-800 whitespace-pre-wrap break-words">
+                  <div className="mt-6 whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                     {readContent('guest_accommodation_details') || t('guestAccommodationDetailsFallback')}
                   </div>
                 </div>
 
-                <div className="bg-white rounded-2xl border border-black/5 p-6">
-                  <div className="flex items-center justify-center lg:justify-start gap-2 text-gray-900 font-semibold">
+                <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
+                  <div className="flex items-center justify-center lg:justify-start gap-2 font-semibold" style={{ color: 'var(--wp-primary)' }}>
                     <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                     {t('guestAccommodationVenueTitle')}
                   </div>
 
                   {readContent('guest_accommodation_venue_name') ? (
                     <div className="mt-4 text-center lg:text-left">
-                      <div className="text-lg font-semibold text-gray-900">{readContent('guest_accommodation_venue_name')}</div>
+                      <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>{readContent('guest_accommodation_venue_name')}</div>
                       {readContent('guest_accommodation_venue_address') && (
-                        <div className="text-gray-700">{readContent('guest_accommodation_venue_address')}</div>
+                        <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_address')}</div>
                       )}
                       {readContent('guest_accommodation_venue_city_region') && (
-                        <div className="text-gray-700">{readContent('guest_accommodation_venue_city_region')}</div>
+                        <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_city_region')}</div>
                       )}
                       {readContent('guest_accommodation_venue_website') && (
                         <a
@@ -287,7 +288,7 @@ export default function GuestInfo() {
                       )}
                     </div>
                   ) : (
-                    <div className="mt-4 text-gray-600 text-center lg:text-left">{t('guestAccommodationDetailsFallback')}</div>
+                    <div className="mt-4 text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
                   )}
                 </div>
               </div>
@@ -296,28 +297,28 @@ export default function GuestInfo() {
 
           {/* Wedding Program Tab */}
           {activeTab === 'program' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+            <div>
               <div className="text-center lg:text-left">
-                <div className="text-2xl md:text-3xl font-semibold text-gray-900">{t('timelineTitle')}</div>
-                <p className="text-gray-700 mt-2">{t('guestGiftsScheduleTitle')}</p>
+                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('timelineTitle')}</div>
+                <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsScheduleTitle')}</p>
               </div>
 
               <div className="mt-6 space-y-4">
                 {(t('guest_event_gifts_event_label') || '').trim() && (
-                  <div className="bg-white border border-gray-200 rounded-2xl p-5 text-center lg:text-left">
-                    <div className="text-sm text-gray-600">{t('guestGiftsFeaturedEvent')}</div>
-                    <div className="text-gray-900 font-semibold">{t('guest_event_gifts_event_label')}</div>
+                  <div className="bg-white/60 border border-black/5 rounded-2xl p-5 text-center lg:text-left">
+                    <div className="text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsFeaturedEvent')}</div>
+                    <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guest_event_gifts_event_label')}</div>
                   </div>
                 )}
                 {(t('guest_event_gifts_timeline_details') || '').trim() && (
-                  <div className="bg-white border border-gray-200 rounded-2xl p-5 text-center lg:text-left">
-                    <div className="text-sm text-gray-600">{t('guestGiftsDetailsTitle')}</div>
-                    <div className="text-gray-900 whitespace-pre-wrap break-words">
+                  <div className="bg-white/60 border border-black/5 rounded-2xl p-5 text-center lg:text-left">
+                    <div className="text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsDetailsTitle')}</div>
+                    <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                       {t('guest_event_gifts_timeline_details')}
                     </div>
                   </div>
                 )}
-                <div className="bg-white rounded-2xl border border-black/5 p-6">
+                <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
                   <Timeline showTitle={false} />
                 </div>
               </div>
@@ -326,10 +327,10 @@ export default function GuestInfo() {
 
           {/* Gifts Tab */}
           {activeTab === 'gifts' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+            <div>
               <div className="text-center lg:text-left">
-                <div className="text-2xl md:text-3xl font-semibold text-gray-900">{t('guestGiftsInfoTitle')}</div>
-                <p className="text-gray-700 mt-2">{t('guestGiftsInfoBody')}</p>
+                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoTitle')}</div>
+                <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoBody')}</p>
               </div>
               <div className="mt-8">
                 <GiftRegistry />
@@ -339,14 +340,14 @@ export default function GuestInfo() {
 
           {/* Photos Tab */}
           {activeTab === 'photos' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+            <div>
               <PhotoGallery />
             </div>
           )}
 
           {/* Contact Tab */}
           {activeTab === 'contact' && (
-            <div className="bg-white/80 backdrop-blur rounded-2xl shadow-[0_12px_40px_rgba(17,24,39,0.08)] border border-black/5 p-6 md:p-10">
+            <div>
               <Contact />
             </div>
           )}
