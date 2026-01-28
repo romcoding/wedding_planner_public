@@ -1,14 +1,24 @@
 import { Outlet } from 'react-router-dom'
-import { useEffect } from 'react'
+import { useLayoutEffect } from 'react'
 import { useLanguage } from '../contexts/LanguageContext'
 
 export default function GuestThemeShell() {
   const { t } = useLanguage()
 
-  useEffect(() => {
+  useLayoutEffect(() => {
+    const cachedTheme = (() => {
+      try {
+        const raw = localStorage.getItem('wp_theme')
+        return raw ? JSON.parse(raw) : {}
+      } catch {
+        return {}
+      }
+    })()
+
     const read = (key, fallback) => {
       const v = t(key)
-      return v && v !== key ? v : fallback
+      if (v && v !== key) return v
+      return cachedTheme[key] || fallback
     }
 
     const hexToRgba = (hex, a) => {
@@ -48,6 +58,21 @@ export default function GuestThemeShell() {
     root.style.setProperty('--wp-secondary-12', hexToRgba(secondary, 0.12))
     root.style.setProperty('--wp-secondary-20', hexToRgba(secondary, 0.20))
     root.style.setProperty('--wp-secondary-30', hexToRgba(secondary, 0.30))
+
+    try {
+      localStorage.setItem(
+        'wp_theme',
+        JSON.stringify({
+          theme_primary: primary,
+          theme_secondary: secondary,
+          theme_accent: accent,
+          theme_background: background,
+          theme_text: text,
+        })
+      )
+    } catch {
+      // Ignore storage errors
+    }
   }, [t])
 
   return (
