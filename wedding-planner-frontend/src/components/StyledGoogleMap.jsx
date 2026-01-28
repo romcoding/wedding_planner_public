@@ -74,7 +74,12 @@ export default function StyledGoogleMap({
       { elementType: 'geometry', stylers: [{ color: background }] },
       { elementType: 'labels.text.fill', stylers: [{ color: primary }] },
       { elementType: 'labels.text.stroke', stylers: [{ color: background }] },
+      { featureType: 'landscape', elementType: 'geometry', stylers: [{ color: background }] },
+      { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: background }] },
+      { featureType: 'administrative', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
+      { featureType: 'transit', elementType: 'geometry', stylers: [{ color: background }] },
       { featureType: 'poi', elementType: 'geometry', stylers: [{ color: background }] },
+      { featureType: 'poi', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
       { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: background }] },
       { featureType: 'road', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: primary }] },
@@ -101,6 +106,7 @@ export default function StyledGoogleMap({
         const map = new window.google.maps.Map(mapRef.current, {
           zoom: 15,
           styles: mapStyles,
+          backgroundColor: getThemeColors().background,
           disableDefaultUI: true,
           gestureHandling: 'cooperative',
         })
