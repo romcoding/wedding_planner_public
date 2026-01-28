@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin } from 'lucide-react'
+import { MapPin, Clock, Shirt, Calendar } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
@@ -288,35 +288,65 @@ export default function GuestInfo() {
                   </div>
                 </div>
 
-                <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
-                  <div className="flex items-center justify-center lg:justify-start gap-2 font-semibold" style={{ color: 'var(--wp-primary)' }}>
-                    <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
-                    {t('guestAccommodationVenueTitle')}
+                <div className="space-y-4">
+                  {/* Venue Info Card */}
+                  <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
+                    <div className="flex items-center justify-center lg:justify-start gap-2 font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                      <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                      {t('guestAccommodationVenueTitle')}
+                    </div>
+
+                    {readContent('guest_accommodation_venue_name') ? (
+                      <div className="mt-4 text-center lg:text-left">
+                        <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>{readContent('guest_accommodation_venue_name')}</div>
+                        {readContent('guest_accommodation_venue_address') && (
+                          <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_address')}</div>
+                        )}
+                        {readContent('guest_accommodation_venue_city_region') && (
+                          <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_city_region')}</div>
+                        )}
+                        {readContent('guest_accommodation_venue_website') && (
+                          <a
+                            href={readContent('guest_accommodation_venue_website')}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex mt-4 font-semibold hover:underline"
+                            style={{ color: 'var(--wp-primary)' }}
+                          >
+                            {t('guestAccommodationOpenWebsite')}
+                          </a>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-4 text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
+                    )}
                   </div>
 
-                  {readContent('guest_accommodation_venue_name') ? (
-                    <div className="mt-4 text-center lg:text-left">
-                      <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>{readContent('guest_accommodation_venue_name')}</div>
-                      {readContent('guest_accommodation_venue_address') && (
-                        <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_address')}</div>
-                      )}
-                      {readContent('guest_accommodation_venue_city_region') && (
-                        <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_city_region')}</div>
-                      )}
-                      {readContent('guest_accommodation_venue_website') && (
+                  {/* Google Maps Embed */}
+                  {readContent('guest_accommodation_map_address') && (
+                    <div className="bg-white/60 rounded-2xl border border-black/5 overflow-hidden">
+                      <iframe
+                        title="Location Map"
+                        width="100%"
+                        height="250"
+                        style={{ border: 0 }}
+                        loading="lazy"
+                        allowFullScreen
+                        referrerPolicy="no-referrer-when-downgrade"
+                        src={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
+                      />
+                      <div className="p-3 text-center">
                         <a
-                          href={readContent('guest_accommodation_venue_website')}
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex mt-4 font-semibold hover:underline"
+                          className="text-sm font-medium hover:underline"
                           style={{ color: 'var(--wp-primary)' }}
                         >
-                          {t('guestAccommodationOpenWebsite')}
+                          {t('openInGoogleMaps') || 'Open in Google Maps'}
                         </a>
-                      )}
+                      </div>
                     </div>
-                  ) : (
-                    <div className="mt-4 text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
                   )}
                 </div>
               </div>
@@ -332,20 +362,80 @@ export default function GuestInfo() {
               </div>
 
               <div className="mt-6 space-y-4">
+                {/* Venue + Dresscode Row */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {/* Venue Card */}
+                  {readContent('guest_timeline_venue_name') && (
+                    <div className="bg-white/60 border border-black/5 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                        <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('venueLabel') || 'Venue'}</div>
+                      </div>
+                      <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                        {readContent('guest_timeline_venue_name')}
+                      </div>
+                      {readContent('guest_timeline_venue_address') && (
+                        <div className="mt-1" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                          {readContent('guest_timeline_venue_address')}
+                        </div>
+                      )}
+                      {readContent('guest_timeline_venue_city_region') && (
+                        <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                          {readContent('guest_timeline_venue_city_region')}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Dresscode Card */}
+                  {readContent('guest_dresscode') && (
+                    <div className="bg-white/60 border border-black/5 rounded-2xl p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Shirt className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                        <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('dresscodeLabel') || 'Dresscode'}</div>
+                      </div>
+                      <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
+                        {readContent('guest_dresscode')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Detailed Agenda Card */}
+                {readContent('guest_agenda') && (
+                  <div className="bg-white/60 border border-black/5 rounded-2xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                      <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
+                    </div>
+                    <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
+                      {readContent('guest_agenda')}
+                    </div>
+                  </div>
+                )}
+
+                {/* Featured Event Card */}
                 {(t('guest_event_gifts_event_label') || '').trim() && (
                   <div className="bg-white/60 border border-black/5 rounded-2xl p-5 text-center lg:text-left">
-                    <div className="text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsFeaturedEvent')}</div>
+                    <div className="flex items-center gap-2 mb-2 justify-center lg:justify-start">
+                      <Calendar className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                      <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsFeaturedEvent')}</div>
+                    </div>
                     <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guest_event_gifts_event_label')}</div>
                   </div>
                 )}
+
+                {/* Additional Notes */}
                 {(t('guest_event_gifts_timeline_details') || '').trim() && (
                   <div className="bg-white/60 border border-black/5 rounded-2xl p-5 text-center lg:text-left">
-                    <div className="text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsDetailsTitle')}</div>
+                    <div className="text-sm mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsDetailsTitle')}</div>
                     <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                       {t('guest_event_gifts_timeline_details')}
                     </div>
                   </div>
                 )}
+
+                {/* Timeline */}
                 <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
                   <Timeline showTitle={false} />
                 </div>

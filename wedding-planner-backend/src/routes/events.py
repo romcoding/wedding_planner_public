@@ -218,7 +218,7 @@ def _upsert_public_content_key(key: str, title: str, content_en: str, content_de
 @events_bp.route('/guest-portal-settings', methods=['GET'])
 @jwt_required()
 def get_guest_portal_settings():
-    """Get guest-portal card settings (admin/planner) without opening full content editing."""
+    """Get guest-portal item settings (admin/planner) without opening full content editing."""
     user, err = require_roles(['admin', 'planner'])
     if err:
         return err
@@ -227,12 +227,19 @@ def get_guest_portal_settings():
         'guest_event_gifts_event_id',
         'guest_event_gifts_event_label',
         'guest_event_gifts_timeline_details',
+        'guest_timeline_venue_id',
+        'guest_timeline_venue_name',
+        'guest_timeline_venue_address',
+        'guest_timeline_venue_city_region',
+        'guest_agenda',
+        'guest_dresscode',
         'guest_accommodation_venue_id',
         'guest_accommodation_venue_name',
         'guest_accommodation_venue_address',
         'guest_accommodation_venue_city_region',
         'guest_accommodation_venue_website',
         'guest_accommodation_details',
+        'guest_accommodation_map_address',
     ]
     items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
 
@@ -252,19 +259,26 @@ def get_guest_portal_settings():
         'guestEventId': one('guest_event_gifts_event_id'),
         'guestEventLabel': pack('guest_event_gifts_event_label'),
         'guestEventDetails': pack('guest_event_gifts_timeline_details'),
+        'guestTimelineVenueId': one('guest_timeline_venue_id'),
+        'guestTimelineVenueName': pack('guest_timeline_venue_name'),
+        'guestTimelineVenueAddress': pack('guest_timeline_venue_address'),
+        'guestTimelineVenueCityRegion': pack('guest_timeline_venue_city_region'),
+        'guestAgenda': pack('guest_agenda'),
+        'guestDresscode': pack('guest_dresscode'),
         'guestAccommodationVenueId': one('guest_accommodation_venue_id'),
         'guestAccommodationVenueName': pack('guest_accommodation_venue_name'),
         'guestAccommodationVenueAddress': pack('guest_accommodation_venue_address'),
         'guestAccommodationVenueCityRegion': pack('guest_accommodation_venue_city_region'),
         'guestAccommodationVenueWebsite': pack('guest_accommodation_venue_website'),
         'guestAccommodationDetails': pack('guest_accommodation_details'),
+        'guestAccommodationMapAddress': one('guest_accommodation_map_address'),
     }), 200
 
 
 @events_bp.route('/guest-portal-settings', methods=['POST'])
 @jwt_required()
 def set_guest_portal_settings():
-    """Save guest-portal card settings (admin/planner)."""
+    """Save guest-portal item settings (admin/planner)."""
     user, err = require_roles(['admin', 'planner'])
     if err:
         return err
@@ -272,6 +286,9 @@ def set_guest_portal_settings():
     data = request.get_json() or {}
     guest_event_id = str(data.get('guestEventId') or '').strip()
     guest_event_details = data.get('guestEventDetails') or {}
+    guest_timeline_venue_id = str(data.get('guestTimelineVenueId') or '').strip()
+    guest_agenda = data.get('guestAgenda') or {}
+    guest_dresscode = data.get('guestDresscode') or {}
     guest_accommodation_venue_id = str(data.get('guestAccommodationVenueId') or '').strip()
     guest_accommodation_details = data.get('guestAccommodationDetails') or {}
 
@@ -282,12 +299,21 @@ def set_guest_portal_settings():
         except Exception:
             selected_event = None
 
-    selected_venue = None
+    # Timeline venue (for Wedding Programme)
+    timeline_venue = None
+    if guest_timeline_venue_id:
+        try:
+            timeline_venue = Venue.query.get(int(guest_timeline_venue_id))
+        except Exception:
+            timeline_venue = None
+
+    # Accommodation venue (for Accommodation & Travel)
+    accommodation_venue = None
     if guest_accommodation_venue_id:
         try:
-            selected_venue = Venue.query.get(int(guest_accommodation_venue_id))
+            accommodation_venue = Venue.query.get(int(guest_accommodation_venue_id))
         except Exception:
-            selected_venue = None
+            accommodation_venue = None
 
     def fmt_label(event: Event, locale: str):
         if not event or not event.start_time:
@@ -298,26 +324,78 @@ def set_guest_portal_settings():
         time = dt.strftime('%H:%M')
         return f"{event.name} — {date} {time}"
 
+    # Featured event settings
     _upsert_public_content_key(
         'guest_event_gifts_event_id',
-        'Guest: Event & Gifts featured event id',
+        'Guest: Featured event id',
         guest_event_id, guest_event_id, guest_event_id
     )
     _upsert_public_content_key(
         'guest_event_gifts_event_label',
-        'Guest: Event & Gifts featured event label',
+        'Guest: Featured event label',
         fmt_label(selected_event, 'en-US') if selected_event else '',
         fmt_label(selected_event, 'de-CH') if selected_event else '',
         fmt_label(selected_event, 'fr-CH') if selected_event else '',
     )
     _upsert_public_content_key(
         'guest_event_gifts_timeline_details',
-        'Guest: Event & Gifts timeline details',
+        'Guest: Additional timeline notes',
         str(guest_event_details.get('en') or ''),
         str(guest_event_details.get('de') or ''),
         str(guest_event_details.get('fr') or ''),
     )
 
+    # Timeline venue settings (for Wedding Programme)
+    _upsert_public_content_key(
+        'guest_timeline_venue_id',
+        'Guest: Timeline venue id',
+        guest_timeline_venue_id, guest_timeline_venue_id, guest_timeline_venue_id
+    )
+    _upsert_public_content_key(
+        'guest_timeline_venue_name',
+        'Guest: Timeline venue name',
+        (timeline_venue.name if timeline_venue else ''),
+        (timeline_venue.name if timeline_venue else ''),
+        (timeline_venue.name if timeline_venue else ''),
+    )
+    _upsert_public_content_key(
+        'guest_timeline_venue_address',
+        'Guest: Timeline venue address',
+        (timeline_venue.address if timeline_venue else ''),
+        (timeline_venue.address if timeline_venue else ''),
+        (timeline_venue.address if timeline_venue else ''),
+    )
+    timeline_city_region = ''
+    if timeline_venue:
+        if timeline_venue.city and timeline_venue.region:
+            timeline_city_region = f"{timeline_venue.city}, {timeline_venue.region}"
+        else:
+            timeline_city_region = timeline_venue.location or timeline_venue.city or ''
+    _upsert_public_content_key(
+        'guest_timeline_venue_city_region',
+        'Guest: Timeline venue city/region',
+        timeline_city_region, timeline_city_region, timeline_city_region
+    )
+
+    # Detailed agenda (multilingual)
+    _upsert_public_content_key(
+        'guest_agenda',
+        'Guest: Detailed agenda',
+        str(guest_agenda.get('en') or ''),
+        str(guest_agenda.get('de') or ''),
+        str(guest_agenda.get('fr') or ''),
+    )
+
+    # Dresscode (multilingual)
+    _upsert_public_content_key(
+        'guest_dresscode',
+        'Guest: Dresscode',
+        str(guest_dresscode.get('en') or ''),
+        str(guest_dresscode.get('de') or ''),
+        str(guest_dresscode.get('fr') or ''),
+    )
+
+    # Accommodation venue settings
     _upsert_public_content_key(
         'guest_accommodation_venue_id',
         'Guest: Accommodation venue id',
@@ -326,34 +404,34 @@ def set_guest_portal_settings():
     _upsert_public_content_key(
         'guest_accommodation_venue_name',
         'Guest: Accommodation venue name',
-        (selected_venue.name if selected_venue else ''),
-        (selected_venue.name if selected_venue else ''),
-        (selected_venue.name if selected_venue else ''),
+        (accommodation_venue.name if accommodation_venue else ''),
+        (accommodation_venue.name if accommodation_venue else ''),
+        (accommodation_venue.name if accommodation_venue else ''),
     )
     _upsert_public_content_key(
         'guest_accommodation_venue_address',
         'Guest: Accommodation venue address',
-        (selected_venue.address if selected_venue else ''),
-        (selected_venue.address if selected_venue else ''),
-        (selected_venue.address if selected_venue else ''),
+        (accommodation_venue.address if accommodation_venue else ''),
+        (accommodation_venue.address if accommodation_venue else ''),
+        (accommodation_venue.address if accommodation_venue else ''),
     )
-    city_region = ''
-    if selected_venue:
-        if selected_venue.city and selected_venue.region:
-            city_region = f"{selected_venue.city}, {selected_venue.region}"
+    accommodation_city_region = ''
+    if accommodation_venue:
+        if accommodation_venue.city and accommodation_venue.region:
+            accommodation_city_region = f"{accommodation_venue.city}, {accommodation_venue.region}"
         else:
-            city_region = selected_venue.location or selected_venue.city or ''
+            accommodation_city_region = accommodation_venue.location or accommodation_venue.city or ''
     _upsert_public_content_key(
         'guest_accommodation_venue_city_region',
         'Guest: Accommodation venue city/region',
-        city_region, city_region, city_region
+        accommodation_city_region, accommodation_city_region, accommodation_city_region
     )
     _upsert_public_content_key(
         'guest_accommodation_venue_website',
         'Guest: Accommodation venue website',
-        (selected_venue.website if selected_venue else ''),
-        (selected_venue.website if selected_venue else ''),
-        (selected_venue.website if selected_venue else ''),
+        (accommodation_venue.website if accommodation_venue else ''),
+        (accommodation_venue.website if accommodation_venue else ''),
+        (accommodation_venue.website if accommodation_venue else ''),
     )
     _upsert_public_content_key(
         'guest_accommodation_details',
@@ -361,6 +439,25 @@ def set_guest_portal_settings():
         str(guest_accommodation_details.get('en') or ''),
         str(guest_accommodation_details.get('de') or ''),
         str(guest_accommodation_details.get('fr') or ''),
+    )
+
+    # Build full map address for Google Maps embed
+    map_address = ''
+    if accommodation_venue:
+        parts = []
+        if accommodation_venue.name:
+            parts.append(accommodation_venue.name)
+        if accommodation_venue.address:
+            parts.append(accommodation_venue.address)
+        if accommodation_venue.city:
+            parts.append(accommodation_venue.city)
+        if accommodation_venue.region:
+            parts.append(accommodation_venue.region)
+        map_address = ', '.join(parts)
+    _upsert_public_content_key(
+        'guest_accommodation_map_address',
+        'Guest: Accommodation map address (for Google Maps)',
+        map_address, map_address, map_address
     )
 
     try:

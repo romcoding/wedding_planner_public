@@ -42,9 +42,12 @@ const ImagesPage = () => {
     text: '#111827',
   })
 
-  // Guest portal cards (accommodation + timeline agenda)
+  // Guest portal items (accommodation + timeline agenda)
   const [guestEventId, setGuestEventId] = useState('')
   const [guestEventDetails, setGuestEventDetails] = useState({ en: '', de: '', fr: '' })
+  const [guestTimelineVenueId, setGuestTimelineVenueId] = useState('')
+  const [guestAgenda, setGuestAgenda] = useState({ en: '', de: '', fr: '' })
+  const [guestDresscode, setGuestDresscode] = useState({ en: '', de: '', fr: '' })
   const [guestAccommodationVenueId, setGuestAccommodationVenueId] = useState('')
   const [guestAccommodationDetails, setGuestAccommodationDetails] = useState({ en: '', de: '', fr: '' })
   const didInitGuestCardsRef = useRef(false)
@@ -108,6 +111,17 @@ const ImagesPage = () => {
       de: String(guestPortalSettings.guestEventDetails?.de || ''),
       fr: String(guestPortalSettings.guestEventDetails?.fr || ''),
     })
+    setGuestTimelineVenueId(String(guestPortalSettings.guestTimelineVenueId || ''))
+    setGuestAgenda({
+      en: String(guestPortalSettings.guestAgenda?.en || ''),
+      de: String(guestPortalSettings.guestAgenda?.de || ''),
+      fr: String(guestPortalSettings.guestAgenda?.fr || ''),
+    })
+    setGuestDresscode({
+      en: String(guestPortalSettings.guestDresscode?.en || ''),
+      de: String(guestPortalSettings.guestDresscode?.de || ''),
+      fr: String(guestPortalSettings.guestDresscode?.fr || ''),
+    })
     setGuestAccommodationVenueId(String(guestPortalSettings.guestAccommodationVenueId || ''))
     setGuestAccommodationDetails({
       en: String(guestPortalSettings.guestAccommodationDetails?.en || ''),
@@ -117,11 +131,14 @@ const ImagesPage = () => {
     didInitGuestCardsRef.current = true
   }, [guestPortalSettings])
 
-  const saveGuestPortalCards = useMutation({
+  const saveGuestPortalItems = useMutation({
     mutationFn: async () => {
       await api.post('/events/guest-portal-settings', {
         guestEventId: guestEventId || '',
         guestEventDetails,
+        guestTimelineVenueId: guestTimelineVenueId || '',
+        guestAgenda,
+        guestDresscode,
         guestAccommodationVenueId: guestAccommodationVenueId || '',
         guestAccommodationDetails,
       })
@@ -129,9 +146,9 @@ const ImagesPage = () => {
     onSuccess: () => {
       queryClient.invalidateQueries(['events', 'guest-portal-settings'])
       queryClient.invalidateQueries(['content', 'public'])
-      toast.success('Saved guest cards')
+      toast.success('Saved guest portal items')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to save guest cards'),
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to save guest portal items'),
   })
 
   const saveWebSettings = useMutation({
@@ -499,17 +516,37 @@ const ImagesPage = () => {
         </div>
       </div>
 
-      {/* Guest portal cards */}
+      {/* Guest portal items */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-2">Guest portal cards</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Guest portal items</h2>
         <p className="text-sm text-gray-600 mb-4">
-          Configure the <strong>Accommodation</strong> card (uses venue data) and the <strong>Timeline agenda</strong> shown above the timeline on the guest page.
+          Configure the content shown on the guest page: <strong>Wedding Programme</strong> (venue, timeline, agenda, dresscode) and <strong>Accommodation & Travel</strong> (venue with map).
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold text-gray-900 mb-3">Timeline — highlighted entry + agenda</div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Highlighted timeline entry</label>
+        {/* Timeline / Wedding Programme Section */}
+        <div className="border rounded-lg p-4 mb-6">
+          <div className="font-semibold text-gray-900 mb-3 text-lg">Wedding Programme</div>
+          <p className="text-sm text-gray-500 mb-4">Configure the venue, highlighted timeline entry, detailed agenda, and dresscode for the Wedding Programme section.</p>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Venue</label>
+              <select
+                value={guestTimelineVenueId}
+                onChange={(e) => setGuestTimelineVenueId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+              >
+                <option value="">(none)</option>
+                {venues.map((v) => (
+                  <option key={v.id} value={String(v.id)}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-500 mt-1">The venue where the wedding takes place.</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Highlighted timeline entry</label>
             <select
               value={guestEventId}
               onChange={(e) => setGuestEventId(e.target.value)}
@@ -528,43 +565,126 @@ const ImagesPage = () => {
                 )
               })}
             </select>
+              <p className="text-xs text-gray-500 mt-1">Featured event shown prominently above the timeline.</p>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-4">
+          {/* Detailed Agenda */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Detailed Agenda</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
                 <textarea
                   rows={4}
-                  value={guestEventDetails.en}
-                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, en: e.target.value }))}
+                  value={guestAgenda.en}
+                  onChange={(e) => setGuestAgenda((p) => ({ ...p, en: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Agenda details (EN)…"
+                  placeholder="e.g. 14:00 Arrival & Welcome&#10;15:00 Ceremony&#10;16:00 Cocktail Hour&#10;18:00 Dinner&#10;21:00 Dancing"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
                 <textarea
                   rows={4}
-                  value={guestEventDetails.de}
-                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, de: e.target.value }))}
+                  value={guestAgenda.de}
+                  onChange={(e) => setGuestAgenda((p) => ({ ...p, de: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Agenda-Details (DE)…"
+                  placeholder="z.B. 14:00 Ankunft & Empfang&#10;15:00 Zeremonie&#10;16:00 Apéro&#10;18:00 Abendessen&#10;21:00 Tanz"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
                 <textarea
                   rows={4}
-                  value={guestEventDetails.fr}
-                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, fr: e.target.value }))}
+                  value={guestAgenda.fr}
+                  onChange={(e) => setGuestAgenda((p) => ({ ...p, fr: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
-                  placeholder="Détails agenda (FR)…"
+                  placeholder="p.ex. 14:00 Arrivée & Accueil&#10;15:00 Cérémonie&#10;16:00 Cocktail&#10;18:00 Dîner&#10;21:00 Danse"
                 />
               </div>
             </div>
           </div>
 
-          <div className="border rounded-lg p-4">
-            <div className="font-semibold text-gray-900 mb-3">Accommodation — venue + details</div>
+          {/* Dresscode */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Dresscode</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                <textarea
+                  rows={2}
+                  value={guestDresscode.en}
+                  onChange={(e) => setGuestDresscode((p) => ({ ...p, en: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="e.g. Cocktail attire, elegant casual"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                <textarea
+                  rows={2}
+                  value={guestDresscode.de}
+                  onChange={(e) => setGuestDresscode((p) => ({ ...p, de: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="z.B. Cocktail-Kleidung, elegant casual"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                <textarea
+                  rows={2}
+                  value={guestDresscode.fr}
+                  onChange={(e) => setGuestDresscode((p) => ({ ...p, fr: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="p.ex. Tenue cocktail, élégant décontracté"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Legacy event details (optional) */}
+          <div className="pt-4 border-t border-gray-200">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Additional notes (optional)</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                <textarea
+                  rows={3}
+                  value={guestEventDetails.en}
+                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, en: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="Any extra notes for guests…"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                <textarea
+                  rows={3}
+                  value={guestEventDetails.de}
+                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, de: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="Zusätzliche Hinweise für Gäste…"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                <textarea
+                  rows={3}
+                  value={guestEventDetails.fr}
+                  onChange={(e) => setGuestEventDetails((p) => ({ ...p, fr: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="Notes supplémentaires pour les invités…"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Accommodation Section */}
+        <div className="border rounded-lg p-4">
+          <div className="font-semibold text-gray-900 mb-3 text-lg">Accommodation & Travel</div>
+          <p className="text-sm text-gray-500 mb-4">Configure the venue and travel details. A Google Map will be automatically displayed based on the venue address.</p>
             <label className="block text-sm font-medium text-gray-700 mb-1">Accommodation venue</label>
             <select
               value={guestAccommodationVenueId}
@@ -620,11 +740,11 @@ const ImagesPage = () => {
         <div className="mt-4 flex justify-end">
           <button
             type="button"
-            onClick={() => saveGuestPortalCards.mutate()}
-            disabled={saveGuestPortalCards.isPending}
+            onClick={() => saveGuestPortalItems.mutate()}
+            disabled={saveGuestPortalItems.isPending}
             className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-black disabled:opacity-50"
           >
-            {saveGuestPortalCards.isPending ? 'Saving…' : 'Save guest cards'}
+            {saveGuestPortalItems.isPending ? 'Saving…' : 'Save guest portal items'}
           </button>
         </div>
       </div>
