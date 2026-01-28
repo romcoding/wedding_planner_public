@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Calendar } from 'lucide-react'
+import { MapPin, Clock, Shirt, Calendar, Check, Loader } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
@@ -10,15 +10,19 @@ import Contact from './Contact'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
-import RSVP from './RSVP'
-import { X } from 'lucide-react'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { t } = useLanguage()
   const { guest } = useGuestAuth()
   const [activeTab, setActiveTab] = useState('pass')
-  const [showPassModal, setShowPassModal] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editForm, setEditForm] = useState({
+    overnight_stay: false,
+    dietary_restrictions: '',
+    special_requests: '',
+  })
 
   const inviteToken = useMemo(() => {
     try {
@@ -40,20 +44,36 @@ export default function GuestInfo() {
     queryFn: () => api.get('/images').then((res) => res.data),
   })
 
-  // Auto-open wizard on first visit (only once per guest)
+  // Populate edit form when profile loads
   useEffect(() => {
-    if (!profileLoaded || !inviteToken) return
-    const wizardKey = `wp_wizard_shown_${inviteToken}`
-    try {
-      const alreadyShown = localStorage.getItem(wizardKey)
-      if (!alreadyShown) {
-        setShowPassModal(true)
-        localStorage.setItem(wizardKey, '1')
-      }
-    } catch {
-      // localStorage not available
+    if (guestProfile) {
+      setEditForm({
+        overnight_stay: guestProfile.overnight_stay || false,
+        dietary_restrictions: guestProfile.dietary_restrictions || '',
+        special_requests: guestProfile.special_requests || '',
+      })
     }
-  }, [profileLoaded, inviteToken])
+  }, [guestProfile])
+
+  // Mutation to save changes
+  const updateMutation = useMutation({
+    mutationFn: (data) => api.put('/guests/update-rsvp', data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['guest-profile'])
+      setIsEditing(false)
+    },
+    onError: (err) => {
+      alert(err.response?.data?.error || t('saveFailed'))
+    },
+  })
+
+  const handleSaveChanges = () => {
+    updateMutation.mutate({
+      overnight_stay: editForm.overnight_stay,
+      dietary_restrictions: editForm.dietary_restrictions,
+      special_requests: editForm.special_requests,
+    })
+  }
 
   const readContent = (key) => {
     const v = t(key)
@@ -206,70 +226,168 @@ export default function GuestInfo() {
         <div className="max-w-6xl mx-auto px-4 py-10 md:py-14">
           {/* Wedding Pass Tab */}
           {activeTab === 'pass' && (
-            <div>
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 text-center lg:text-left">
-                  <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>
-                    {t('guestInfoChangeTitle')}
-                  </div>
-                  <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
-                    {t('guestInfoChangeBody')}
-                  </p>
+            <div className="text-center lg:text-left">
+              <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                {t('guestInfoChangeTitle')}
+              </div>
+              <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
+                {t('guestInfoChangeBody')}
+              </p>
 
-                  <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!inviteToken) return
-                        setShowPassModal(true)
-                      }}
-                      className="px-6 py-3 rounded-xl font-semibold text-white"
-                      style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
-                      disabled={!inviteToken}
-                    >
-                      {t('guestInfoOpenPass')}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!inviteToken) return
-                        setShowPassModal(true)
-                      }}
-                      className="px-6 py-3 rounded-xl font-semibold bg-white border border-black/10 hover:bg-black/5"
-                      style={{ color: 'var(--wp-primary)' }}
-                      disabled={!inviteToken}
-                    >
-                      {t('editAnswers')}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="bg-white/60 rounded-2xl border border-black/5 p-5">
-                  <div className="text-sm uppercase tracking-[0.18em] mb-3 text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
-                    {t('guestInfoCurrentAnswers')}
-                  </div>
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-center justify-between gap-3">
+              {!isEditing ? (
+                <>
+                  {/* Display current answers */}
+                  <div className="mt-8 space-y-4 max-w-xl mx-auto lg:mx-0">
+                    <div className="flex items-center justify-between gap-4 py-3 border-b border-black/10">
                       <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoComing')}</span>
                       <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{getStatusLabel(guestProfile?.rsvp_status)}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-4 py-3 border-b border-black/10">
                       <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoGuests')}</span>
                       <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{guestProfile?.number_of_guests || 1}</span>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-4 py-3 border-b border-black/10">
                       <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoOvernight')}</span>
                       <span className="font-semibold" style={{ color: 'var(--wp-primary)' }}>{guestProfile?.overnight_stay ? t('yes') : t('no')}</span>
                     </div>
-                    <div className="pt-3 border-t border-black/10">
-                      <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoDietaryDetails')}</div>
+                    <div className="py-3 border-b border-black/10">
+                      <div className="flex items-center justify-between gap-4">
+                        <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('guestInfoDietaryDetails')}</span>
+                      </div>
                       <div className="whitespace-pre-wrap break-words mt-1" style={{ color: 'var(--wp-primary)' }}>
                         {guestProfile?.dietary_restrictions || '—'}
                       </div>
                     </div>
+                    <div className="py-3">
+                      <div className="flex items-center justify-between gap-4">
+                        <span style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{t('qNotes')}</span>
+                      </div>
+                      <div className="whitespace-pre-wrap break-words mt-1" style={{ color: 'var(--wp-primary)' }}>
+                        {guestProfile?.special_requests || '—'}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
+
+                  <div className="mt-8">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditing(true)}
+                      className="px-6 py-3 rounded-xl font-semibold text-white"
+                      style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+                    >
+                      {t('editAnswers')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Editable form */}
+                  <div className="mt-8 space-y-6 max-w-xl mx-auto lg:mx-0">
+                    {/* Overnight Stay */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--wp-primary)' }}>
+                        {t('guestInfoOvernight')}
+                      </label>
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setEditForm((p) => ({ ...p, overnight_stay: true }))}
+                          className={`flex-1 px-4 py-3 rounded-xl font-semibold border transition-all ${
+                            editForm.overnight_stay
+                              ? 'text-white'
+                              : 'bg-white border-black/10 hover:bg-black/5'
+                          }`}
+                          style={editForm.overnight_stay ? { background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' } : { color: 'var(--wp-primary)' }}
+                        >
+                          {t('yes')}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditForm((p) => ({ ...p, overnight_stay: false }))}
+                          className={`flex-1 px-4 py-3 rounded-xl font-semibold border transition-all ${
+                            !editForm.overnight_stay
+                              ? 'text-white'
+                              : 'bg-white border-black/10 hover:bg-black/5'
+                          }`}
+                          style={!editForm.overnight_stay ? { background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' } : { color: 'var(--wp-primary)' }}
+                        >
+                          {t('no')}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Dietary Restrictions */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--wp-primary)' }}>
+                        {t('guestInfoDietaryDetails')}
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={editForm.dietary_restrictions}
+                        onChange={(e) => setEditForm((p) => ({ ...p, dietary_restrictions: e.target.value }))}
+                        placeholder={t('dietaryPlaceholderShort')}
+                        className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white"
+                        style={{ color: 'var(--wp-primary)', outline: 'none' }}
+                      />
+                    </div>
+
+                    {/* Special Requests / Music Wishes */}
+                    <div>
+                      <label className="block text-sm font-medium mb-2" style={{ color: 'var(--wp-primary)' }}>
+                        {t('qNotes')}
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={editForm.special_requests}
+                        onChange={(e) => setEditForm((p) => ({ ...p, special_requests: e.target.value }))}
+                        placeholder={t('notesPlaceholder')}
+                        className="w-full px-4 py-3 rounded-xl border border-black/10 bg-white"
+                        style={{ color: 'var(--wp-primary)', outline: 'none' }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
+                    <button
+                      type="button"
+                      onClick={handleSaveChanges}
+                      disabled={updateMutation.isPending}
+                      className="px-6 py-3 rounded-xl font-semibold text-white flex items-center justify-center gap-2"
+                      style={{ background: 'linear-gradient(135deg, var(--wp-primary), var(--wp-secondary))' }}
+                    >
+                      {updateMutation.isPending ? (
+                        <>
+                          <Loader className="w-5 h-5 animate-spin" />
+                          {t('saving')}
+                        </>
+                      ) : (
+                        <>
+                          <Check className="w-5 h-5" />
+                          {t('guestInfoSaveChanges')}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditing(false)
+                        // Reset form to current profile values
+                        if (guestProfile) {
+                          setEditForm({
+                            overnight_stay: guestProfile.overnight_stay || false,
+                            dietary_restrictions: guestProfile.dietary_restrictions || '',
+                            special_requests: guestProfile.special_requests || '',
+                          })
+                        }
+                      }}
+                      className="px-6 py-3 rounded-xl font-semibold bg-white border border-black/10 hover:bg-black/5"
+                      style={{ color: 'var(--wp-primary)' }}
+                    >
+                      {t('guestInfoCancelEditing')}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -288,16 +406,16 @@ export default function GuestInfo() {
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  {/* Venue Info Card */}
-                  <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
-                    <div className="flex items-center justify-center lg:justify-start gap-2 font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                <div className="space-y-6">
+                  {/* Venue Info */}
+                  <div>
+                    <div className="flex items-center justify-center lg:justify-start gap-2 font-semibold mb-3" style={{ color: 'var(--wp-primary)' }}>
                       <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                       {t('guestAccommodationVenueTitle')}
                     </div>
 
                     {readContent('guest_accommodation_venue_name') ? (
-                      <div className="mt-4 text-center lg:text-left">
+                      <div className="text-center lg:text-left">
                         <div className="text-lg font-semibold" style={{ color: 'var(--wp-primary)' }}>{readContent('guest_accommodation_venue_name')}</div>
                         {readContent('guest_accommodation_venue_address') && (
                           <div style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>{readContent('guest_accommodation_venue_address')}</div>
@@ -318,13 +436,13 @@ export default function GuestInfo() {
                         )}
                       </div>
                     ) : (
-                      <div className="mt-4 text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
+                      <div className="text-center lg:text-left" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestAccommodationDetailsFallback')}</div>
                     )}
                   </div>
 
                   {/* Google Maps Embed */}
                   {readContent('guest_accommodation_map_address') && (
-                    <div className="bg-white/60 rounded-2xl border border-black/5 overflow-hidden">
+                    <div className="rounded-2xl overflow-hidden border border-black/10">
                       <iframe
                         title="Location Map"
                         width="100%"
@@ -335,7 +453,7 @@ export default function GuestInfo() {
                         referrerPolicy="no-referrer-when-downgrade"
                         src={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
                       />
-                      <div className="p-3 text-center">
+                      <div className="p-3 text-center" style={{ backgroundColor: '#F7F3EA' }}>
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
                           target="_blank"
@@ -361,12 +479,12 @@ export default function GuestInfo() {
                 <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsScheduleTitle')}</p>
               </div>
 
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 space-y-6">
                 {/* Venue + Dresscode Row */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  {/* Venue Card */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Venue */}
                   {readContent('guest_timeline_venue_name') && (
-                    <div className="bg-white/60 border border-black/5 rounded-2xl p-5">
+                    <div>
                       <div className="flex items-center gap-2 mb-3">
                         <MapPin className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                         <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('venueLabel') || 'Venue'}</div>
@@ -387,9 +505,9 @@ export default function GuestInfo() {
                     </div>
                   )}
 
-                  {/* Dresscode Card */}
+                  {/* Dresscode */}
                   {readContent('guest_dresscode') && (
-                    <div className="bg-white/60 border border-black/5 rounded-2xl p-5">
+                    <div>
                       <div className="flex items-center gap-2 mb-3">
                         <Shirt className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                         <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('dresscodeLabel') || 'Dresscode'}</div>
@@ -401,9 +519,9 @@ export default function GuestInfo() {
                   )}
                 </div>
 
-                {/* Detailed Agenda Card */}
+                {/* Detailed Agenda */}
                 {readContent('guest_agenda') && (
-                  <div className="bg-white/60 border border-black/5 rounded-2xl p-5">
+                  <div className="pt-4 border-t border-black/10">
                     <div className="flex items-center gap-2 mb-3">
                       <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                       <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
@@ -414,9 +532,9 @@ export default function GuestInfo() {
                   </div>
                 )}
 
-                {/* Featured Event Card */}
+                {/* Featured Event */}
                 {(t('guest_event_gifts_event_label') || '').trim() && (
-                  <div className="bg-white/60 border border-black/5 rounded-2xl p-5 text-center lg:text-left">
+                  <div className="pt-4 border-t border-black/10 text-center lg:text-left">
                     <div className="flex items-center gap-2 mb-2 justify-center lg:justify-start">
                       <Calendar className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
                       <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsFeaturedEvent')}</div>
@@ -427,7 +545,7 @@ export default function GuestInfo() {
 
                 {/* Additional Notes */}
                 {(t('guest_event_gifts_timeline_details') || '').trim() && (
-                  <div className="bg-white/60 border border-black/5 rounded-2xl p-5 text-center lg:text-left">
+                  <div className="pt-4 border-t border-black/10 text-center lg:text-left">
                     <div className="text-sm mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('guestGiftsDetailsTitle')}</div>
                     <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                       {t('guest_event_gifts_timeline_details')}
@@ -436,7 +554,7 @@ export default function GuestInfo() {
                 )}
 
                 {/* Timeline */}
-                <div className="bg-white/60 rounded-2xl border border-black/5 p-6">
+                <div className="pt-4 border-t border-black/10">
                   <Timeline showTitle={false} />
                 </div>
               </div>
@@ -472,30 +590,6 @@ export default function GuestInfo() {
         </div>
       </main>
 
-      {/* Wedding Pass modal overlay */}
-      {showPassModal && (
-        <div className="fixed inset-0 z-[10000]">
-          <div
-            className="absolute inset-0 bg-black/40"
-            onClick={() => setShowPassModal(false)}
-          />
-          <div className="absolute inset-0 flex items-center justify-center p-3 sm:p-6">
-            <div className="relative w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl">
-              <button
-                type="button"
-                onClick={() => setShowPassModal(false)}
-                className="absolute top-4 right-4 z-10 rounded-full bg-white/90 border border-black/10 p-2 hover:bg-white"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-              <div className="p-4 sm:p-6">
-                <RSVP token={inviteToken} embedded onClose={() => setShowPassModal(false)} />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
