@@ -51,8 +51,8 @@ const getThemeColors = () => {
   }
   const styles = getComputedStyle(document.documentElement)
   return {
-    primary: parseColor(styles.getPropertyValue('--wp-primary'), '#2b3a55'),
-    secondary: parseColor(styles.getPropertyValue('--wp-secondary'), '#7c3aed'),
+    primary: parseColor(styles.getPropertyValue('--wp-primary'), '#0C124D'),
+    secondary: parseColor(styles.getPropertyValue('--wp-secondary'), '#9B3926'),
     background: parseColor(styles.getPropertyValue('--wp-background'), '#f7f3ea'),
   }
 }
