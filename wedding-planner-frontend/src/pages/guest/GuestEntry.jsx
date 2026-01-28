@@ -51,7 +51,10 @@ export default function GuestEntry() {
       }
       
       // Redirect to the main guest page (Info) - wizard will popup there for first-time guests
-      navigate('/info', { replace: true })
+      // Use setTimeout to ensure state update has propagated before navigation
+      setTimeout(() => {
+        navigate('/info', { replace: true })
+      }, 50)
     },
     onError: (err) => {
       setError(err.response?.data?.error || t('authFailed') || 'Authentication failed')

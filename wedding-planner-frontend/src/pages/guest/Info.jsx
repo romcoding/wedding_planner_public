@@ -680,14 +680,14 @@ export default function GuestInfo() {
 
           {/* Photos Tab */}
           {activeTab === 'photos' && (
-            <div>
+            <div className="max-w-3xl mx-auto text-center">
               <PhotoGallery />
             </div>
           )}
 
           {/* Contact Tab */}
           {activeTab === 'contact' && (
-            <div>
+            <div className="max-w-2xl mx-auto">
               <Contact />
             </div>
           )}
@@ -705,22 +705,25 @@ export default function GuestInfo() {
           
           {/* Modal Content */}
           <div className="relative min-h-screen flex items-center justify-center p-4">
-            <div className="relative w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-              {/* Close button */}
+            <div className="relative w-full max-w-2xl">
+              {/* Close button - positioned outside the scrolling content container */}
               <button
                 type="button"
                 onClick={handleWizardClose}
-                className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/80 hover:bg-white shadow-lg transition-colors"
+                className="absolute -top-2 -right-2 z-[10001] p-2 rounded-full bg-white hover:bg-gray-100 shadow-lg transition-colors"
               >
                 <X className="w-5 h-5 text-gray-600" />
               </button>
               
-              {/* RSVP Wizard embedded */}
-              <RSVP 
-                token={inviteToken} 
-                embedded={true} 
-                onClose={handleWizardClose}
-              />
+              {/* Inner content container */}
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+                {/* RSVP Wizard embedded */}
+                <RSVP 
+                  token={inviteToken} 
+                  embedded={true} 
+                  onClose={handleWizardClose}
+                />
+              </div>
             </div>
           </div>
         </div>

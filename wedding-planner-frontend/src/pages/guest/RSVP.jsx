@@ -678,7 +678,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
 
       {/* Main */}
       <div className={embedded ? 'px-4 sm:px-6 py-6' : 'max-w-7xl mx-auto px-4 sm:px-6 py-8 sm:py-12'}>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
+        <div className={embedded ? 'max-w-lg mx-auto' : 'grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8'}>
           {/* Left: photos */}
           {!embedded ? (
             <div className="space-y-6">
