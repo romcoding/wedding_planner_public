@@ -3,14 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   CalendarPlus,
-  Camera,
   Check,
   ChevronLeft,
   ChevronRight,
   Heart,
   Loader,
-  MapPin,
-  NotebookPen,
 } from 'lucide-react'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -368,7 +365,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     const base = ['attendance']
     if (isCoupleInvite) base.push('couple')
     if (isGroupInvite) base.push('group')
-    base.push('overnight', 'dietary', 'notes', 'photo', 'done')
+    base.push('overnight', 'dietary', 'notes', 'done')
     return base
   }, [isCoupleInvite, isGroupInvite])
 
@@ -959,77 +956,9 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       </PrimaryButton>
                       <PrimaryButton onClick={handleNotesNext} disabled={updateRSVPMutation.isPending}>
                         <span className="flex items-center justify-center gap-2">
-                          {t('next')} <ChevronRight className="w-4 h-4" />
+                          {t('finish')} <Check className="w-4 h-4" />
                         </span>
                       </PrimaryButton>
-                    </div>
-                  </StepShell>
-                )}
-
-                {currentStepKey === 'photo' && (
-                  <StepShell title={t('qAddPhoto')} subtitle={t('qAddPhotoSub')}>
-                    <div className="space-y-4">
-                      <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handlePhotoFile(e.target.files?.[0])}
-                          className="block w-full text-sm text-gray-700"
-                        />
-
-                        {pass.photo.previewUrl ? (
-                          <div className="mt-4">
-                            <img
-                              src={pass.photo.previewUrl}
-                              alt="Preview"
-                              className="w-full rounded-xl object-cover"
-                              style={{ aspectRatio: '4/3' }}
-                            />
-                            <input
-                              type="text"
-                              value={pass.photo.caption}
-                              onChange={(e) =>
-                                setPass((p) => ({
-                                  ...p,
-                                  photo: { ...p.photo, caption: e.target.value },
-                                }))
-                              }
-                              placeholder={t('photoCaptionPlaceholder')}
-                              className="mt-3 w-full px-4 py-3 rounded-xl border border-gray-200 text-gray-900 bg-white"
-                              style={{ outline: 'none' }}
-                            />
-                            {pass.photo.uploaded ? (
-                              <p className="mt-2 text-sm text-green-700 flex items-center gap-2">
-                                <Check className="w-4 h-4" />
-                                {t('photoUploaded')}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <p className="mt-2 text-sm text-gray-600">{t('photoOptional')}</p>
-                        )}
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
-                          <span className="flex items-center justify-center gap-2">
-                            <ChevronLeft className="w-4 h-4" /> {t('back')}
-                          </span>
-                        </PrimaryButton>
-                        <PrimaryButton onClick={handleUploadPhoto} disabled={uploadPhotoMutation.isPending}>
-                          {pass.photo.file ? t('uploadAndContinue') : t('continue')}
-                        </PrimaryButton>
-                      </div>
-
-                      <div className="pt-2">
-                        <button
-                          type="button"
-                          onClick={goNextSmooth}
-                          className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-2"
-                        >
-                          {t('skipForNow')}
-                        </button>
-                      </div>
                     </div>
                   </StepShell>
                 )}

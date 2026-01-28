@@ -668,13 +668,12 @@ export default function GuestsPage() {
                           <option value="declined">Declined</option>
                         </select>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation()
                             if (window.confirm('Are you sure you want to delete this guest?')) {
                               deleteGuestMutation.mutate(guest.id)
                             }
                           }}
-                          onMouseDown={stopRowClick}
-                          onClickCapture={stopRowClick}
                           className="text-red-600 hover:text-red-900 text-xs"
                         >
                           Delete
