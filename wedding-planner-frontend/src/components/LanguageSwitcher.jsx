@@ -15,7 +15,14 @@ export default function LanguageSwitcher() {
       <select
         value={language}
         onChange={(e) => setLanguage(e.target.value)}
-        className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-10 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-pink-500 cursor-pointer"
+        className="appearance-none rounded-lg px-4 py-2 pr-10 text-sm font-medium cursor-pointer focus:outline-none focus:ring-2 focus:ring-opacity-50"
+        style={{ 
+          backgroundColor: 'var(--wp-background)', 
+          borderColor: 'var(--wp-primary-20)',
+          color: 'var(--wp-primary)',
+          borderWidth: '1px',
+          borderStyle: 'solid'
+        }}
       >
         {languages.map((lang) => (
           <option key={lang.code} value={lang.code}>
@@ -23,7 +30,7 @@ export default function LanguageSwitcher() {
           </option>
         ))}
       </select>
-      <Globe className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+      <Globe className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 pointer-events-none" style={{ color: 'var(--wp-primary)', opacity: 0.5 }} />
     </div>
   )
 }

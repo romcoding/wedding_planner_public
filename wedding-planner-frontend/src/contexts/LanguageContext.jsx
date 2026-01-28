@@ -141,6 +141,11 @@ const translations = {
     timelineLoading: 'Loading timeline...',
     timelineEmpty: 'No events scheduled yet.',
     dressCodeLabel: 'Dress code:',
+    
+    // Guest portal - section labels
+    venueLabel: 'Venue',
+    dresscodeLabel: 'Dresscode',
+    agendaLabel: 'Agenda',
 
     // Guest portal - Gift Registry
     giftRegistryTitle: 'Gift Registry',
@@ -420,6 +425,11 @@ const translations = {
     timelineLoading: 'Ablauf wird geladen…',
     timelineEmpty: 'Noch keine Programmpunkte geplant.',
     dressCodeLabel: 'Dresscode:',
+    
+    // Guest portal - section labels
+    venueLabel: 'Veranstaltungsort',
+    dresscodeLabel: 'Dresscode',
+    agendaLabel: 'Ablauf',
 
     // Guest portal - Gift Registry
     giftRegistryTitle: 'Geschenke',
@@ -699,6 +709,11 @@ const translations = {
     timelineLoading: 'Chargement du planning…',
     timelineEmpty: 'Aucun événement prévu pour le moment.',
     dressCodeLabel: 'Tenue :',
+    
+    // Guest portal - section labels
+    venueLabel: 'Lieu',
+    dresscodeLabel: 'Tenue',
+    agendaLabel: 'Programme',
 
     // Guest portal - Gift Registry
     giftRegistryTitle: 'Liste de cadeaux',
