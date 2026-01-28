@@ -187,6 +187,21 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const invitedCount = inviteeNames.length || 1
   const isCoupleInvite = invitedCount === 2
   const isGroupInvite = invitedCount > 2
+  const isPlural = isCoupleInvite || isGroupInvite
+
+  // Helper to get plural form of translation for couples/groups
+  // Falls back to singular if plural form doesn't exist
+  const tp = (key, params) => {
+    if (isPlural) {
+      const pluralKey = `${key}_plural`
+      const pluralValue = t(pluralKey, params)
+      // If plural translation exists (not same as key), use it
+      if (pluralValue !== pluralKey) {
+        return pluralValue
+      }
+    }
+    return t(key, params)
+  }
 
   // Populate pass state when guest data loads
   useEffect(() => {
@@ -504,6 +519,13 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const handleOvernight = async (value) => {
     setPass((p) => ({ ...p, overnight_stay: value }))
     await savePartial({ overnight_stay: value })
+    // If "No", proceed immediately. If "Yes", stay to show booking info
+    if (!value) {
+      goNext()
+    }
+  }
+
+  const handleOvernightContinue = () => {
     goNext()
   }
 
@@ -805,8 +827,8 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 <div className={`transition-opacity duration-300 ${isStepFading ? 'opacity-0' : 'opacity-100'}`}>
                 {currentStepKey === 'attendance' && (
                   <StepShell
-                    title={t('qCelebrateOnDate').replace('{{date}}', weddingDateLabel)}
-                    subtitle={t('qCelebrateSub')}
+                    title={tp('qCelebrateOnDate').replace('{{date}}', weddingDateLabel)}
+                    subtitle={tp('qCelebrateSub')}
                   >
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <PrimaryButton
@@ -823,7 +845,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                         {t('no')}
                       </PrimaryButton>
                     </div>
-                    <p className="text-xs text-gray-500 mt-4">{t('youCanEditAnytime')}</p>
+                    <p className="text-xs text-gray-500 mt-4">{tp('youCanEditAnytime')}</p>
                   </StepShell>
                 )}
 
@@ -911,44 +933,63 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 )}
 
                 {currentStepKey === 'overnight' && (
-                  <StepShell title={t('qOvernight')} subtitle={t('qOvernightSub')}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PrimaryButton
-                        onClick={() => handleOvernight(true)}
-                        disabled={updateRSVPMutation.isPending}
-                      >
-                        {t('yes')}
-                      </PrimaryButton>
-                      <PrimaryButton
-                        variant="secondary"
-                        onClick={() => handleOvernight(false)}
-                        disabled={updateRSVPMutation.isPending}
-                      >
-                        {t('no')}
-                      </PrimaryButton>
-                    </div>
+                  <StepShell title={tp('qOvernight')} subtitle={tp('qOvernightSub')}>
+                    {/* Show Yes/No buttons only if not yet selected "Yes" */}
+                    {!pass.overnight_stay && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <PrimaryButton
+                          onClick={() => handleOvernight(true)}
+                          disabled={updateRSVPMutation.isPending}
+                        >
+                          {t('yes')}
+                        </PrimaryButton>
+                        <PrimaryButton
+                          variant="secondary"
+                          onClick={() => handleOvernight(false)}
+                          disabled={updateRSVPMutation.isPending}
+                        >
+                          {t('no')}
+                        </PrimaryButton>
+                      </div>
+                    )}
                     {/* Booking link info - shown when overnight_stay is selected as yes */}
                     {pass.overnight_stay && (
-                      <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--wp-primary-20)' }}>
-                        {bookingLink ? (
-                          <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
-                            {t('bookingLinkHint')}{' '}
-                            <a
-                              href={bookingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="underline font-semibold"
-                              style={{ color: 'var(--wp-primary)' }}
-                            >
-                              {t('bookingLinkClick')}
-                            </a>
-                          </p>
-                        ) : (
-                          <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
-                            {t('bookingLinkComingSoon')}
-                          </p>
-                        )}
-                      </div>
+                      <>
+                        <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--wp-primary-20)' }}>
+                          {bookingLink ? (
+                            <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
+                              {t('bookingLinkHint')}{' '}
+                              <a
+                                href={bookingLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="underline font-semibold"
+                                style={{ color: 'var(--wp-primary)' }}
+                              >
+                                {t('bookingLinkClick')}
+                              </a>
+                            </p>
+                          ) : (
+                            <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
+                              {t('bookingLinkComingSoon')}
+                            </p>
+                          )}
+                        </div>
+                        {/* Continue button after seeing booking info */}
+                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <PrimaryButton
+                            variant="secondary"
+                            onClick={() => setPass((p) => ({ ...p, overnight_stay: false }))}
+                          >
+                            {t('changeToNo')}
+                          </PrimaryButton>
+                          <PrimaryButton onClick={handleOvernightContinue}>
+                            <span className="flex items-center justify-center gap-2">
+                              {t('continue')} <ChevronRight className="w-4 h-4" />
+                            </span>
+                          </PrimaryButton>
+                        </div>
+                      </>
                     )}
                     <p className="text-xs text-gray-500 mt-4">{t('overnightNoteSoft')}</p>
                     <div className="mt-5 flex items-center justify-between">
@@ -965,7 +1006,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 )}
 
                 {currentStepKey === 'dietary' && (
-                  <StepShell title={t('qDietary')} subtitle={t('qDietarySub')}>
+                  <StepShell title={tp('qDietary')} subtitle={tp('qDietarySub')}>
                     <textarea
                       rows={4}
                       value={pass.dietary_restrictions}
@@ -992,7 +1033,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 )}
 
                 {currentStepKey === 'notes' && (
-                  <StepShell title={t('qNotes')} subtitle={t('qNotesSub')}>
+                  <StepShell title={tp('qNotes')} subtitle={tp('qNotesSub')}>
                     <textarea
                       rows={4}
                       value={pass.special_requests}
