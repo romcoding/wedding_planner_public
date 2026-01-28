@@ -155,7 +155,7 @@ export default function StyledGoogleMap({
 
   return (
     <div
-      className="relative overflow-hidden rounded-2xl border border-black/10 shadow-sm"
+      className="relative overflow-hidden rounded-2xl shadow-sm"
       style={{ backgroundColor: 'var(--wp-background, #F7F3EA)' }}
     >
       {title ? (
