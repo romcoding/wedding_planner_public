@@ -384,14 +384,14 @@ const translations = {
     // Singular (du) forms
     qOvernight: 'Möchtest du übernachten?',
     qOvernightSub: 'Das hilft uns bei der Planung.',
-    qDietary: 'Hast du Ernährungseinschränkungen?',
+    qDietary: 'Gibt es etwas, dass wir zu deiner Ernährung beachten sollen?',
     qDietarySub: 'Ein kurzer Hinweis reicht.',
     qNotes: 'Hast du einen Musikwunsch oder andere Anliegen?',
     qNotesSub: 'Optional — sag uns, was dir wichtig ist.',
     // Plural (ihr/euch) forms for couples/groups
     qOvernight_plural: 'Möchtet ihr übernachten?',
     qOvernightSub_plural: 'Das hilft uns bei der Planung.',
-    qDietary_plural: 'Habt ihr Ernährungseinschränkungen?',
+    qDietary_plural: 'Gibt es etwas, dass wir zu eurer Ernährung beachten sollen?',
     qDietarySub_plural: 'Ein kurzer Hinweis reicht.',
     qNotes_plural: 'Habt ihr einen Musikwunsch oder andere Anliegen?',
     qNotesSub_plural: 'Optional — sagt uns, was euch wichtig ist.',

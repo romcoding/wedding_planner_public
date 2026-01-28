@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, Bed } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
 import StyledGoogleMap from '../../components/StyledGoogleMap'
@@ -561,8 +561,11 @@ export default function GuestInfo() {
 
                 {/* Booking Link Section */}
                 <div className="text-center pt-6 border-t border-black/10">
-                  <div className="text-sm font-medium mb-3" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
-                    {t('guestAccommodationBookingTitle')}
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Bed className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                    <div className="text-xl font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                      {t('guestAccommodationBookingTitle')}
+                    </div>
                   </div>
                   {readContent('guest_accommodation_booking_link') ? (
                     <a
@@ -664,11 +667,6 @@ export default function GuestInfo() {
                 {/* Timeline Agenda Items */}
                 {agendaItems && agendaItems.length > 0 && (
                   <div className="pt-6 border-t border-black/10">
-                    <div className="flex items-center justify-center gap-2 mb-6">
-                      <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
-                      <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
-                    </div>
-                    
                     {/* Timeline items - centered vertical layout */}
                     <div className="max-w-sm mx-auto">
                       <div className="relative pl-8 sm:pl-10">
@@ -717,10 +715,6 @@ export default function GuestInfo() {
                 {/* Detailed Agenda (fallback if no agenda items) */}
                 {(!agendaItems || agendaItems.length === 0) && readContent('guest_agenda') && (
                   <div className="pt-6 border-t border-black/10 text-center">
-                    <div className="flex items-center justify-center gap-2 mb-3">
-                      <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
-                      <div className="text-sm font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>{t('agendaLabel') || 'Schedule'}</div>
-                    </div>
                     <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                       {readContent('guest_agenda')}
                     </div>
