@@ -310,11 +310,32 @@ def get_unassigned_guests():
 
     result = []
     for g in confirmed_guests:
+        # Get names from attending_names (who is actually coming) or invitee_names (who was invited)
         names = g.get_attending_names() or g.get_invitee_names() or []
-        if not names:
-            full = f"{g.first_name or ''} {g.last_name or ''}".strip()
-            names = [full] if full else [f"Guest {g.id}"]
-
+        
+        # Get the number of people expected (at least 1)
+        num_guests = max(g.number_of_guests or 1, 1)
+        
+        # Build the primary guest name
+        primary_name = f"{g.first_name or ''} {g.last_name or ''}".strip()
+        if not primary_name:
+            primary_name = f"Guest {g.id}"
+        
+        # If names list doesn't have enough entries for all guests, supplement it
+        if len(names) < num_guests:
+            # Start with existing names or primary name
+            if not names:
+                names = [primary_name]
+            
+            # Add additional entries for remaining guests
+            last_name = g.last_name or ''
+            for i in range(len(names), num_guests):
+                if last_name:
+                    additional_name = f"Guest {i + 1} ({last_name})"
+                else:
+                    additional_name = f"Guest {i + 1} (Invitation #{g.id})"
+                names.append(additional_name)
+        
         for idx, name in enumerate(names):
             if (g.id, name) in assigned:
                 continue
@@ -329,6 +350,7 @@ def get_unassigned_guests():
                     'last_name': g.last_name,
                     'email': g.email,
                     'number_of_guests': g.number_of_guests,
+                    'invitee_names': g.get_invitee_names(),
                 }
             })
 
