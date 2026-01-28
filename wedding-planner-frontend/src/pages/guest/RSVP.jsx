@@ -211,26 +211,45 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
       inferredAttending = []
     }
 
+    // If status is pending, reset everything to start fresh (step 0)
+    // This handles the case when admin sets status back to pending
+    const isPending = !guestData.rsvp_status || guestData.rsvp_status === 'pending'
+    
+    if (isPending && storageKey) {
+      // Clear localStorage to ensure wizard starts from beginning
+      try {
+        localStorage.removeItem(storageKey)
+      } catch {
+        // ignore
+      }
+    }
+
     setPass((prev) => ({
       ...prev,
       rsvp_status: guestData.rsvp_status || 'pending',
-      overnight_stay: !!guestData.overnight_stay,
-      number_of_guests: Number(guestData.number_of_guests || 1),
-      attending_names: inferredAttending,
-      dietary_restrictions: guestData.dietary_restrictions || '',
-      special_requests: guestData.special_requests || '',
-      // if already responded and no stored progress, jump to done
-      ...(guestData.rsvp_status === 'confirmed' || guestData.rsvp_status === 'declined'
-        ? { completed: true }
-        : {}),
+      // Reset all fields to defaults when status is pending
+      overnight_stay: isPending ? false : !!guestData.overnight_stay,
+      number_of_guests: isPending ? 1 : Number(guestData.number_of_guests || 1),
+      attending_names: isPending ? [] : inferredAttending,
+      dietary_restrictions: isPending ? '' : (guestData.dietary_restrictions || ''),
+      special_requests: isPending ? '' : (guestData.special_requests || ''),
+      // Reset step to 0 for pending status, jump to done for confirmed/declined
+      step: isPending ? 0 : prev.step,
+      completed: guestData.rsvp_status === 'confirmed' || guestData.rsvp_status === 'declined',
     }))
 
     if (guestData.language) setLanguage(guestData.language)
-  }, [guestData, setLanguage])
+  }, [guestData, setLanguage, storageKey])
 
   // Hydrate progress from localStorage (token scoped). Never restore File.
+  // Skip hydration for pending status - we want a fresh start
   useEffect(() => {
     if (!storageKey || hasHydratedFromStorage.current) return
+    // Don't hydrate if status is pending (admin reset or new guest)
+    if (!guestData?.rsvp_status || guestData.rsvp_status === 'pending') {
+      hasHydratedFromStorage.current = true
+      return
+    }
     try {
       const raw = localStorage.getItem(storageKey)
       if (!raw) return
@@ -249,7 +268,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     } catch {
       // ignore
     }
-  }, [storageKey])
+  }, [storageKey, guestData?.rsvp_status])
 
   // Persist progress to localStorage (without File)
   useEffect(() => {
@@ -280,6 +299,16 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     queryKey: ['images'],
     queryFn: () => api.get('/images').then((res) => res.data),
   })
+
+  // Fetch content for booking link
+  const { language } = useLanguage()
+  const { data: contentData } = useQuery({
+    queryKey: ['content', language],
+    queryFn: () => api.get(`/content?lang=${language}`).then((res) => res.data),
+  })
+
+  // Get booking link from content
+  const bookingLink = contentData?.guest_accommodation_booking_link || ''
 
   // Get images
   const heroImage = images?.find((img) => img.position === 'hero' && img.is_active && img.is_public)
@@ -898,6 +927,29 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                         {t('no')}
                       </PrimaryButton>
                     </div>
+                    {/* Booking link info - shown when overnight_stay is selected as yes */}
+                    {pass.overnight_stay && (
+                      <div className="mt-4 p-4 rounded-xl" style={{ backgroundColor: 'var(--wp-primary-20)' }}>
+                        {bookingLink ? (
+                          <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
+                            {t('bookingLinkHint')}{' '}
+                            <a
+                              href={bookingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="underline font-semibold"
+                              style={{ color: 'var(--wp-primary)' }}
+                            >
+                              {t('bookingLinkClick')}
+                            </a>
+                          </p>
+                        ) : (
+                          <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
+                            {t('bookingLinkComingSoon')}
+                          </p>
+                        )}
+                      </div>
+                    )}
                     <p className="text-xs text-gray-500 mt-4">{t('overnightNoteSoft')}</p>
                     <div className="mt-5 flex items-center justify-between">
                       <button
