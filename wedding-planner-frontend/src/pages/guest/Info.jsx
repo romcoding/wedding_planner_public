@@ -13,6 +13,7 @@ import RSVP from './RSVP'
 import { useLanguage } from '../../contexts/LanguageContext'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
+import { getAgendaIcon } from '../admin/ImagesPage'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
