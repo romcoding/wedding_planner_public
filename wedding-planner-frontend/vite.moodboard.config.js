@@ -27,25 +27,25 @@ export default defineConfig({
     },
   ],
   resolve: {
-    alias: {
-      '@': path.resolve(__dirname, './src'),
-    },
+    alias: [
+      { find: '@', replacement: path.resolve(__dirname, './src') },
+      // Specific paths FIRST - 'konva' alone would match konva/lib/Core.js too
+      { find: 'konva/lib/Core.js', replacement: path.resolve(__dirname, './src/konva-shim.js') },
+      { find: 'konva/lib/Global.js', replacement: path.resolve(__dirname, './src/konva-shim.js') },
+      { find: 'konva', replacement: path.resolve(__dirname, './src/konva-shim.js') },
+    ],
   },
   build: {
     outDir: 'dist',
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, 'moodboard.html'),
-      external: ['konva'],
       output: {
         format: 'iife',
         entryFileNames: 'assets/moodboard-[hash].js',
         chunkFileNames: 'assets/moodboard-[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
         inlineDynamicImports: true,
-        globals: {
-          konva: 'Konva',
-        },
       },
     },
   },

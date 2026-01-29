@@ -1,7 +1,12 @@
 /**
  * Shim for konva - Konva is loaded via CDN script in moodboard.html.
- * This prevents konva from being bundled (which causes "Cannot access before initialization").
- * react-konva imports from 'konva'; with resolve.alias we redirect to this shim.
+ * Redirects ALL konva imports (including konva/lib/Core.js, konva/lib/Global.js)
+ * to prevent bundling konva internals, which causes "Cannot access before initialization".
  */
-export default typeof window !== 'undefined' ? window.Konva : {}
-export const Konva = typeof window !== 'undefined' ? window.Konva : {}
+const Konva = typeof window !== 'undefined' ? window.Konva : {}
+
+// Default export (for: import Konva from 'konva/lib/Core.js')
+export default Konva
+
+// Named export (for: import { Konva } from 'konva/lib/Global.js')
+export { Konva }
