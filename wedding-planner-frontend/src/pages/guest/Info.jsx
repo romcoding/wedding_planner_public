@@ -30,6 +30,14 @@ export default function GuestInfo() {
     special_requests: '',
   })
 
+  const MoodDot = ({ color }) => (
+    <span
+      className="inline-block w-3.5 h-3.5 rounded-full border border-black/10"
+      style={{ backgroundColor: color }}
+      aria-hidden="true"
+    />
+  )
+
   const inviteToken = useMemo(() => {
     try {
       return localStorage.getItem('guest_invite_token')
@@ -659,6 +667,12 @@ export default function GuestInfo() {
                       </div>
                       <div className="whitespace-pre-wrap break-words" style={{ color: 'var(--wp-primary)' }}>
                         {readContent('guest_dresscode')}
+                      </div>
+                      {/* Mood color dots */}
+                      <div className="mt-3 flex items-center justify-center gap-2">
+                        <MoodDot color="var(--wp-primary)" />
+                        <MoodDot color="var(--wp-secondary)" />
+                        <MoodDot color="var(--wp-accent)" />
                       </div>
                     </div>
                   )}
