@@ -23,8 +23,8 @@ import SeatingChartPage from './pages/admin/SeatingChartPage'
 import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import UsersPage from './pages/admin/UsersPage'
 
-// Lazy load MoodboardPage to prevent react-konva initialization issues
-import MoodboardPage from './pages/admin/MoodboardPage'
+// Lazy load MoodboardPage - konva is bundled in moodboard chunk, loaded only when needed
+const MoodboardPage = lazy(() => import('./pages/admin/MoodboardPage'))
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'

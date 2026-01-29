@@ -32,7 +32,7 @@ import {
   Line,
   Text,
   Image as KonvaImage,
-  Transformer,
+  Transformer
 } from 'react-konva';
 
 const CANVAS_W = 3000
