@@ -24,7 +24,7 @@ import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import UsersPage from './pages/admin/UsersPage'
 
 // Lazy load MoodboardPage to prevent react-konva initialization issues
-const MoodboardPage = lazy(() => import('./pages/admin/MoodboardPage'))
+import MoodboardPage from './pages/admin/MoodboardPage'
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
@@ -109,7 +109,7 @@ function AppRoutes() {
         <Route path="events" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<EventsPage />} />} />
         <Route path="venues" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<VenuesPage />} />} />
         <Route path="seating" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<SeatingChartPage />} />} />
-        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="text-lg">Loading Moodboard...</div></div>}><MoodboardPage /></Suspense>} />} />
+        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<MoodboardPage />}/>}/>} />} />
 
         {/* Admin-only */}
         <Route path="wedding" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WeddingManagement />} fallbackTo="/admin/guests" />} />
