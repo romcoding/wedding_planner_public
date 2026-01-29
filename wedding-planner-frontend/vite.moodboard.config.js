@@ -1,13 +1,11 @@
 /**
  * Separate Vite config for moodboard.
- * Konva is loaded via CDN script and aliased to a shim to bypass bundling -
- * fixes "Cannot access before initialization" error from konva's circular deps.
+ * Konva is loaded from CDN and externalized - never bundled.
+ * IIFE format + globals ensures the bundle uses window.Konva at runtime.
  */
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
-
-const konvaShim = path.resolve(__dirname, 'src/konva-shim.js')
 
 export default defineConfig({
   plugins: [
@@ -29,21 +27,25 @@ export default defineConfig({
     },
   ],
   resolve: {
-    alias: [
-      { find: /^konva(\/.*)?$/, replacement: konvaShim },
-      { find: '@', replacement: path.resolve(__dirname, './src') },
-    ],
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
   },
   build: {
     outDir: 'dist',
     emptyOutDir: false,
     rollupOptions: {
       input: path.resolve(__dirname, 'moodboard.html'),
+      external: ['konva'],
       output: {
+        format: 'iife',
         entryFileNames: 'assets/moodboard-[hash].js',
         chunkFileNames: 'assets/moodboard-[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
         inlineDynamicImports: true,
+        globals: {
+          konva: 'Konva',
+        },
       },
     },
   },
