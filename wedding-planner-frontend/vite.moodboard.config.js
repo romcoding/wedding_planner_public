@@ -38,14 +38,14 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: false,
+    sourcemap: true,
     rollupOptions: {
       input: path.resolve(__dirname, 'moodboard.html'),
       output: {
-        format: 'iife',
+        format: 'es',
         entryFileNames: 'assets/moodboard-[hash].js',
         chunkFileNames: 'assets/moodboard-[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash][extname]',
-        inlineDynamicImports: true,
       },
     },
   },
