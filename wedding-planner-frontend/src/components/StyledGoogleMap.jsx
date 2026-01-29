@@ -88,16 +88,28 @@ export default function StyledGoogleMap({
       // OR: Hide only natural‑feature (landscape) icons
       { featureType: 'poi.natural_feature', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
 
+      // Roads
+      { featureType: 'road', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: primary }] },
       { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
-      // --- Remove footpaths / trails / dotted routes ---
-      //{ featureType: 'road.local', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-      //{ featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
       { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
+      { featureType: 'road.arterial', elementType: 'geometry.stroke', stylers: [{ color: primary }] },
+
+      // Highways
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
       { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
-      //{ featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: background }] },
+
+      // --- Kill footpaths / forest routes / dotted trails ---
+      // Most of the dotted stuff is under road.local
+      { featureType: 'road.local', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+      { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
+
+      // If some dotted lines still remain, they can be in "transit" linework:
+      { featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+
+      // Also hide any remaining small road icons
+      { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
+
       { featureType: 'water', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
     ]
