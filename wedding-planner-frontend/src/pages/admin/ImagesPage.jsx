@@ -17,6 +17,24 @@ import {
   Hotel,
 } from 'lucide-react'
 
+// Get emoji for icon (used in agenda item display)
+const getIconEmoji = (iconName) => {
+  const icons = {
+    church: '⛪',
+    rings: '💍',
+    champagne: '🥂',
+    utensils: '🍽️',
+    cake: '🎂',
+    music: '🎵',
+    camera: '📷',
+    heart: '❤️',
+    sparkles: '✨',
+    car: '🚗',
+    hotel: '🏨',
+  }
+  return icons[iconName] || ''
+}
+
 export const getAgendaIcon = (iconName, props = {}) => {
   const iconProps = {
     className: 'w-4 h-4',
