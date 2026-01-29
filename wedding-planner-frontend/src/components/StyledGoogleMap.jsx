@@ -88,14 +88,18 @@ export default function StyledGoogleMap({
       // OR: Hide only natural‑feature (landscape) icons
       { featureType: 'poi.natural_feature', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
 
-      { featureType: 'road', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: primary }] },
       { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
+      // --- Remove footpaths / trails / dotted routes ---
+      { featureType: 'road.local', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+      { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
+      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: background }] },
+      { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
       { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
       { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
+      { featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: background }] },
-      { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
       { featureType: 'water', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
     ]
@@ -173,11 +177,14 @@ export default function StyledGoogleMap({
 
       {openUrl ? (
         <a
-          className="absolute right-4 top-4 z-10 rounded-xl bg-white/20 px-3 py-2 text-sm text-white backdrop-blur transition hover:bg-white/30"
           href={openUrl}
           target="_blank"
           rel="noopener noreferrer"
-
+          className="absolute right-4 top-4 z-10 rounded-xl px-3 py-2 text-sm font-medium text-white transition hover:opacity-90"
+          style={{
+            backgroundColor: getThemeColors().secondary,
+            boxShadow: '0 6px 18px rgba(0,0,0,0.18)',
+          }}
         >
           {openLabel}
         </a>
