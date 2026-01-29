@@ -105,7 +105,7 @@ export default function StyledGoogleMap({
       { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
 
       // If some dotted lines still remain, they can be in "transit" linework:
-      { featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+      //{ featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
 
       // Also hide any remaining small road icons
       { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
