@@ -93,8 +93,6 @@ export default function StyledGoogleMap({
       // --- Remove footpaths / trails / dotted routes ---
       { featureType: 'road.local', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
       { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
-      { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: background }] },
-      { featureType: 'road', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
       { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
       { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
