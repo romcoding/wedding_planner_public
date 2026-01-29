@@ -109,7 +109,7 @@ function AppRoutes() {
         <Route path="events" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<EventsPage />} />} />
         <Route path="venues" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<VenuesPage />} />} />
         <Route path="seating" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<SeatingChartPage />} />} />
-        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<MoodboardPage />}/>}/>} />} />
+        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<MoodboardPage />}/>}/>
 
         {/* Admin-only */}
         <Route path="wedding" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WeddingManagement />} fallbackTo="/admin/guests" />} />
