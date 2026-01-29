@@ -695,7 +695,7 @@ export default function GuestInfo() {
                               
                               {/* Content */}
                               <div>
-                                <div className="flex items-center gap-2 mb-1">
+                                <div className="flex items-center gap-2.5 mb-1">
                                   <span className="text-lg font-bold" style={{ color: 'var(--wp-primary)' }}>
                                     {item.time_display}
                                   </span>
