@@ -12,10 +12,8 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html'),
-        moodboard: path.resolve(__dirname, 'moodboard.html'),
-      },
+      // Only main app - moodboard built separately with vite.moodboard.config.js
+      input: path.resolve(__dirname, 'index.html'),
     },
   },
   server: {
