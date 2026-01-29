@@ -1,16 +1,14 @@
 /**
  * Standalone moodboard entry point.
- * Dynamic import of MoodboardPage isolates react-konva to avoid
- * "Cannot access before initialization" circular dependency.
+ * Loaded in iframe - uses konva-shim so konva is never bundled.
  */
-import React, { Suspense, lazy } from 'react'
+import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from './components/ui/Toast.jsx'
 import { AuthProvider } from './contexts/AuthContext.jsx'
+import MoodboardPage from './pages/admin/MoodboardPage.jsx'
 import './index.css'
-
-const MoodboardPage = lazy(() => import('./pages/admin/MoodboardPage.jsx'))
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,9 +21,7 @@ function MoodboardApp() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <ToastProvider>
-          <Suspense fallback={<div className="flex h-screen items-center justify-center">Loading moodboard…</div>}>
-            <MoodboardPage />
-          </Suspense>
+          <MoodboardPage />
         </ToastProvider>
       </AuthProvider>
     </QueryClientProvider>

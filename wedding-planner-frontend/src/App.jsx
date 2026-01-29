@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useEffect, lazy, Suspense } from 'react'
+import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { GuestAuthProvider, useGuestAuth } from './contexts/GuestAuthContext'
 import { LanguageProvider } from './contexts/LanguageContext'
@@ -23,8 +23,19 @@ import SeatingChartPage from './pages/admin/SeatingChartPage'
 import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import UsersPage from './pages/admin/UsersPage'
 
-// Lazy load MoodboardPage - it dynamically imports react-konva to avoid init errors
-const MoodboardPage = lazy(() => import('./pages/admin/MoodboardPage'))
+// Moodboard loads in isolated iframe (moodboard.html) - main app never loads react-konva
+function MoodboardFrame() {
+  return (
+    <div className="-m-4 lg:-m-8 min-h-[calc(100vh-2rem)]">
+      <iframe
+        src="/moodboard.html"
+        title="Moodboard"
+        className="w-full h-[calc(100vh-6rem)] min-h-[600px] border-0 rounded-lg"
+        style={{ display: 'block' }}
+      />
+    </div>
+  )
+}
 import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
@@ -109,7 +120,7 @@ function AppRoutes() {
         <Route path="events" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<EventsPage />} />} />
         <Route path="venues" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<VenuesPage />} />} />
         <Route path="seating" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<SeatingChartPage />} />} />
-        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<Suspense fallback={<div className="flex items-center justify-center min-h-[400px]"><div className="text-lg">Loading Moodboard...</div></div>}><MoodboardPage /></Suspense>} />} />
+        <Route path="moodboard" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner']} element={<MoodboardFrame />} />} />
 
         {/* Admin-only */}
         <Route path="wedding" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WeddingManagement />} fallbackTo="/admin/guests" />} />
