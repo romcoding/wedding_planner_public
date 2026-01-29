@@ -24,21 +24,16 @@ import {
   Pencil,
   X,
 } from 'lucide-react'
-
-// Dynamically import react-konva to avoid SSR/initialization issues
-let Stage, Layer, Rect, Circle, Line, Text, KonvaImage, Transformer
-const loadKonva = async () => {
-  const konva = await import('react-konva')
-  Stage = konva.Stage
-  Layer = konva.Layer
-  Rect = konva.Rect
-  Circle = konva.Circle
-  Line = konva.Line
-  Text = konva.Text
-  KonvaImage = konva.Image
-  Transformer = konva.Transformer
-  return true
-}
+import {
+  Stage,
+  Layer,
+  Rect,
+  Circle,
+  Line,
+  Text,
+  Image as KonvaImage,
+  Transformer,
+} from 'react-konva';
 
 const CANVAS_W = 3000
 const CANVAS_H = 2000
@@ -278,17 +273,11 @@ export default function MoodboardPage() {
 
   const [history, setHistory] = useState({ past: [], future: [] })
   const [isMounted, setIsMounted] = useState(false)
-  const [konvaLoaded, setKonvaLoaded] = useState(false)
 
-  // Load react-konva dynamically to prevent initialization issues in production builds
   useEffect(() => {
-    loadKonva().then(() => {
-      setKonvaLoaded(true)
-      setIsMounted(true)
-    }).catch((err) => {
-      console.error('Failed to load react-konva:', err)
-    })
-  }, [])
+    // Set mounted flag once component is mounted. This is used to render the Transformer
+    setIsMounted(true);
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia('(pointer: coarse)')
@@ -1164,18 +1153,6 @@ export default function MoodboardPage() {
   const canTransform = tool === 'select'
   const isPanMode = tool === 'pan'
   const toolBtnSize = isCoarsePointer ? 'h-12 w-12' : 'h-10 w-10'
-
-  // Show loading state until react-konva is loaded
-  if (!konvaLoaded) {
-    return (
-      <div className="w-full flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading Moodboard...</p>
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="w-full">
