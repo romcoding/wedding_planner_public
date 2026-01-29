@@ -9,7 +9,7 @@ const api = axios.create({
 // Add token to requests if available (admin or guest)
 api.interceptors.request.use((config) => {
   const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
-  const isAdminRoute = pathname.startsWith('/admin')
+  const isAdminRoute = pathname.startsWith('/admin') || pathname.includes('moodboard')
 
   // Determine which token to use based on the endpoint
   const url = config.url || ''
