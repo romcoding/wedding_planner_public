@@ -672,9 +672,9 @@ export default function GuestInfo() {
                       <div className="mt-3 flex items-center justify-center gap-2">
                         <MoodDot color="var(--wp-primary)" />
                         <MoodDot color="var(--wp-accent)" />
-                        <MoodDot color="var(#5b779f)" />
+                        <MoodDot color='#5b779f' />
                         <MoodDot color="var(--wp-secondary)" />
-                        <MoodDot color="var(#cb684a)" />
+                        <MoodDot color='#cb684a' />
                       </div>
                     </div>
                   )}
