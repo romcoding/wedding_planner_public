@@ -14,6 +14,7 @@ import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import HeartBurstAnimation from '../../components/HeartBurstAnimation'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
+import SavePageBlock from '../../components/SavePageBlock'
 import api from '../../lib/api'
 
 function PassCard({ children }) {
@@ -48,7 +49,7 @@ function PrimaryButton({ children, onClick, disabled, variant = 'primary', class
 
 function StepShell({ title, subtitle, children }) {
   return (
-    <div className="transition-opacity duration-300">
+    <div className="transition-all duration-200 ease-out">
       <div className="mb-5">
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">{title}</h2>
         {subtitle ? <p className="text-gray-600 mt-2">{subtitle}</p> : null}
@@ -98,10 +99,12 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
 
   const [showHearts, setShowHearts] = useState(false)
   const [isStepFading, setIsStepFading] = useState(false)
+  const [transitionDirection, setTransitionDirection] = useState('next')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
 
+  const stepContainerRef = useRef(null)
   const storageKey = useMemo(() => (token ? `wedding_pass_progress:${token}` : null), [token])
   const hasHydratedFromStorage = useRef(false)
 
@@ -417,17 +420,19 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const currentStepKey = steps[Math.min(pass.step, steps.length - 1)]
 
   const transitionToStep = (nextStep) => {
+    setTransitionDirection(nextStep > (pass.step ?? 0) ? 'next' : 'prev')
     setIsStepFading(true)
     setTimeout(() => {
       setPass((p) => ({ ...p, step: nextStep }))
       requestAnimationFrame(() => setIsStepFading(false))
-    }, 140)
+    }, 200)
   }
 
   // Navigation helpers:
   // - defined in one place to avoid "goNext is not defined" regressions
   // - uses functional updates so step math always uses the latest state
   const transitionBy = (delta) => {
+    setTransitionDirection(delta > 0 ? 'next' : 'prev')
     setIsStepFading(true)
     setTimeout(() => {
       setPass((p) => {
@@ -435,8 +440,23 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
         return { ...p, step: next }
       })
       requestAnimationFrame(() => setIsStepFading(false))
-    }, 140)
+    }, 200)
   }
+
+  // Focus management and scroll when step changes
+  useEffect(() => {
+    if (isStepFading) return
+    const timer = setTimeout(() => {
+      stepContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      const focusable = stepContainerRef.current?.querySelector(
+        'button:not([disabled]), input:not([disabled]), [tabindex="0"]'
+      )
+      if (focusable && typeof focusable.focus === 'function') {
+        focusable.focus({ preventScroll: true })
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [pass.step, isStepFading])
 
   const goPrev = () => transitionBy(-1)
   const goNext = () => transitionBy(1)
@@ -595,33 +615,6 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     a.click()
     a.remove()
     URL.revokeObjectURL(url)
-  }
-
-  const savePageOneClick = async () => {
-    const url = window.location.href
-    const title = t('yourWeddingPass')
-
-    try {
-      if (navigator.share) {
-        await navigator.share({ title, url })
-        return
-      }
-    } catch {
-      // ignore share abort
-    }
-
-    try {
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(url)
-        alert(t('savePageCopied'))
-        return
-      }
-    } catch {
-      // ignore
-    }
-
-    // Fallback: show hint
-    alert(t('savePageHint'))
   }
 
   if (loading || loadingGuest || authMutation.isPending) {
@@ -805,11 +798,13 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
           <div>
             <div className="lg:sticky lg:top-8">
               <PassCard>
-                {error ? (
-                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-5">
-                    {error}
-                  </div>
-                ) : null}
+                <div className="min-h-[3rem] mb-5">
+                  {error ? (
+                    <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl">
+                      {error}
+                    </div>
+                  ) : null}
+                </div>
 
                 <div className="flex items-center justify-between mb-5">
                   <div className="text-sm text-gray-600">
@@ -824,7 +819,14 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                   </div>
                 </div>
 
-                <div className={`transition-opacity duration-300 ${isStepFading ? 'opacity-0' : 'opacity-100'}`}>
+                <div
+                  ref={stepContainerRef}
+                  className={`transition-all duration-200 ease-out ${
+                    isStepFading
+                      ? `opacity-0 ${transitionDirection === 'next' ? 'translate-x-4' : '-translate-x-4'}`
+                      : 'opacity-100 translate-x-0'
+                  }`}
+                >
                 {currentStepKey === 'attendance' && (
                   <StepShell
                     title={tp('qCelebrateOnDate').replace('{{date}}', weddingDateLabel)}
@@ -833,14 +835,14 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <PrimaryButton
                         onClick={() => handleChooseAttendance(true)}
-                        disabled={updateRSVPMutation.isPending}
+                        disabled={updateRSVPMutation.isPending || isStepFading}
                       >
                         {t('yes')}
                       </PrimaryButton>
                       <PrimaryButton
                         variant="secondary"
                         onClick={() => setShowDeclineConfirm(true)}
-                        disabled={updateRSVPMutation.isPending}
+                        disabled={updateRSVPMutation.isPending || isStepFading}
                       >
                         {t('no')}
                       </PrimaryButton>
@@ -854,21 +856,21 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                     <div className="space-y-3">
                       <PrimaryButton
                         onClick={() => handleCoupleChoice('both')}
-                        disabled={updateRSVPMutation.isPending}
+                        disabled={updateRSVPMutation.isPending || isStepFading}
                       >
                         {t('bothOfUs')} ({inviteeNames[0]} + {inviteeNames[1]})
                       </PrimaryButton>
                       <PrimaryButton
                         variant="secondary"
                         onClick={() => handleCoupleChoice('first')}
-                        disabled={updateRSVPMutation.isPending}
+                        disabled={updateRSVPMutation.isPending || isStepFading}
                       >
                         {t('onlyName').replace('{{name}}', inviteeNames[0] || t('name1'))}
                       </PrimaryButton>
                       <PrimaryButton
                         variant="secondary"
                         onClick={() => handleCoupleChoice('second')}
-                        disabled={updateRSVPMutation.isPending}
+                        disabled={updateRSVPMutation.isPending || isStepFading}
                       >
                         {t('onlyName').replace('{{name}}', inviteeNames[1] || t('name2'))}
                       </PrimaryButton>
@@ -877,7 +879,8 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       <button
                         type="button"
                         onClick={goPrevSmooth}
-                        className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                        disabled={isStepFading}
+                        className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 disabled:opacity-50"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         {t('back')}
@@ -918,12 +921,12 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                     </div>
 
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PrimaryButton variant="secondary" onClick={goPrev}>
+                      <PrimaryButton variant="secondary" onClick={goPrev} disabled={isStepFading}>
                         <span className="flex items-center justify-center gap-2">
                           <ChevronLeft className="w-4 h-4" /> {t('back')}
                         </span>
                       </PrimaryButton>
-                      <PrimaryButton onClick={handleGroupNext} disabled={updateRSVPMutation.isPending}>
+                      <PrimaryButton onClick={handleGroupNext} disabled={updateRSVPMutation.isPending || isStepFading}>
                         <span className="flex items-center justify-center gap-2">
                           {t('next')} <ChevronRight className="w-4 h-4" />
                         </span>
@@ -939,14 +942,14 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <PrimaryButton
                           onClick={() => handleOvernight(true)}
-                          disabled={updateRSVPMutation.isPending}
+                          disabled={updateRSVPMutation.isPending || isStepFading}
                         >
                           {t('yes')}
                         </PrimaryButton>
                         <PrimaryButton
                           variant="secondary"
                           onClick={() => handleOvernight(false)}
-                          disabled={updateRSVPMutation.isPending}
+                          disabled={updateRSVPMutation.isPending || isStepFading}
                         >
                           {t('no')}
                         </PrimaryButton>
@@ -980,10 +983,11 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                           <PrimaryButton
                             variant="secondary"
                             onClick={() => setPass((p) => ({ ...p, overnight_stay: false }))}
+                            disabled={isStepFading}
                           >
                             {t('changeToNo')}
                           </PrimaryButton>
-                          <PrimaryButton onClick={handleOvernightContinue}>
+                          <PrimaryButton onClick={handleOvernightContinue} disabled={isStepFading}>
                             <span className="flex items-center justify-center gap-2">
                               {t('continue')} <ChevronRight className="w-4 h-4" />
                             </span>
@@ -996,7 +1000,8 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       <button
                         type="button"
                         onClick={goPrevSmooth}
-                        className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                        disabled={isStepFading}
+                        className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 disabled:opacity-50"
                       >
                         <ChevronLeft className="w-4 h-4" />
                         {t('back')}
@@ -1018,12 +1023,12 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       style={{ outline: 'none' }}
                     />
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
+                      <PrimaryButton variant="secondary" onClick={goPrevSmooth} disabled={isStepFading}>
                         <span className="flex items-center justify-center gap-2">
                           <ChevronLeft className="w-4 h-4" /> {t('back')}
                         </span>
                       </PrimaryButton>
-                      <PrimaryButton onClick={handleDietaryNext} disabled={updateRSVPMutation.isPending}>
+                      <PrimaryButton onClick={handleDietaryNext} disabled={updateRSVPMutation.isPending || isStepFading}>
                         <span className="flex items-center justify-center gap-2">
                           {t('next')} <ChevronRight className="w-4 h-4" />
                         </span>
@@ -1043,12 +1048,12 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       style={{ outline: 'none' }}
                     />
                     <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PrimaryButton variant="secondary" onClick={goPrevSmooth}>
+                      <PrimaryButton variant="secondary" onClick={goPrevSmooth} disabled={isStepFading}>
                         <span className="flex items-center justify-center gap-2">
                           <ChevronLeft className="w-4 h-4" /> {t('back')}
                         </span>
                       </PrimaryButton>
-                      <PrimaryButton onClick={handleNotesNext} disabled={updateRSVPMutation.isPending}>
+                      <PrimaryButton onClick={handleNotesNext} disabled={updateRSVPMutation.isPending || isStepFading}>
                         <span className="flex items-center justify-center gap-2">
                           {t('finish')} <Check className="w-4 h-4" />
                         </span>
@@ -1105,9 +1110,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                             <p className="text-xs text-gray-500">{t('calendarNotConfigured')}</p>
                           ) : null}
 
-                          <PrimaryButton variant="secondary" onClick={savePageOneClick}>
-                            {t('saveThisPageButton')}
-                          </PrimaryButton>
+                          <SavePageBlock />
 
                           <div className="rounded-2xl border border-gray-200 bg-white p-4">
                             <p className="text-sm text-gray-700">

@@ -17,6 +17,7 @@ api.interceptors.request.use((config) => {
                          url.includes('/guests/token/') ||
                          url.includes('/guest-auth/') ||
                          url.includes('/guest-photos') ||
+                         url.includes('/messages') ||
                          // Public-ish endpoints that must use guest token when browsing guest UI,
                          // otherwise an existing admin token would leak private data to guests.
                          (!isAdminRoute && (url.includes('/events') || url.includes('/images') || url.includes('/content') || url.includes('/gift-registry')))
