@@ -621,7 +621,6 @@ export default function GuestInfo() {
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-8">
                 <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('timelineTitle')}</div>
-                <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsScheduleTitle')}</p>
               </div>
 
               <div className="space-y-8">
@@ -667,6 +666,14 @@ export default function GuestInfo() {
                 {/* Timeline Agenda Items */}
                 {agendaItems && agendaItems.length > 0 && (
                   <div className="pt-6 border-t border-black/10">
+                    {/* Small Agenda title with clock icon */}
+                    <div className="flex items-center justify-center gap-2 mb-4">
+                      <Clock className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                      <div className="text-sm font-medium"
+                           style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
+                        {t('agendaLabel')}
+                      </div>
+                    </div>
                     {/* Timeline items - centered vertical layout */}
                     <div className="max-w-sm mx-auto">
                       <div className="relative pl-8 sm:pl-10">

@@ -138,7 +138,7 @@ const translations = {
     dayItselfTitle: 'Timeline',
 
     // Guest portal - timeline component
-    timelineTitle: 'Wedding Timeline',
+    timelineTitle: 'Wedding Program',
     timelineLoading: 'Loading timeline...',
     timelineEmpty: 'No events scheduled yet.',
     dressCodeLabel: 'Dress code:',
@@ -224,7 +224,7 @@ const translations = {
     guestNavHello: 'Hello',
     guestNavWeddingPass: 'Wedding Pass',
     guestNavTravelAccommodation: 'Accommodation & Travel',
-    guestNavWeddingProgram: 'Wedding Programme',
+    guestNavWeddingProgram: 'Wedding Program',
     guestNavGifts: 'Gifts',
     guestNavPhotos: 'Photos',
     guestNavContact: 'Contact',
