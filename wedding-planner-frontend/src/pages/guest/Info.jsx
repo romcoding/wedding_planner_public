@@ -699,7 +699,9 @@ export default function GuestInfo() {
                                     {item.time_display}
                                   </span>
                                   {item.icon && (
-                                    <span className="text-xl">{getIconEmoji(item.icon)}</span>
+                                    <span className="flex items-center">
+                                      {getAgendaIcon(item.icon)}
+                                    </span>
                                   )}
                                 </div>
                                 <div className="font-semibold" style={{ color: 'var(--wp-primary)' }}>

@@ -3,6 +3,44 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X, Clock, GripVertical, ChevronUp, ChevronDown } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
+import {
+  Church,
+  HeartHandshake,
+  Wine,
+  Utensils,
+  Cake,
+  Music,
+  Camera,
+  Heart,
+  Sparkles,
+  Car,
+  Hotel,
+} from 'lucide-react'
+
+export const getAgendaIcon = (iconName, props = {}) => {
+  const iconProps = {
+    className: 'w-4 h-4',
+    style: { color: 'var(--wp-primary)' },
+    strokeWidth: 1.75,
+    ...props,
+  }
+
+  const icons = {
+    church: <Church {...iconProps} />,
+    rings: <HeartHandshake {...iconProps} />,
+    champagne: <Wine {...iconProps} />,
+    utensils: <Utensils {...iconProps} />,
+    cake: <Cake {...iconProps} />,
+    music: <Music {...iconProps} />,
+    camera: <Camera {...iconProps} />,
+    heart: <Heart {...iconProps} />,
+    sparkles: <Sparkles {...iconProps} />,
+    car: <Car {...iconProps} />,
+    hotel: <Hotel {...iconProps} />,
+  }
+
+  return icons[iconName] || null
+}
 
 const ImagesPage = () => {
   const queryClient = useQueryClient()
@@ -198,23 +236,6 @@ const ImagesPage = () => {
     } else {
       createAgendaItem.mutate(agendaForm)
     }
-  }
-
-  const getIconEmoji = (iconName) => {
-    const icons = {
-      church: '⛪',
-      rings: '💍',
-      champagne: '🥂',
-      utensils: '🍽️',
-      cake: '🎂',
-      music: '🎵',
-      camera: '📷',
-      heart: '❤️',
-      sparkles: '✨',
-      car: '🚗',
-      hotel: '🏨',
-    }
-    return icons[iconName] || ''
   }
 
   useEffect(() => {
