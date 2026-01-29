@@ -96,7 +96,7 @@ export default function StyledGoogleMap({
       { featureType: 'road.arterial', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: secondary }] },
       { featureType: 'road.highway', elementType: 'geometry.stroke', stylers: [{ color: secondary }] },
-      { featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+      //{ featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
       { featureType: 'road', elementType: 'geometry.stroke', stylers: [{ color: background }] },
       { featureType: 'water', elementType: 'geometry', stylers: [{ color: primary }] },
       { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: primary }] },
