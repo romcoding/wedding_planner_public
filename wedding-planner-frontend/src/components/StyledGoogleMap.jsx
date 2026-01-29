@@ -101,8 +101,8 @@ export default function StyledGoogleMap({
 
       // --- Kill footpaths / forest routes / dotted trails ---
       // Most of the dotted stuff is under road.local
-      { featureType: 'road.local', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
-      { featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
+      //{ featureType: 'road.local', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
+      //{ featureType: 'road.local', elementType: 'geometry.stroke', stylers: [{ visibility: 'off' }] },
 
       // If some dotted lines still remain, they can be in "transit" linework:
       //{ featureType: 'transit.line', elementType: 'geometry', stylers: [{ visibility: 'off' }] },
