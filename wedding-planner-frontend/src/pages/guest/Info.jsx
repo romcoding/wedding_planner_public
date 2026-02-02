@@ -181,35 +181,17 @@ export default function GuestInfo() {
     return firstName
   }, [guestProfile?.invitee_names, guestProfile?.first_name, guest?.first_name])
 
-  // Build carousel images from API - include all positions except moodboard
+  // Build carousel images from API only (admin Images page) - no fallback to repo images
   const carouselImages = useMemo(() => {
-    if (!allImages || !Array.isArray(allImages)) {
-      // Fallback to local images if API not loaded yet
-      return [
-        '/images/20240709_172842.jpg',
-        '/images/36ce974e-6449-4491-a3a4-0c1741df5616.jpg',
-        '/images/DSC_3034.jpeg',
-      ]
-    }
-    // Filter out moodboard images, include all others (carousel, hero, photo1, photo2, photo3, travel, gifts, etc.)
+    if (!allImages || !Array.isArray(allImages)) return []
     const carouselImgs = allImages
       .filter((img) => img.is_active && img.is_public && img.position !== 'moodboard' && img.url)
       .sort((a, b) => {
-        // Prioritize 'carousel' position first, then by order
         if (a.position === 'carousel' && b.position !== 'carousel') return -1
         if (b.position === 'carousel' && a.position !== 'carousel') return 1
         return (a.order || 0) - (b.order || 0)
       })
       .map((img) => img.url)
-    
-    // If no images from API, fall back to local files
-    if (carouselImgs.length === 0) {
-      return [
-        '/images/20240709_172842.jpg',
-        '/images/36ce974e-6449-4491-a3a4-0c1741df5616.jpg',
-        '/images/DSC_3034.jpeg',
-      ]
-    }
     return carouselImgs
   }, [allImages])
 
@@ -273,27 +255,28 @@ export default function GuestInfo() {
         </div>
       </header>
 
-      {/* Carousel - larger images */}
-      <div className="wp-marquee border-b border-black/10">
-        <div
-          className="wp-marquee__track"
-          style={{
-            // Smoothness: longer duration when more images are added later
-            '--wp-marquee-duration': `${Math.max(30, carouselImages.length * 12)}s`,
-          }}
-        >
-          {[...carouselImages, ...carouselImages].map((src, idx) => (
-            <div key={`${src}-${idx}`} className="wp-marquee__item">
-              <img
-                src={src}
-                alt=""
-                className="h-56 sm:h-72 md:h-80 lg:h-96 w-[75vw] sm:w-[55vw] md:w-[42vw] lg:w-[36vw] object-cover"
-                loading="lazy"
-              />
-            </div>
-          ))}
+      {/* Carousel - images from admin Images page only (no repo fallback) */}
+      {carouselImages.length > 0 && (
+        <div className="wp-marquee border-b border-black/10">
+          <div
+            className="wp-marquee__track"
+            style={{
+              '--wp-marquee-duration': `${Math.max(30, carouselImages.length * 12)}s`,
+            }}
+          >
+            {[...carouselImages, ...carouselImages].map((src, idx) => (
+              <div key={`${src}-${idx}`} className="wp-marquee__item">
+                <img
+                  src={src}
+                  alt=""
+                  className="h-56 sm:h-72 md:h-80 lg:h-96 w-[75vw] sm:w-[55vw] md:w-[42vw] lg:w-[36vw] object-cover"
+                  loading="lazy"
+                />
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tab content - only show active tab */}
       <main style={{ backgroundColor: '#F7F3EA' }}>
