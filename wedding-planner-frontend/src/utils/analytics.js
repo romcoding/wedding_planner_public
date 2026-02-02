@@ -51,7 +51,7 @@ async function startVisit() {
       }
     }
   } catch (error) {
-    console.error('Error starting visit tracking:', error)
+    if (import.meta.env.DEV) console.error('Error starting visit tracking:', error)
   }
 }
 
@@ -78,10 +78,10 @@ export function trackPageView(pagePath, pageTitle = null) {
         guest_id: null,
       }),
     }).catch(error => {
-      console.error('Error tracking page view:', error)
+      if (import.meta.env.DEV) console.error('Error tracking page view:', error)
     })
   } catch (error) {
-    console.error('Error in trackPageView:', error)
+    if (import.meta.env.DEV) console.error('Error in trackPageView:', error)
   }
 }
 
@@ -89,23 +89,27 @@ export function endVisit() {
   if (!sessionId) {
     return
   }
-  
+
   try {
-    // Get base URL and ensure it doesn't have double /api
     const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
-    fetch(`${baseUrl}/api/analytics/track/visit/end`, {
+    const url = `${baseUrl}/api/analytics/track/visit/end`
+    const payload = JSON.stringify({ session_id: sessionId })
+
+    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' })
+      navigator.sendBeacon(url, blob)
+      return
+    }
+
+    fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: payload,
     }).catch(error => {
-      console.error('Error ending visit:', error)
+      if (import.meta.env.DEV) console.error('Error ending visit:', error)
     })
   } catch (error) {
-    console.error('Error in endVisit:', error)
+    if (import.meta.env.DEV) console.error('Error in endVisit:', error)
   }
 }
 

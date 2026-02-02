@@ -90,8 +90,17 @@ def create_app():
     
     logger.info(f"CORS allowed origins: {allowed_origins}")
     
-    CORS(app, 
-         origins=allowed_origins, 
+    # Public analytics track routes allow any origin (no credentials); rest use explicit origins
+    CORS(app,
+         resources={
+             r"/api/analytics/track/.*": {
+                 "origins": "*",
+                 "supports_credentials": False,
+                 "allow_headers": ["Content-Type"],
+                 "methods": ["GET", "POST", "OPTIONS"],
+             },
+         },
+         origins=allowed_origins,
          supports_credentials=True,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
          allow_headers=['Content-Type', 'Authorization'],
