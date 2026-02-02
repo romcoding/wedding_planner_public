@@ -80,26 +80,27 @@ def create_app():
     if vercel_url and vercel_url not in allowed_origins:
         allowed_origins.append(vercel_url)
     
-    # Always allow the production Vercel domain
-    production_vercel = 'https://weddingplanner-mu.vercel.app'
-    if production_vercel not in allowed_origins:
-        allowed_origins.append(production_vercel)
+    # Always allow known production frontends
+    for origin in (
+        'https://weddingplanner-mu.vercel.app',
+        'https://rovi.studio',
+    ):
+        if origin not in allowed_origins:
+            allowed_origins.append(origin)
+
+    # Optional extra origins (comma-separated env, e.g. CORS_EXTRA_ORIGINS=https://other.app)
+    extra = os.getenv('CORS_EXTRA_ORIGINS', '')
+    for origin in (o.strip() for o in extra.split(',') if o.strip()):
+        if origin not in allowed_origins:
+            allowed_origins.append(origin)
     
     # Remove duplicates and None values
     allowed_origins = list(set([origin for origin in allowed_origins if origin]))
     
     logger.info(f"CORS allowed origins: {allowed_origins}")
     
-    # Public analytics track routes allow any origin (no credentials); rest use explicit origins
+    # Single CORS policy for all routes (including analytics): explicit origins + credentials
     CORS(app,
-         resources={
-             r"/api/analytics/track/.*": {
-                 "origins": "*",
-                 "supports_credentials": False,
-                 "allow_headers": ["Content-Type"],
-                 "methods": ["GET", "POST", "OPTIONS"],
-             },
-         },
          origins=allowed_origins,
          supports_credentials=True,
          methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],

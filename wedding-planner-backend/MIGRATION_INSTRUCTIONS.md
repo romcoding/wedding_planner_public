@@ -48,3 +48,22 @@ If `POST /api/messages` returns 500 with `column messages.delivery_status does n
    cd wedding-planner-backend && PYTHONPATH=$(pwd):$PYTHONPATH python3 migrate_add_message_delivery.py
    ```
 3. **Verify:** The script should print that these columns were added (or already exist): `delivery_status`, `delivery_attempted_at`, `delivery_error`, `idempotency_key`.
+
+---
+
+## Fix for Images Table (Admin Images Page Empty or 500)
+
+If the admin Images page shows no images or returns errors (e.g. "relation images does not exist"), the `images` table may not exist on the database.
+
+### To run the migration on Render:
+
+1. **Open Render Shell:** Dashboard → backend service → Shell.
+2. **Run the migration** (from the backend directory, e.g. `wedding-planner-backend`):
+   ```bash
+   python3 migrate_create_images_table.py
+   ```
+   If you need PYTHONPATH:
+   ```bash
+   cd wedding-planner-backend && PYTHONPATH=$(pwd):$PYTHONPATH python3 migrate_create_images_table.py
+   ```
+3. **Verify:** You should see "Successfully created 'images' table" (or a message that it already exists). After that, the admin Images page should load; you can then upload images.
