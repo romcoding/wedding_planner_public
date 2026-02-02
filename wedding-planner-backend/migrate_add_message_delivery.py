@@ -47,7 +47,7 @@ def migrate():
             if 'delivery_attempted_at' not in columns:
                 print("Adding 'delivery_attempted_at' column...")
                 try:
-                    db.session.execute(text("ALTER TABLE messages ADD COLUMN delivery_attempted_at DATETIME"))
+                    db.session.execute(text("ALTER TABLE messages ADD COLUMN delivery_attempted_at TIMESTAMP"))
                     db.session.commit()
                     print("✅ Added 'delivery_attempted_at' column.")
                 except Exception as e:
