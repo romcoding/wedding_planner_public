@@ -579,7 +579,7 @@ export default function GuestInfo() {
           {activeTab === 'travel' && (
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-8">
-                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestTravelTitle')}</div>
+                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestNavTravelAccommodation')}</div>
                 <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>
                   {t('guestTravelCardSubtitle')}
                 </p>
@@ -682,7 +682,7 @@ export default function GuestInfo() {
           {activeTab === 'program' && (
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-8">
-                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('timelineTitle')}</div>
+                <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestNavWeddingProgram')}</div>
               </div>
 
               <div className="space-y-8">

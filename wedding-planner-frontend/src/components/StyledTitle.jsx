@@ -1,7 +1,7 @@
 /**
  * StyledTitle - Renders text with the first letter of each word in a decorative font
  * 
- * Example: "Wedding Pass" → "W" and "P" get special styling with Playfair Display
+ * Example: "Wedding Pass" → "W" and "P" get special styling with Great Vibes
  */
 export default function StyledTitle({ text, className = '', style = {} }) {
   const words = text.split(' ');
@@ -12,9 +12,9 @@ export default function StyledTitle({ text, className = '', style = {} }) {
         <span key={i}>
           {i > 0 && ' '}
           <span style={{ 
-            fontFamily: '"Playfair Display", serif',
-            fontStyle: 'italic',
-            fontSize: '1.15em',
+            fontFamily: '"Great Vibes", cursive',
+            fontStyle: 'normal',
+            fontSize: '1.25em',
             marginRight: '-0.05em'
           }}>
             {word[0]}
