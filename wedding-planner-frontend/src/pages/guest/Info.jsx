@@ -58,7 +58,7 @@ export default function GuestInfo() {
   })
 
   // Fetch images for carousel (all positions except moodboard)
-  const { data: allImages } = useQuery({
+  const { data: allImages, isFetched: imagesFetched } = useQuery({
     queryKey: ['images'],
     queryFn: () => api.get('/images').then((res) => res.data),
   })
@@ -227,6 +227,10 @@ export default function GuestInfo() {
 
   // Preload carousel images for smooth loading experience
   useEffect(() => {
+    // Wait until the images query has completed
+    if (!imagesFetched) return
+    
+    // If no images to preload, mark as done
     if (!carouselImages.length) {
       setImagesPreloaded(true)
       return
@@ -245,15 +249,15 @@ export default function GuestInfo() {
       }
       img.src = src
     })
-  }, [carouselImages])
+  }, [carouselImages, imagesFetched])
 
   // Hide loading screen when profile and images are ready
   useEffect(() => {
     if (profileLoaded && imagesPreloaded) {
-      // Small delay to ensure smooth transition
+      // Give a moment for rendering after images are cached
       const timer = setTimeout(() => {
         setIsPageLoading(false)
-      }, 300)
+      }, 500)
       return () => clearTimeout(timer)
     }
   }, [profileLoaded, imagesPreloaded])
