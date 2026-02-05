@@ -5,7 +5,6 @@ import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X, Clock, GripVert
 import { useToast } from '../../components/ui/Toast'
 import {
   Church,
-  HeartHandshake,
   Wine,
   Utensils,
   Cake,
@@ -16,6 +15,25 @@ import {
   Car,
   Hotel,
 } from 'lucide-react'
+
+// Custom interlacing wedding rings icon
+const WeddingRings = ({ className, style, strokeWidth = 1.75, ...props }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={strokeWidth}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    style={style}
+    {...props}
+  >
+    <circle cx="9" cy="12" r="5" />
+    <circle cx="15" cy="12" r="5" />
+  </svg>
+)
 
 // Get emoji for icon (used in agenda item display)
 const getIconEmoji = (iconName) => {
@@ -45,7 +63,7 @@ export const getAgendaIcon = (iconName, props = {}) => {
 
   const icons = {
     church: <Church {...iconProps} />,
-    rings: <HeartHandshake {...iconProps} />,
+    rings: <WeddingRings {...iconProps} />,
     champagne: <Wine {...iconProps} />,
     utensils: <Utensils {...iconProps} />,
     cake: <Cake {...iconProps} />,
