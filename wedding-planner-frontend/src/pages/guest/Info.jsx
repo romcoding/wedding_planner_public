@@ -739,8 +739,33 @@ export default function GuestInfo() {
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-8">
                 <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoTitle')}</div>
-                <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoBody')}</p>
+                {readContent('guest_gift_message') && (
+                  <p className="mt-4 text-lg" style={{ color: 'var(--wp-primary)' }}>
+                    {readContent('guest_gift_message')}
+                  </p>
+                )}
+                {!readContent('guest_gift_message') && (
+                  <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoBody')}</p>
+                )}
               </div>
+
+              {/* IBAN Section */}
+              {readContent('guest_gift_iban') && (
+                <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 mb-8 text-center shadow-sm border border-black/5">
+                  <div className="text-sm uppercase tracking-wider mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
+                    {t('giftIbanLabel') || 'Bank Transfer'}
+                  </div>
+                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                    {readContent('guest_gift_iban')}
+                  </div>
+                  {readContent('guest_gift_account_holder') && (
+                    <div className="mt-2 text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                      {readContent('guest_gift_account_holder')}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <GiftRegistry />
             </div>
           )}

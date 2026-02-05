@@ -83,10 +83,8 @@ export default function StyledGoogleMap({
       // Keep parks visible for context
       { featureType: 'poi.park', stylers: [{ visibility: 'on' }] },
       { featureType: 'poi.park', elementType: 'geometry', stylers: [{ color: background }] },
-      // Hide **all** POI icons (restaurants, hotels, parks, natural features, etc.)
+      // Hide **all** POI icons (restaurants, hotels, parks, etc.)
       { featureType: 'poi', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
-      // OR: Hide only natural‑feature (landscape) icons
-      { featureType: 'poi.natural_feature', elementType: 'labels.icon', stylers: [{ visibility: 'off' }] },
 
       // Roads
       { featureType: 'road', elementType: 'geometry', stylers: [{ color: primary }] },
