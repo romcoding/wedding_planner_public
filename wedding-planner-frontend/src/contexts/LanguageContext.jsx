@@ -204,7 +204,7 @@ const translations = {
 
     // Guest portal - Travel & Accommodation
     guestTravelTitle: 'Travel & Accommodation',
-    guestTravelCardSubtitle: 'Hotels and directions',
+    guestTravelCardSubtitle: 'Hotel and directions',
     guestAccommodationVenueTitle: 'Accommodation',
     guestAccommodationDetailsFallback: 'Accommodation details will be shared here.',
     guestAccommodationOpenWebsite: 'Open website',
@@ -520,7 +520,7 @@ const translations = {
 
     // Guest portal - Travel & Accommodation
     guestTravelTitle: 'Anreise & Unterkunft',
-    guestTravelCardSubtitle: 'Hotels und Wegbeschreibung',
+    guestTravelCardSubtitle: 'Hotel und Wegbeschreibung',
     guestAccommodationVenueTitle: 'Unterkunft',
     guestAccommodationDetailsFallback: 'Unterkunftsdetails werden hier geteilt.',
     guestAccommodationOpenWebsite: 'Website öffnen',
@@ -828,7 +828,7 @@ const translations = {
 
     // Guest portal - Travel & Accommodation
     guestTravelTitle: 'Voyage & hébergement',
-    guestTravelCardSubtitle: 'Hôtels et itinéraire',
+    guestTravelCardSubtitle: 'Hôtel et itinéraire',
     guestAccommodationVenueTitle: 'Hébergement',
     guestAccommodationDetailsFallback: 'Les informations d’hébergement seront indiquées ici.',
     guestAccommodationOpenWebsite: 'Ouvrir le site',
