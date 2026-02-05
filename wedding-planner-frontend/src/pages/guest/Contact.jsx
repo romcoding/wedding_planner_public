@@ -74,7 +74,7 @@ export default function Contact() {
 
   return (
     <div className="space-y-6 text-center">
-      <h2 className="text-3xl font-bold mb-6" style={{ color: 'var(--wp-primary)' }}>{t('contactTitle')}</h2>
+      <h2 className="text-2xl md:text-3xl font-semibold mb-6" style={{ color: 'var(--wp-primary)' }}>{t('contactTitle')}</h2>
       <p className="mb-8" style={{ color: 'var(--wp-primary)' }}>
         {t('contactIntro')}
       </p>
