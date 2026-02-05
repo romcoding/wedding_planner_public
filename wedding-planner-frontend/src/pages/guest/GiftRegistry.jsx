@@ -3,7 +3,7 @@ import api from '../../lib/api'
 import { Gift, ExternalLink, DollarSign, Sparkles } from 'lucide-react'
 import { useLanguage } from '../../contexts/LanguageContext'
 
-export default function GiftRegistry() {
+export default function GiftRegistry({ hideEmptyState = false }) {
   const { t } = useLanguage()
   const BASE_CURRENCY = 'CHF'
   const formatMoney = (amount, currency = BASE_CURRENCY) => {
@@ -142,12 +142,12 @@ export default function GiftRegistry() {
               )}
             </div>
           ))
-        ) : (
+        ) : !hideEmptyState ? (
           <div className="col-span-full text-center py-12 text-gray-500">
             <Gift className="w-16 h-16 mx-auto mb-4 text-gray-400" />
             <p>{t('giftRegistryEmpty')}</p>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   )

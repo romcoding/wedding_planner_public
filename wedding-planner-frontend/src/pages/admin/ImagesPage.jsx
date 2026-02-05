@@ -122,6 +122,12 @@ const ImagesPage = () => {
   const [guestAccommodationVenueId, setGuestAccommodationVenueId] = useState('')
   const [guestAccommodationDetails, setGuestAccommodationDetails] = useState({ en: '', de: '', fr: '' })
   const [guestAccommodationBookingLink, setGuestAccommodationBookingLink] = useState('')
+  
+  // Gift Registry state
+  const [giftIban, setGiftIban] = useState({ en: '', de: '', fr: '' })
+  const [giftMessage, setGiftMessage] = useState({ en: '', de: '', fr: '' })
+  const [giftAccountHolder, setGiftAccountHolder] = useState({ en: '', de: '', fr: '' })
+  
   const didInitGuestCardsRef = useRef(false)
 
   const { data: contentItems } = useQuery({
@@ -303,6 +309,24 @@ const ImagesPage = () => {
       fr: String(guestPortalSettings.guestAccommodationDetails?.fr || ''),
     })
     setGuestAccommodationBookingLink(String(guestPortalSettings.guestAccommodationBookingLink || ''))
+    
+    // Gift Registry
+    setGiftIban({
+      en: String(guestPortalSettings.giftIban?.en || ''),
+      de: String(guestPortalSettings.giftIban?.de || ''),
+      fr: String(guestPortalSettings.giftIban?.fr || ''),
+    })
+    setGiftMessage({
+      en: String(guestPortalSettings.giftMessage?.en || ''),
+      de: String(guestPortalSettings.giftMessage?.de || ''),
+      fr: String(guestPortalSettings.giftMessage?.fr || ''),
+    })
+    setGiftAccountHolder({
+      en: String(guestPortalSettings.giftAccountHolder?.en || ''),
+      de: String(guestPortalSettings.giftAccountHolder?.de || ''),
+      fr: String(guestPortalSettings.giftAccountHolder?.fr || ''),
+    })
+    
     didInitGuestCardsRef.current = true
   }, [guestPortalSettings])
 
@@ -317,6 +341,10 @@ const ImagesPage = () => {
         guestAccommodationVenueId: guestAccommodationVenueId || '',
         guestAccommodationDetails,
         guestAccommodationBookingLink: guestAccommodationBookingLink || '',
+        // Gift Registry
+        giftIban,
+        giftMessage,
+        giftAccountHolder,
       })
     },
     onSuccess: () => {
@@ -1117,6 +1145,126 @@ const ImagesPage = () => {
                 Add a booking link for guests to reserve rooms. If empty, guests will see "Stay tuned for booking information".
               </p>
             </div>
+        </div>
+
+        {/* Gift Registry Section */}
+        <div className="border rounded-lg p-4 mt-6">
+          <div className="font-semibold text-gray-900 mb-3 text-lg">Gift Registry</div>
+          <p className="text-sm text-gray-500 mb-4">Configure the IBAN and gift message shown on the guest Gifts page.</p>
+
+          {/* IBAN */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">IBAN</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                <input
+                  type="text"
+                  value={giftIban.en}
+                  onChange={(e) => setGiftIban((p) => ({ ...p, en: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="e.g. CH93 0076 2011 6238 5295 7"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                <input
+                  type="text"
+                  value={giftIban.de}
+                  onChange={(e) => setGiftIban((p) => ({ ...p, de: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="z.B. CH93 0076 2011 6238 5295 7"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                <input
+                  type="text"
+                  value={giftIban.fr}
+                  onChange={(e) => setGiftIban((p) => ({ ...p, fr: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="p.ex. CH93 0076 2011 6238 5295 7"
+                />
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">
+              The same IBAN can be entered for all languages, or you can customize per language.
+            </p>
+          </div>
+
+          {/* Account Holder */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Account Holder (optional)</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                <input
+                  type="text"
+                  value={giftAccountHolder.en}
+                  onChange={(e) => setGiftAccountHolder((p) => ({ ...p, en: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="e.g. John & Jane Doe"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                <input
+                  type="text"
+                  value={giftAccountHolder.de}
+                  onChange={(e) => setGiftAccountHolder((p) => ({ ...p, de: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="z.B. Max & Anna Mustermann"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                <input
+                  type="text"
+                  value={giftAccountHolder.fr}
+                  onChange={(e) => setGiftAccountHolder((p) => ({ ...p, fr: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="p.ex. Jean & Marie Dupont"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Gift Message */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Gift Message</label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">English</label>
+                <textarea
+                  rows={3}
+                  value={giftMessage.en}
+                  onChange={(e) => setGiftMessage((p) => ({ ...p, en: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="e.g. If you still want to give us something, it would be great to have something for our honeymoon."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Deutsch</label>
+                <textarea
+                  rows={3}
+                  value={giftMessage.de}
+                  onChange={(e) => setGiftMessage((p) => ({ ...p, de: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="z.B. Falls ihr uns doch etwas schenken möchtet, würden wir uns über einen Beitrag für unsere Hochzeitsreise freuen."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Français</label>
+                <textarea
+                  rows={3}
+                  value={giftMessage.fr}
+                  onChange={(e) => setGiftMessage((p) => ({ ...p, fr: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                  placeholder="p.ex. Si vous souhaitez nous offrir quelque chose, une contribution pour notre lune de miel serait appréciée."
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="mt-4 flex justify-end">

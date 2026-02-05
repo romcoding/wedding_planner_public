@@ -149,6 +149,12 @@ export default function GuestInfo() {
     return String(v)
   }
 
+  // Strip HTML tags for plain text display (e.g., IBAN)
+  const stripHtml = (html) => {
+    if (!html) return ''
+    return html.replace(/<[^>]*>/g, '').trim()
+  }
+
   const parseAgendaItems = (value) =>
     String(value || '')
       .split('\n')
@@ -740,9 +746,11 @@ export default function GuestInfo() {
               <div className="text-center mb-8">
                 <div className="text-2xl md:text-3xl font-semibold" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoTitle')}</div>
                 {readContent('guest_gift_message') && (
-                  <p className="mt-4 text-lg" style={{ color: 'var(--wp-primary)' }}>
-                    {readContent('guest_gift_message')}
-                  </p>
+                  <div 
+                    className="mt-4 text-lg prose prose-lg max-w-none" 
+                    style={{ color: 'var(--wp-primary)' }}
+                    dangerouslySetInnerHTML={{ __html: readContent('guest_gift_message') }}
+                  />
                 )}
                 {!readContent('guest_gift_message') && (
                   <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoBody')}</p>
@@ -750,23 +758,23 @@ export default function GuestInfo() {
               </div>
 
               {/* IBAN Section */}
-              {readContent('guest_gift_iban') && (
+              {stripHtml(readContent('guest_gift_iban')) && (
                 <div className="bg-white/60 backdrop-blur-sm rounded-2xl p-6 mb-8 text-center shadow-sm border border-black/5">
                   <div className="text-sm uppercase tracking-wider mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
                     {t('giftIbanLabel') || 'Bank Transfer'}
                   </div>
                   <div className="text-lg font-mono font-semibold" style={{ color: 'var(--wp-primary)' }}>
-                    {readContent('guest_gift_iban')}
+                    {stripHtml(readContent('guest_gift_iban'))}
                   </div>
-                  {readContent('guest_gift_account_holder') && (
+                  {stripHtml(readContent('guest_gift_account_holder')) && (
                     <div className="mt-2 text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
-                      {readContent('guest_gift_account_holder')}
+                      {stripHtml(readContent('guest_gift_account_holder'))}
                     </div>
                   )}
                 </div>
               )}
 
-              <GiftRegistry />
+              <GiftRegistry hideEmptyState={!!stripHtml(readContent('guest_gift_iban')) || !!readContent('guest_gift_message')} />
             </div>
           )}
 

@@ -241,6 +241,10 @@ def get_guest_portal_settings():
         'guest_accommodation_details',
         'guest_accommodation_map_address',
         'guest_accommodation_booking_link',
+        # Gift Registry
+        'guest_gift_iban',
+        'guest_gift_message',
+        'guest_gift_account_holder',
     ]
     items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
 
@@ -274,6 +278,10 @@ def get_guest_portal_settings():
         'guestAccommodationDetails': pack('guest_accommodation_details'),
         'guestAccommodationMapAddress': one('guest_accommodation_map_address'),
         'guestAccommodationBookingLink': one('guest_accommodation_booking_link'),
+        # Gift Registry
+        'giftIban': pack('guest_gift_iban'),
+        'giftMessage': pack('guest_gift_message'),
+        'giftAccountHolder': pack('guest_gift_account_holder'),
     }), 200
 
 
@@ -294,6 +302,11 @@ def set_guest_portal_settings():
     guest_accommodation_venue_id = str(data.get('guestAccommodationVenueId') or '').strip()
     guest_accommodation_details = data.get('guestAccommodationDetails') or {}
     guest_accommodation_booking_link = str(data.get('guestAccommodationBookingLink') or '').strip()
+    
+    # Gift Registry
+    gift_iban = data.get('giftIban') or {}
+    gift_message = data.get('giftMessage') or {}
+    gift_account_holder = data.get('giftAccountHolder') or {}
 
     selected_event = None
     if guest_event_id:
@@ -466,6 +479,29 @@ def set_guest_portal_settings():
         'guest_accommodation_booking_link',
         'Guest: Accommodation booking link',
         guest_accommodation_booking_link, guest_accommodation_booking_link, guest_accommodation_booking_link
+    )
+
+    # Gift Registry
+    _upsert_public_content_key(
+        'guest_gift_iban',
+        'Guest: Gift IBAN',
+        str(gift_iban.get('en') or ''),
+        str(gift_iban.get('de') or ''),
+        str(gift_iban.get('fr') or ''),
+    )
+    _upsert_public_content_key(
+        'guest_gift_message',
+        'Guest: Gift message',
+        str(gift_message.get('en') or ''),
+        str(gift_message.get('de') or ''),
+        str(gift_message.get('fr') or ''),
+    )
+    _upsert_public_content_key(
+        'guest_gift_account_holder',
+        'Guest: Gift account holder',
+        str(gift_account_holder.get('en') or ''),
+        str(gift_account_holder.get('de') or ''),
+        str(gift_account_holder.get('fr') or ''),
     )
 
     try:
