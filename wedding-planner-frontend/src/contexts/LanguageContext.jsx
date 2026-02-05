@@ -239,6 +239,8 @@ const translations = {
     guestGiftsInfoBody:
       'Your presence means the world to us. If you’d like to give something, you’ll find the details here.',
     giftIbanLabel: 'Bank Transfer',
+    copied: 'Copied!',
+    copyToClipboard: 'Copy to clipboard',
 
     // Photo gallery
     photoGalleryTitle: 'Photo Gallery',
@@ -553,6 +555,8 @@ const translations = {
     guestGiftsInfoBody:
       'Deine Anwesenheit ist für uns das schönste Geschenk. Falls du trotzdem etwas schenken möchtest, findest du hier die Infos.',
     giftIbanLabel: 'Banküberweisung',
+    copied: 'Kopiert!',
+    copyToClipboard: 'Kopieren',
 
     // Photo gallery
     photoGalleryTitle: 'Fotogalerie',
@@ -859,6 +863,8 @@ const translations = {
     guestGiftsInfoBody:
       'Votre présence est le plus beau des cadeaux. Si vous souhaitez offrir quelque chose, vous trouverez les informations ici.',
     giftIbanLabel: 'Virement bancaire',
+    copied: 'Copié !',
+    copyToClipboard: 'Copier',
 
     // Photo gallery
     photoGalleryTitle: 'Galerie photo',

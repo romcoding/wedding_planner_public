@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader, Bed } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
 import StyledGoogleMap from '../../components/StyledGoogleMap'
@@ -23,6 +23,7 @@ export default function GuestInfo() {
   const [activeTab, setActiveTab] = useState('pass')
   const [isEditing, setIsEditing] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
+  const [ibanCopied, setIbanCopied] = useState(false)
   const [editForm, setEditForm] = useState({
     rsvp_status: 'pending',
     overnight_stay: false,
@@ -153,6 +154,25 @@ export default function GuestInfo() {
   const stripHtml = (html) => {
     if (!html) return ''
     return html.replace(/<[^>]*>/g, '').trim()
+  }
+
+  // Copy IBAN to clipboard
+  const copyIbanToClipboard = async (iban) => {
+    try {
+      await navigator.clipboard.writeText(iban)
+      setIbanCopied(true)
+      setTimeout(() => setIbanCopied(false), 2000)
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = iban
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      setIbanCopied(true)
+      setTimeout(() => setIbanCopied(false), 2000)
+    }
   }
 
   const parseAgendaItems = (value) =>
@@ -763,8 +783,22 @@ export default function GuestInfo() {
                   <div className="text-sm uppercase tracking-wider mb-2" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
                     {t('giftIbanLabel') || 'Bank Transfer'}
                   </div>
-                  <div className="text-lg font-mono font-semibold" style={{ color: 'var(--wp-primary)' }}>
-                    {stripHtml(readContent('guest_gift_iban'))}
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="text-lg font-mono font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                      {stripHtml(readContent('guest_gift_iban'))}
+                    </div>
+                    <button
+                      onClick={() => copyIbanToClipboard(stripHtml(readContent('guest_gift_iban')))}
+                      className="p-2 rounded-lg transition-all hover:bg-black/5"
+                      style={{ color: 'var(--wp-primary)' }}
+                      title={ibanCopied ? (t('copied') || 'Copied!') : (t('copyToClipboard') || 'Copy to clipboard')}
+                    >
+                      {ibanCopied ? (
+                        <Check className="w-5 h-5 text-green-600" />
+                      ) : (
+                        <Copy className="w-5 h-5" />
+                      )}
+                    </button>
                   </div>
                   {stripHtml(readContent('guest_gift_account_holder')) && (
                     <div className="mt-2 text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
