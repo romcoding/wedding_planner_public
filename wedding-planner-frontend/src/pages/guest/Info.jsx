@@ -6,6 +6,7 @@ import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy } from 'lucide-react'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
 import StyledGoogleMap from '../../components/StyledGoogleMap'
+import StyledTitle from '../../components/StyledTitle'
 import PhotoGallery from './PhotoGallery'
 import GiftRegistry from './GiftRegistry'
 import Contact from './Contact'
@@ -14,6 +15,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 import { getAgendaIcon } from '../admin/ImagesPage'
+import HeartLoader from '../../components/HeartLoader'
 
 export default function GuestInfo() {
   const navigate = useNavigate()
@@ -24,6 +26,8 @@ export default function GuestInfo() {
   const [isEditing, setIsEditing] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const [ibanCopied, setIbanCopied] = useState(false)
+  const [isPageLoading, setIsPageLoading] = useState(true)
+  const [imagesPreloaded, setImagesPreloaded] = useState(false)
   const [editForm, setEditForm] = useState({
     rsvp_status: 'pending',
     overnight_stay: false,
@@ -221,6 +225,39 @@ export default function GuestInfo() {
     return carouselImgs
   }, [allImages])
 
+  // Preload carousel images for smooth loading experience
+  useEffect(() => {
+    if (!carouselImages.length) {
+      setImagesPreloaded(true)
+      return
+    }
+    
+    let loadedCount = 0
+    const totalImages = carouselImages.length
+    
+    carouselImages.forEach((src) => {
+      const img = new Image()
+      img.onload = img.onerror = () => {
+        loadedCount++
+        if (loadedCount >= totalImages) {
+          setImagesPreloaded(true)
+        }
+      }
+      img.src = src
+    })
+  }, [carouselImages])
+
+  // Hide loading screen when profile and images are ready
+  useEffect(() => {
+    if (profileLoaded && imagesPreloaded) {
+      // Small delay to ensure smooth transition
+      const timer = setTimeout(() => {
+        setIsPageLoading(false)
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [profileLoaded, imagesPreloaded])
+
   // Menu items for tab navigation
   const menuItems = [
     { id: 'pass', label: t('guestNavWeddingPass') },
@@ -233,6 +270,9 @@ export default function GuestInfo() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F7F3EA' }}>
+      {/* Loading Screen */}
+      <HeartLoader isLoading={isPageLoading} />
+
       {/* Banner - eggshell white with primary color text, larger and centered */}
       <header
         className="w-full"
@@ -254,7 +294,7 @@ export default function GuestInfo() {
               {guestGreeting ? ` ${guestGreeting}` : ''}
             </div>
             <div className="font-serif text-4xl md:text-5xl lg:text-6xl leading-tight font-medium">
-              {t('guestNavWeddingPass')}
+              <StyledTitle text={t('guestNavWeddingPass')} />
             </div>
           </div>
 

@@ -15,6 +15,7 @@ import { useLanguage } from '../../contexts/LanguageContext'
 import HeartBurstAnimation from '../../components/HeartBurstAnimation'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 import SavePageBlock from '../../components/SavePageBlock'
+import StyledTitle from '../../components/StyledTitle'
 import api from '../../lib/api'
 
 function PassCard({ children }) {
@@ -691,7 +692,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                   {t('yourInvitation')}
                 </p>
                 <h1 className="text-4xl md:text-6xl font-bold text-white mb-3 drop-shadow-lg">
-                  {t('yourWeddingPass')}
+                  <StyledTitle text={t('yourWeddingPass')} />
                 </h1>
                 <p className="text-xl text-white/90 drop-shadow-md">
                   {t('hi')} {guestData.first_name}
@@ -708,7 +709,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                   {t('yourInvitation')}
                 </p>
                 <h1 className="text-4xl md:text-6xl font-bold text-white mb-3 drop-shadow-lg">
-                  {t('yourWeddingPass')}
+                  <StyledTitle text={t('yourWeddingPass')} />
                 </h1>
                 <p className="text-xl text-white/90 drop-shadow-md">
                   {t('hi')} {guestData.first_name}
