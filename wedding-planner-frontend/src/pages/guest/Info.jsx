@@ -648,14 +648,14 @@ export default function GuestInfo() {
 
                 {/* Google Maps Embed */}
                 {readContent('guest_accommodation_map_address') && (
-                  <div className="max-w-lg mx-auto">
+                  <div className="max-w-2xl mx-auto">
                     {import.meta.env.VITE_GOOGLE_MAPS_API_KEY ? (
                       <StyledGoogleMap
                         title={t('guestAccommodationVenueTitle')}
                         address={readContent('guest_accommodation_map_address')}
                         openUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
                         openLabel={t('openInGoogleMaps') || 'Open in Google Maps'}
-                        height={260}
+                        height={360}
                         apiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
                       />
                     ) : (
@@ -664,7 +664,7 @@ export default function GuestInfo() {
                         embedSrc={`https://www.google.com/maps?q=${encodeURIComponent(readContent('guest_accommodation_map_address'))}&output=embed`}
                         openUrl={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(readContent('guest_accommodation_map_address'))}`}
                         openLabel={t('openInGoogleMaps') || 'Open in Google Maps'}
-                        height={260}
+                        height={360}
                       />
                     )}
                   </div>
