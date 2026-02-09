@@ -12,11 +12,27 @@ export function GuestAuthProvider({ children }) {
     const storedGuest = localStorage.getItem('guest')
     
     if (token && storedGuest) {
+      // Set guest immediately for fast UI, then verify token
       setGuest(JSON.parse(storedGuest))
-      // Verify token is still valid
-      // You can add a profile endpoint later if needed
+      
+      // Verify token is still valid by calling the profile endpoint
+      api.get('/guest-auth/profile')
+        .then((res) => {
+          // Token valid - update guest info with latest data
+          const updatedGuest = res.data
+          localStorage.setItem('guest', JSON.stringify(updatedGuest))
+          setGuest(updatedGuest)
+        })
+        .catch(() => {
+          // Token expired or invalid - clear auth state
+          localStorage.removeItem('guest_token')
+          localStorage.removeItem('guest')
+          setGuest(null)
+        })
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
     }
-    setLoading(false)
   }, [])
 
   const login = async (username, password) => {

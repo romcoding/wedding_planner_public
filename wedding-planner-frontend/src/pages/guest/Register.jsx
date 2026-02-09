@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../lib/api'
@@ -21,6 +21,7 @@ export default function GuestRegister() {
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const formRef = useRef(null)
 
   // Validate invitation token
   const { data: invitationData, isLoading: validating } = useQuery({
@@ -39,8 +40,13 @@ export default function GuestRegister() {
       navigate('/')
     },
     onError: (error) => {
-      setError(error.response?.data?.error || 'Registration failed. Please try again.')
+      const msg = error.response?.data?.error || 'Registration failed. Please try again.'
+      setError(msg)
       setLoading(false)
+      // Focus the first field in the form so the user sees the error
+      setTimeout(() => {
+        formRef.current?.querySelector('input')?.focus()
+      }, 100)
     },
   })
 
@@ -67,12 +73,14 @@ export default function GuestRegister() {
     if (formData.password !== formData.confirm_password) {
       setError(t('guestRegisterPasswordsNoMatch'))
       setLoading(false)
+      formRef.current?.querySelector('#confirm_password')?.focus()
       return
     }
 
     if (formData.password.length < 6) {
       setError(t('guestRegisterPasswordTooShort'))
       setLoading(false)
+      formRef.current?.querySelector('#password')?.focus()
       return
     }
 
@@ -180,7 +188,7 @@ export default function GuestRegister() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label htmlFor="first_name" className="block text-sm font-medium text-gray-700 mb-2">

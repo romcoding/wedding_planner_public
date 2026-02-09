@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X, Eye } from 'lucide-react'
 import QuillEditor from '../../components/ui/QuillEditor'
+import DOMPurify from 'dompurify'
 
 const ContentPage = () => {
   const queryClient = useQueryClient()
@@ -549,7 +550,7 @@ const ContentPage = () => {
                   <h3 className="font-semibold mb-2">English (EN)</h3>
                   <div 
                     className="prose max-w-none"
-                    dangerouslySetInnerHTML={{ __html: previewContent.content_en || previewContent.content || '<p class="text-gray-400">No content</p>' }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewContent.content_en || previewContent.content || '<p class="text-gray-400">No content</p>') }}
                   />
                 </div>
                 
@@ -558,7 +559,7 @@ const ContentPage = () => {
                     <h3 className="font-semibold mb-2">German (DE)</h3>
                     <div 
                       className="prose max-w-none"
-                      dangerouslySetInnerHTML={{ __html: previewContent.content_de }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewContent.content_de) }}
                     />
                   </div>
                 )}
@@ -568,7 +569,7 @@ const ContentPage = () => {
                     <h3 className="font-semibold mb-2">French (FR)</h3>
                     <div 
                       className="prose max-w-none"
-                      dangerouslySetInnerHTML={{ __html: previewContent.content_fr }}
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(previewContent.content_fr) }}
                     />
                   </div>
                 )}

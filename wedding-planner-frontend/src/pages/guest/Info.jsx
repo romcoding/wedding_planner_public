@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy } from 'lucide-react'
+import DOMPurify from 'dompurify'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
 import StyledGoogleMap from '../../components/StyledGoogleMap'
@@ -813,7 +814,7 @@ export default function GuestInfo() {
                   <div 
                     className="mt-4 text-lg prose prose-lg max-w-none" 
                     style={{ color: 'var(--wp-primary)' }}
-                    dangerouslySetInnerHTML={{ __html: readContent('guest_gift_message') }}
+                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(readContent('guest_gift_message')) }}
                   />
                 )}
                 {!readContent('guest_gift_message') && (

@@ -1,14 +1,39 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from src.models import db, Guest
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import defaultdict
+from threading import Lock
 import json
 
 guest_auth_bp = Blueprint('guest_auth', __name__)
 
+# In-memory rate limit for auth endpoints: max 10 per 15 minutes per IP
+_AUTH_RATE_STORE = defaultdict(list)
+_AUTH_RATE_LOCK = Lock()
+_AUTH_RATE_MAX = 10
+_AUTH_RATE_WINDOW = 900  # 15 minutes
+
+
+def _check_auth_rate_limit(ip):
+    now = datetime.utcnow()
+    with _AUTH_RATE_LOCK:
+        timestamps = _AUTH_RATE_STORE[ip]
+        cutoff = now - timedelta(seconds=_AUTH_RATE_WINDOW)
+        timestamps[:] = [t for t in timestamps if t > cutoff]
+        if len(timestamps) >= _AUTH_RATE_MAX:
+            return False
+        timestamps.append(now)
+    return True
+
+
 @guest_auth_bp.route('/login', methods=['POST'])
 def guest_login():
     """Guest login endpoint"""
+    # Rate limit by IP
+    if not _check_auth_rate_limit(request.remote_addr or 'unknown'):
+        return jsonify({'error': 'Too many login attempts. Please try again later.'}), 429
+
     data = request.get_json()
     
     if not data or not data.get('username') or not data.get('password'):
@@ -33,6 +58,10 @@ def guest_login():
 @guest_auth_bp.route('/register', methods=['POST'])
 def guest_register():
     """Guest registration with authentication"""
+    # Rate limit by IP
+    if not _check_auth_rate_limit(request.remote_addr or 'unknown'):
+        return jsonify({'error': 'Too many attempts. Please try again later.'}), 429
+
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('first_name') or not data.get('last_name'):

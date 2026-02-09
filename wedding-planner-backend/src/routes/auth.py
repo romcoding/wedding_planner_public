@@ -1,13 +1,38 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from src.models import db, User
-from datetime import datetime
+from datetime import datetime, timedelta
+from collections import defaultdict
+from threading import Lock
 
 auth_bp = Blueprint('auth', __name__)
+
+# In-memory rate limit for admin auth: max 10 per 15 minutes per IP
+_ADMIN_RATE_STORE = defaultdict(list)
+_ADMIN_RATE_LOCK = Lock()
+_ADMIN_RATE_MAX = 10
+_ADMIN_RATE_WINDOW = 900  # 15 minutes
+
+
+def _check_admin_rate_limit(ip):
+    now = datetime.utcnow()
+    with _ADMIN_RATE_LOCK:
+        timestamps = _ADMIN_RATE_STORE[ip]
+        cutoff = now - timedelta(seconds=_ADMIN_RATE_WINDOW)
+        timestamps[:] = [t for t in timestamps if t > cutoff]
+        if len(timestamps) >= _ADMIN_RATE_MAX:
+            return False
+        timestamps.append(now)
+    return True
+
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """Register a new admin user"""
+    # Rate limit by IP
+    if not _check_admin_rate_limit(request.remote_addr or 'unknown'):
+        return jsonify({'error': 'Too many attempts. Please try again later.'}), 429
+
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('password'):
@@ -34,6 +59,10 @@ def register():
 @auth_bp.route('/login', methods=['POST'])
 def login():
     """Login and get JWT token"""
+    # Rate limit by IP
+    if not _check_admin_rate_limit(request.remote_addr or 'unknown'):
+        return jsonify({'error': 'Too many login attempts. Please try again later.'}), 429
+
     data = request.get_json()
     
     if not data or not data.get('email') or not data.get('password'):

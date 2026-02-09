@@ -46,7 +46,11 @@ def create_app():
     # Configuration
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
     app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = False  # Set to timedelta(hours=24) for production
+    # Tokens expire on 31 Dec 2026 – compute remaining time from now
+    from datetime import datetime, timedelta, timezone
+    _token_deadline = datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
+    _remaining = _token_deadline - datetime.now(timezone.utc)
+    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = _remaining if _remaining.total_seconds() > 0 else timedelta(hours=1)
     
     # Upload limits (Render free tier can 502 if requests run too long; keep uploads reasonable)
     # Default 25MB; can override via MAX_UPLOAD_MB env var.

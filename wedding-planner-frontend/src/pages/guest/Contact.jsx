@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import api from '../../lib/api'
@@ -21,6 +21,7 @@ export default function Contact() {
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState(null)
   const idempotencyKey = useMemo(() => generateIdempotencyKey(), [])
+  const formRef = useRef(null)
 
   const sendMessage = useMutation({
     mutationFn: (data) => api.post('/messages', data),
@@ -35,6 +36,10 @@ export default function Contact() {
       const msg = err.response?.data?.error || t('contactSendFailed')
       setError(msg)
       toast.error(msg, 5000)
+      // Focus the first field so the user sees the error
+      setTimeout(() => {
+        formRef.current?.querySelector('input, textarea')?.focus()
+      }, 100)
     },
   })
 
@@ -103,7 +108,7 @@ export default function Contact() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
           {/* Honeypot - hidden from users, bots may fill it */}
           <div className="absolute -left-[9999px] top-0" aria-hidden="true">
             <label htmlFor="contact_hp">Leave blank</label>

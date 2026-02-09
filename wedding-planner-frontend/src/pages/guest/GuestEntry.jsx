@@ -116,8 +116,11 @@ export default function GuestEntry() {
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
               {t('invalidInvitationLinkTitle') || 'Invalid Invitation'}
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               {error || t('invalidInvitationLinkMessage') || 'This invitation link is not valid or has expired.'}
+            </p>
+            <p className="text-gray-500 text-sm">
+              {t('invalidInvitationContactHint') || 'If you believe this is an error, please contact the bride and groom for a new invitation link.'}
             </p>
           </div>
         </div>
