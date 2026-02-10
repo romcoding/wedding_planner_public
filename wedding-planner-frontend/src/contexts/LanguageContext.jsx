@@ -206,6 +206,9 @@ const translations = {
     // Guest portal - Travel & Accommodation
     guestTravelTitle: 'Travel & Accommodation',
     guestTravelCardSubtitle: 'Hotel and directions',
+    travelNoteTitle: 'Important travel note',
+    travelNoteBody: 'On 10 October 2026, the Hallwilerseelauf takes place around Lake Hallwil. Some roads may be closed and public transport may be busier than usual. Please allow extra travel time.',
+    travelNoteLink: 'More info',
     guestAccommodationVenueTitle: 'Accommodation',
     guestAccommodationDetailsFallback: 'Accommodation details will be shared here.',
     guestAccommodationOpenWebsite: 'Open website',
@@ -523,6 +526,9 @@ const translations = {
     // Guest portal - Travel & Accommodation
     guestTravelTitle: 'Anreise & Unterkunft',
     guestTravelCardSubtitle: 'Hotel und Wegbeschreibung',
+    travelNoteTitle: 'Wichtiger Hinweis zur Anreise',
+    travelNoteBody: 'Am 10. Oktober 2026 findet rund um den Hallwilersee der Hallwilerseelauf statt. Einige Strassen können gesperrt sein und die öffentlichen Verkehrsmittel sind stärker ausgelastet. Bitte plant genügend Zeit für die Anreise ein.',
+    travelNoteLink: 'Mehr Infos',
     guestAccommodationVenueTitle: 'Unterkunft',
     guestAccommodationDetailsFallback: 'Unterkunftsdetails werden hier geteilt.',
     guestAccommodationOpenWebsite: 'Website öffnen',
@@ -832,6 +838,9 @@ const translations = {
     // Guest portal - Travel & Accommodation
     guestTravelTitle: 'Voyage & hébergement',
     guestTravelCardSubtitle: 'Hôtel et itinéraire',
+    travelNoteTitle: 'Information importante pour le trajet',
+    travelNoteBody: 'Le 10 octobre 2026, la course Hallwilerseelauf aura lieu autour du lac de Hallwil. Certaines routes peuvent être fermées et les transports publics plus fréquentés. Veuillez prévoir un temps de trajet supplémentaire.',
+    travelNoteLink: "Plus d'infos",
     guestAccommodationVenueTitle: 'Hébergement',
     guestAccommodationDetailsFallback: 'Les informations d’hébergement seront indiquées ici.',
     guestAccommodationOpenWebsite: 'Ouvrir le site',

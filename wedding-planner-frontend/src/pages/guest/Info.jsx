@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
@@ -670,6 +670,34 @@ export default function GuestInfo() {
                     )}
                   </div>
                 )}
+
+                {/* Travel Note Callout */}
+                <div
+                  className="rounded-xl p-4 flex items-start gap-3"
+                  style={{
+                    backgroundColor: 'color-mix(in srgb, var(--wp-primary) 6%, white)',
+                    border: '1px solid color-mix(in srgb, var(--wp-primary) 18%, white)',
+                  }}
+                >
+                  <Info className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: 'var(--wp-primary)', opacity: 0.7 }} />
+                  <div>
+                    <div className="text-sm font-semibold mb-1" style={{ color: 'var(--wp-primary)' }}>
+                      {t('travelNoteTitle')}
+                    </div>
+                    <p className="text-sm leading-relaxed" style={{ color: 'var(--wp-primary)', opacity: 0.85 }}>
+                      {t('travelNoteBody')}
+                    </p>
+                    <a
+                      href="https://hallwilerseelauf.ch/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-block mt-2 text-sm hover:underline"
+                      style={{ color: 'var(--wp-primary)', opacity: 0.7 }}
+                    >
+                      {t('travelNoteLink')} &rarr;
+                    </a>
+                  </div>
+                </div>
 
                 {/* Fallback if no venue info */}
                 {!readContent('guest_accommodation_venue_name') && !(readContent('guest_accommodation_details') || '').trim() && (
