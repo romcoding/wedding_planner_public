@@ -104,7 +104,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [showDeclineConfirm, setShowDeclineConfirm] = useState(false)
-  const [containerMinHeight, setContainerMinHeight] = useState(undefined)
+  const [containerHeight, setContainerHeight] = useState(undefined)
 
   const stepContainerRef = useRef(null)
   const storageKey = useMemo(() => (token ? `wedding_pass_progress:${token}` : null), [token])
@@ -424,19 +424,20 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const transitionToStep = (nextStep) => {
     // Lock current height so the container doesn't jump during fade-out
     if (stepContainerRef.current) {
-      setContainerMinHeight(stepContainerRef.current.offsetHeight)
+      setContainerHeight(stepContainerRef.current.offsetHeight)
     }
     setTransitionDirection(nextStep > (pass.step ?? 0) ? 'next' : 'prev')
     setIsStepFading(true)
     setTimeout(() => {
       setPass((p) => ({ ...p, step: nextStep }))
+      // Wait for new content to render before measuring
       requestAnimationFrame(() => {
-        setIsStepFading(false)
-        // After new content renders, animate min-height to the new size
         requestAnimationFrame(() => {
           const newH = stepContainerRef.current?.scrollHeight
-          if (newH) setContainerMinHeight(newH)
-          setTimeout(() => setContainerMinHeight(undefined), 450)
+          if (newH) setContainerHeight(newH)
+          // Start fade-in AFTER height is set
+          setIsStepFading(false)
+          setTimeout(() => setContainerHeight(undefined), 500)
         })
       })
     }, 400)
@@ -448,7 +449,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const transitionBy = (delta) => {
     // Lock current height so the container doesn't jump during fade-out
     if (stepContainerRef.current) {
-      setContainerMinHeight(stepContainerRef.current.offsetHeight)
+      setContainerHeight(stepContainerRef.current.offsetHeight)
     }
     setTransitionDirection(delta > 0 ? 'next' : 'prev')
     setIsStepFading(true)
@@ -457,13 +458,14 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
         const next = Math.min(steps.length - 1, Math.max(0, (p.step || 0) + delta))
         return { ...p, step: next }
       })
+      // Wait for new content to render before measuring
       requestAnimationFrame(() => {
-        setIsStepFading(false)
-        // After new content renders, animate min-height to the new size
         requestAnimationFrame(() => {
           const newH = stepContainerRef.current?.scrollHeight
-          if (newH) setContainerMinHeight(newH)
-          setTimeout(() => setContainerMinHeight(undefined), 450)
+          if (newH) setContainerHeight(newH)
+          // Start fade-in AFTER height is set
+          setIsStepFading(false)
+          setTimeout(() => setContainerHeight(undefined), 500)
         })
       })
     }, 400)
@@ -841,7 +843,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                       ? `opacity-0 ${transitionDirection === 'next' ? 'translate-x-4' : '-translate-x-4'}`
                       : 'opacity-100 translate-x-0'
                   }`}
-                  style={containerMinHeight !== undefined ? { minHeight: `${containerMinHeight}px` } : undefined}
+                  style={containerHeight !== undefined ? { height: `${containerHeight}px`, overflow: 'hidden' } : undefined}
                 >
                 {currentStepKey === 'attendance' && (
                   <StepShell
