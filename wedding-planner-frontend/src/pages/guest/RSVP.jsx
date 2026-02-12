@@ -8,7 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
-  Loader,
+
 } from 'lucide-react'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
@@ -644,21 +644,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   }
 
   if (loading || loadingGuest || authMutation.isPending) {
-    return (
-      <div
-        className={embedded ? 'flex items-center justify-center' : 'min-h-screen flex items-center justify-center'}
-        style={
-          embedded
-            ? undefined
-            : { background: 'linear-gradient(135deg, var(--wp-primary-5), var(--wp-background), var(--wp-secondary-5))' }
-        }
-      >
-        <div className="text-center">
-          <Loader className="w-12 h-12 animate-spin mx-auto mb-4" style={{ color: 'var(--wp-primary)' }} />
-          <p className="text-gray-600">{t('loadingWeddingPass')}</p>
-        </div>
-      </div>
-    )
+    return null
   }
 
   if (!guestData) {
