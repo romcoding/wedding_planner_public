@@ -426,7 +426,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     setTimeout(() => {
       setPass((p) => ({ ...p, step: nextStep }))
       requestAnimationFrame(() => setIsStepFading(false))
-    }, 200)
+    }, 400)
   }
 
   // Navigation helpers:
@@ -441,7 +441,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
         return { ...p, step: next }
       })
       requestAnimationFrame(() => setIsStepFading(false))
-    }, 200)
+    }, 400)
   }
 
   // Focus management and scroll when step changes
@@ -493,7 +493,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
 
     if (isYes) {
       setShowHearts(true)
-      goNextSmooth()
+      // Step transition will happen when hearts complete
       return
     }
 
@@ -666,7 +666,10 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
           : { background: 'linear-gradient(135deg, var(--wp-primary-5), var(--wp-background), var(--wp-secondary-5))' }
       }
     >
-      <HeartBurstAnimation show={showHearts} onComplete={() => setShowHearts(false)} />
+      <HeartBurstAnimation show={showHearts} onComplete={() => {
+        setShowHearts(false)
+        goNextSmooth()
+      }} />
 
       {/* Language Switcher */}
       {!embedded ? (
@@ -822,7 +825,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
 
                 <div
                   ref={stepContainerRef}
-                  className={`transition-all duration-200 ease-out ${
+                  className={`transition-all duration-400 ease-out ${
                     isStepFading
                       ? `opacity-0 ${transitionDirection === 'next' ? 'translate-x-4' : '-translate-x-4'}`
                       : 'opacity-100 translate-x-0'
