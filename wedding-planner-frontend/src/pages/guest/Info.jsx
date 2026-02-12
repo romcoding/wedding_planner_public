@@ -757,6 +757,7 @@ export default function GuestInfo() {
                         <MoodDot color='#5b779f' />
                         <MoodDot color="var(--wp-secondary)" />
                         <MoodDot color='#cb684a' />
+                        <MoodDot color='#BEE5BO' />
                       </div>
                     </div>
                   )}
