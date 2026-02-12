@@ -227,6 +227,7 @@ export default function Contact() {
           <div
             className="grid gap-6 justify-items-center"
             style={{
+              justifyContent: 'center',
               gridTemplateColumns: witnessCards.length === 1
                 ? '1fr'
                 : witnessCards.length === 2
