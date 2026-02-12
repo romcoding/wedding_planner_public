@@ -981,16 +981,12 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                               {t('bookingLinkComingSoon')}
                             </p>
                           )}
+                          <p className="text-sm mt-2" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                            {t('overnightAccommodationHint')}
+                          </p>
                         </div>
                         {/* Continue button after seeing booking info */}
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          <PrimaryButton
-                            variant="secondary"
-                            onClick={() => setPass((p) => ({ ...p, overnight_stay: false }))}
-                            disabled={isStepFading}
-                          >
-                            {t('changeToNo')}
-                          </PrimaryButton>
+                        <div className="mt-4">
                           <PrimaryButton onClick={handleOvernightContinue} disabled={isStepFading}>
                             <span className="flex items-center justify-center gap-2">
                               {t('continue')} <ChevronRight className="w-4 h-4" />
