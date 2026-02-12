@@ -278,6 +278,12 @@ const translations = {
     contactSendButton: 'Send message',
     contactRetry: 'Retry',
 
+    // Contact toggle & witness cards
+    contactBrideGroom: 'Contact the bride and groom',
+    contactWitnesses: 'Contact the Maid of Honor & Best Man',
+    witnessCardFlipHint: 'Tap to see contact info',
+    witnessPhoneLabel: 'Phone',
+
     // Guest login
     guestLoginTitle: 'Welcome back',
     guestLoginSubtitle: 'Please sign in to access your RSVP',
@@ -598,6 +604,12 @@ const translations = {
     contactSendButton: 'Nachricht senden',
     contactRetry: 'Erneut versuchen',
 
+    // Contact toggle & witness cards
+    contactBrideGroom: 'Brautpaar kontaktieren',
+    contactWitnesses: 'Trauzeugen kontaktieren',
+    witnessCardFlipHint: 'Tippen um Kontaktdaten zu sehen',
+    witnessPhoneLabel: 'Telefon',
+
     // Guest login
     guestLoginTitle: 'Willkommen zurück',
     guestLoginSubtitle: 'Bitte melde dich an, um dein RSVP zu sehen',
@@ -909,6 +921,12 @@ const translations = {
     contactSending: 'Envoi…',
     contactSendButton: 'Envoyer',
     contactRetry: 'Réessayer',
+
+    // Contact toggle & witness cards
+    contactBrideGroom: 'Contacter les mariés',
+    contactWitnesses: 'Contacter les témoins',
+    witnessCardFlipHint: 'Appuyez pour voir les coordonnées',
+    witnessPhoneLabel: 'Téléphone',
 
     // Guest login
     guestLoginTitle: 'Content de vous revoir',

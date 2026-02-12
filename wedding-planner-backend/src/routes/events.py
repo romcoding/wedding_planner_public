@@ -245,6 +245,8 @@ def get_guest_portal_settings():
         'guest_gift_iban',
         'guest_gift_message',
         'guest_gift_account_holder',
+        # Witnesses (Maid of Honor & Best Man)
+        'guest_witnesses',
     ]
     items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
 
@@ -282,6 +284,8 @@ def get_guest_portal_settings():
         'giftIban': pack('guest_gift_iban'),
         'giftMessage': pack('guest_gift_message'),
         'giftAccountHolder': pack('guest_gift_account_holder'),
+        # Witnesses (Maid of Honor & Best Man)
+        'witnesses': one('guest_witnesses'),
     }), 200
 
 
@@ -307,6 +311,9 @@ def set_guest_portal_settings():
     gift_iban = data.get('giftIban') or {}
     gift_message = data.get('giftMessage') or {}
     gift_account_holder = data.get('giftAccountHolder') or {}
+    
+    # Witnesses (Maid of Honor & Best Man)
+    witnesses_json = str(data.get('witnesses') or '[]')
 
     selected_event = None
     if guest_event_id:
@@ -502,6 +509,13 @@ def set_guest_portal_settings():
         str(gift_account_holder.get('en') or ''),
         str(gift_account_holder.get('de') or ''),
         str(gift_account_holder.get('fr') or ''),
+    )
+
+    # Witnesses (Maid of Honor & Best Man) - same JSON for all languages
+    _upsert_public_content_key(
+        'guest_witnesses',
+        'Guest: Witnesses (Maid of Honor & Best Man)',
+        witnesses_json, witnesses_json, witnesses_json
     )
 
     try:
