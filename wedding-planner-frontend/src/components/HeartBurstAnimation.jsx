@@ -42,11 +42,11 @@ export default function HeartBurstAnimation({ show, onComplete }) {
       return
     }
 
-    const count = 70
+    const count = 50
     const now = Date.now()
     const items = Array.from({ length: count }).map((_, i) => {
-      const duration = 1800 + Math.random() * 1200 // 1.8s - 3.0s
-      const delay = Math.random() * 250 // gentle stagger
+      const duration = 2200 + Math.random() * 1400 // 2.2s - 3.6s
+      const delay = Math.random() * 800 // gentle stagger over ~0.8s
       const size = 14 + Math.random() * 26 // 14 - 40px
       const x = Math.random() * 100
       const y = Math.random() * 100 // full screen spread
@@ -120,13 +120,13 @@ export default function HeartBurstAnimation({ show, onComplete }) {
         @keyframes heartFloat {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) scale(0.78) rotate(var(--rot));
+            transform: translate3d(0, 0, 0) scale(0.4) rotate(var(--rot));
           }
-          22% {
+          30% {
             opacity: 1;
             transform: translate3d(0, -6px, 0) scale(1) rotate(var(--rot));
           }
-          70% {
+          60% {
             opacity: 0.85;
             transform: translate3d(calc(var(--drift) * 0.7), calc(var(--rise) * -0.7), 0) scale(1.05) rotate(var(--rot));
           }
@@ -140,13 +140,13 @@ export default function HeartBurstAnimation({ show, onComplete }) {
         @keyframes heartFloatDesktop {
           0% {
             opacity: 0;
-            transform: translate3d(0, 0, 0) scale(0.68) rotate(var(--rot));
+            transform: translate3d(0, 0, 0) scale(0.4) rotate(var(--rot));
           }
-          35% {
+          40% {
             opacity: 1;
             transform: translate3d(0, -8px, 0) scale(1) rotate(var(--rot));
           }
-          70% {
+          60% {
             opacity: 0.85;
             transform: translate3d(calc(var(--drift) * 0.7), calc(var(--rise) * -0.7), 0) scale(1.05) rotate(var(--rot));
           }
