@@ -71,7 +71,7 @@ export default function HeartBurstAnimation({ show, onComplete }) {
     const maxEnd = Math.max(...items.map((h) => h.delay + h.duration))
     const timer = setTimeout(() => {
       onComplete?.()
-    }, maxEnd + 50)
+    }, maxEnd * 0.7)
 
     return () => clearTimeout(timer)
   }, [show, onComplete, colors])
