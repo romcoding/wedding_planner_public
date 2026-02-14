@@ -76,7 +76,7 @@ export default function GuestLogin() {
           className="text-2xl md:text-3xl font-bold mb-4"
           style={{ color: 'var(--wp-primary, #4B1F4A)' }}
         >
-          Zugang nur mit Hochzeitspass
+          Zugang nur mit Wedding Pass
         </h2>
 
         <div
