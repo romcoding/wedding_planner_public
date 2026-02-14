@@ -71,6 +71,12 @@ def create_app():
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///wedding_planner.db'
     
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,     # Test connections before using them
+        'pool_recycle': 300,       # Recycle connections every 5 minutes
+        'pool_size': 5,            # Max pool connections
+        'max_overflow': 10,        # Extra connections under load
+    }
     
     # CORS configuration
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
