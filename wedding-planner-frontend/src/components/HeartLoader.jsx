@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 export default function HeartLoader({ isLoading = true, onFadeComplete }) {
   const [isVisible, setIsVisible] = useState(true)
   const [isFading, setIsFading] = useState(false)
+  const [showSlowHint, setShowSlowHint] = useState(false)
 
   useEffect(() => {
     if (!isLoading) {
@@ -15,6 +16,13 @@ export default function HeartLoader({ isLoading = true, onFadeComplete }) {
       return () => clearTimeout(timer)
     }
   }, [isLoading, onFadeComplete])
+
+  // Show hint after 5 seconds of loading
+  useEffect(() => {
+    if (!isLoading) return
+    const timer = setTimeout(() => setShowSlowHint(true), 5000)
+    return () => clearTimeout(timer)
+  }, [isLoading])
 
   if (!isVisible) return null
 
@@ -98,6 +106,20 @@ export default function HeartLoader({ isLoading = true, onFadeComplete }) {
         Loading...
       </div>
 
+      {/* Slow-connection hint */}
+      {showSlowHint && (
+        <div
+          className="mt-4 text-sm md:text-base font-medium tracking-wide text-center px-6"
+          style={{
+            color: 'var(--wp-primary, #EC4899)',
+            opacity: 0.7,
+            animation: 'slowHintFadeIn 0.8s ease-out both',
+          }}
+        >
+          It&apos;s the final countdown
+        </div>
+      )}
+
       {/* Keyframe animations */}
       <style>{`
         @keyframes heartBeat {
@@ -161,6 +183,17 @@ export default function HeartLoader({ isLoading = true, onFadeComplete }) {
           }
           50% {
             opacity: 1;
+          }
+        }
+
+        @keyframes slowHintFadeIn {
+          from {
+            opacity: 0;
+            transform: translateY(6px);
+          }
+          to {
+            opacity: 0.7;
+            transform: translateY(0);
           }
         }
       `}</style>

@@ -244,7 +244,7 @@ export default function GuestInfo() {
       const img = new Image()
       img.onload = img.onerror = () => {
         loadedCount++
-        if (loadedCount >= totalImages) {
+        if (loadedCount >= Math.min(5, totalImages)) {
           setImagesPreloaded(true)
         }
       }
