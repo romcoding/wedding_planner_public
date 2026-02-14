@@ -89,7 +89,7 @@ export default function GuestLogin() {
         >
           <p className="text-base md:text-lg leading-relaxed" style={{ color: 'var(--wp-primary, #4B1F4A)' }}>
             Diese Seite ist nur über euren persönlichen Hochzeitspass erreichbar.
-            Ihr habt den Link in eurer Einladung erhalten.
+            Ihr habt den QR-Code oder den Link in eurer Einladung erhalten.
           </p>
 
           <p className="text-sm md:text-base leading-relaxed" style={{ color: 'var(--wp-primary, #4B1F4A)', opacity: 0.75 }}>
