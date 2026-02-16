@@ -73,7 +73,7 @@ export default function Contact() {
           {hasCoupleCards ? (
             <>
               <p className="mb-6 text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
-                {t('contactCoupleFlipHint')}
+                {t('contactCoupleDescription')}
               </p>
               <div
                 className="grid gap-6 justify-items-center"
@@ -101,7 +101,7 @@ export default function Contact() {
       {contactMode === 'witnesses' && (
         <div>
           <p className="mb-6 text-sm" style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
-            {t('witnessCardFlipHint')}
+            {t('contactWitnessesDescription')}
           </p>
           <div
             className="grid gap-6 justify-items-center"
