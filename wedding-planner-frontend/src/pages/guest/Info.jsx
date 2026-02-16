@@ -267,8 +267,8 @@ export default function GuestInfo() {
   // Menu items for tab navigation
   const menuItems = [
     { id: 'pass', label: t('guestNavWeddingPass') },
-    { id: 'travel', label: t('guestNavTravelAccommodation') },
     { id: 'program', label: t('guestNavWeddingProgram') },
+    { id: 'travel', label: t('guestNavTravelAccommodation') },
     { id: 'gifts', label: t('guestNavGifts') },
     { id: 'photos', label: t('guestNavPhotos') },
     { id: 'contact', label: t('guestNavContact') },
@@ -307,21 +307,26 @@ export default function GuestInfo() {
           {/* Menu - centered tabs */}
           <nav className="mt-8 md:mt-10">
             <div className="flex items-center justify-center gap-4 md:gap-6 lg:gap-8 overflow-x-auto whitespace-nowrap pb-2 px-2">
-              {menuItems.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveTab(item.id)}
-                  className={`text-base md:text-lg font-medium tracking-wide transition-all pb-2 border-b-2 ${
-                    activeTab === item.id
-                      ? 'border-current opacity-100'
-                      : 'border-transparent opacity-70 hover:opacity-100'
-                  }`}
-                  style={{ color: 'var(--wp-primary)' }}
-                >
-                  {item.label}
-                </button>
-              ))}
+              {menuItems.map((item) => {
+                const isDisabled = item.id === 'photos'
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => !isDisabled && setActiveTab(item.id)}
+                    className={`text-base md:text-lg font-medium tracking-wide transition-all pb-2 border-b-2 ${
+                      isDisabled
+                        ? 'border-transparent opacity-40 cursor-default'
+                        : activeTab === item.id
+                          ? 'border-current opacity-100'
+                          : 'border-transparent opacity-70 hover:opacity-100'
+                    }`}
+                    style={{ color: 'var(--wp-primary)' }}
+                  >
+                    {item.label}{isDisabled ? ` (${t('comingSoon')})` : ''}
+                  </button>
+                )
+              })}
             </div>
           </nav>
         </div>

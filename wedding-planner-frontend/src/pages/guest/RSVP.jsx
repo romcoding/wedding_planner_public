@@ -110,6 +110,10 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const storageKey = useMemo(() => (token ? `wedding_pass_progress:${token}` : null), [token])
   const hasHydratedFromStorage = useRef(false)
 
+  // RSVP deadline: guests cannot change answers after this date
+  const RSVP_DEADLINE = useMemo(() => new Date('2026-04-30T23:59:59'), [])
+  const isDeadlinePassed = useMemo(() => new Date() > RSVP_DEADLINE, [RSVP_DEADLINE])
+
   // Persist token so the guest can jump back to their Wedding Pass from other pages (Info, etc.)
   useEffect(() => {
     if (!token) return
@@ -494,6 +498,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
   const goNextSmooth = goNext
 
   const savePartial = async (partial) => {
+    if (isDeadlinePassed) return
     setError('')
     await updateRSVPMutation.mutateAsync(partial)
   }
@@ -665,6 +670,40 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
             <h2 className="text-2xl font-bold text-gray-900 mb-2">{t('invalidInvitationLinkTitle')}</h2>
             <p className="text-gray-600 mb-6">{t('invalidInvitationLinkMessage')}</p>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // After deadline: show read-only summary instead of wizard
+  if (isDeadlinePassed) {
+    const statusLabel = pass.rsvp_status === 'confirmed'
+      ? t('confirmed')
+      : pass.rsvp_status === 'declined'
+        ? t('declined')
+        : t('pending')
+
+    return (
+      <div
+        className={embedded ? 'flex items-center justify-center' : 'min-h-screen flex items-center justify-center'}
+        style={
+          embedded
+            ? undefined
+            : { background: 'linear-gradient(135deg, var(--wp-primary-5), var(--wp-background), var(--wp-secondary-5))' }
+        }
+      >
+        <div className="max-w-md w-full mx-4">
+          <PassCard>
+            <div className="text-center space-y-4">
+              <Heart className="w-12 h-12 mx-auto" style={{ color: 'var(--wp-primary)' }} />
+              <h2 className="text-xl font-bold text-gray-900">{t('rsvpDeadlinePassed')}</h2>
+              <div className="text-sm text-gray-600">
+                {t('rsvpCurrentStatus')}{' '}
+                <span className="font-semibold text-gray-900">{statusLabel}</span>
+              </div>
+              <p className="text-sm text-gray-500">{t('rsvpDeadlinePassedSub')}</p>
+            </div>
+          </PassCard>
         </div>
       </div>
     )

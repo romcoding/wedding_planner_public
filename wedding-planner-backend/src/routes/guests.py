@@ -13,6 +13,10 @@ logger = logging.getLogger(__name__)
 @jwt_required()
 def update_rsvp():
     """Update RSVP information (guest authenticated via token)"""
+    # Enforce RSVP deadline
+    if datetime.now() > datetime(2026, 4, 30, 23, 59, 59):
+        return jsonify({'error': 'RSVP changes are no longer possible after 30 April 2026.'}), 403
+
     identity = get_jwt_identity()
     
     if not identity:

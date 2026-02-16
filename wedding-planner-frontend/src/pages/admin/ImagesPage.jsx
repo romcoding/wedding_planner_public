@@ -148,6 +148,9 @@ const ImagesPage = () => {
   
   // Witnesses (Maid of Honor & Best Man)
   const [witnesses, setWitnesses] = useState([])
+
+  // Bride & Groom contact cards
+  const [coupleCards, setCoupleCards] = useState([])
   
   const didInitGuestCardsRef = useRef(false)
 
@@ -355,6 +358,14 @@ const ImagesPage = () => {
     } catch {
       setWitnesses([])
     }
+
+    // Bride & Groom cards
+    try {
+      const c = JSON.parse(guestPortalSettings.coupleCards || '[]')
+      setCoupleCards(Array.isArray(c) ? c : [])
+    } catch {
+      setCoupleCards([])
+    }
     
     didInitGuestCardsRef.current = true
   }, [guestPortalSettings])
@@ -376,6 +387,8 @@ const ImagesPage = () => {
         giftAccountHolder,
         // Witnesses
         witnesses: JSON.stringify(witnesses),
+        // Bride & Groom cards
+        coupleCards: JSON.stringify(coupleCards),
       })
     },
     onSuccess: () => {
@@ -1295,6 +1308,120 @@ const ImagesPage = () => {
                 />
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Bride & Groom Contact Cards Section */}
+        <div className="border rounded-lg p-4 mt-6">
+          <div className="font-semibold text-gray-900 mb-3 text-lg">Bride & Groom</div>
+          <p className="text-sm text-gray-500 mb-4">Add contact cards for the bride and groom. Guests can view these as flippable cards with photo on front, name & phone on back.</p>
+
+          <div className="space-y-4">
+            {coupleCards.map((c, idx) => (
+              <div key={idx} className="border border-gray-200 rounded-md p-4 bg-white">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-semibold text-gray-700">Person {idx + 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCoupleCards((prev) => prev.filter((_, i) => i !== idx))}
+                    className="text-xs text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Photo</label>
+                    {c.image ? (
+                      <div className="relative">
+                        <img src={c.image} alt={c.name || 'Person'} className="w-full h-36 object-cover rounded-md" />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const updated = [...coupleCards]
+                            updated[idx] = { ...updated[idx], image: '' }
+                            setCoupleCards(updated)
+                          }}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center h-36 border-2 border-dashed border-gray-300 rounded-md cursor-pointer hover:border-gray-400 bg-gray-50">
+                        <Upload className="w-6 h-6 text-gray-400 mb-1" />
+                        <span className="text-xs text-gray-500">Click to upload</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            if (file.size > 5 * 1024 * 1024) {
+                              toast.error('Image must be under 5 MB')
+                              return
+                            }
+                            const reader = new FileReader()
+                            reader.onload = (ev) => {
+                              const updated = [...coupleCards]
+                              updated[idx] = { ...updated[idx], image: ev.target.result }
+                              setCoupleCards(updated)
+                            }
+                            reader.readAsDataURL(file)
+                          }}
+                        />
+                      </label>
+                    )}
+                  </div>
+                  <div className="md:col-span-2 space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Name</label>
+                      <input
+                        type="text"
+                        value={c.name || ''}
+                        onChange={(e) => {
+                          const updated = [...coupleCards]
+                          updated[idx] = { ...updated[idx], name: e.target.value }
+                          setCoupleCards(updated)
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                        placeholder="e.g. Jane Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">Phone number</label>
+                      <input
+                        type="text"
+                        value={c.phone || ''}
+                        onChange={(e) => {
+                          const updated = [...coupleCards]
+                          updated[idx] = { ...updated[idx], phone: e.target.value }
+                          setCoupleCards(updated)
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-gray-900"
+                        placeholder="e.g. +41 79 123 4567"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {coupleCards.length < 2 && (
+              <button
+                type="button"
+                onClick={() => setCoupleCards((prev) => [...prev, { name: '', phone: '', image: '' }])}
+                className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <PlusCircle className="w-4 h-4" />
+                Add person
+              </button>
+            )}
+
+            {coupleCards.length === 0 && (
+              <p className="text-sm text-gray-500">No cards added yet. Click &quot;Add person&quot; to create a contact card.</p>
+            )}
           </div>
         </div>
 

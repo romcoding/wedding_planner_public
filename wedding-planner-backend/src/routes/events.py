@@ -247,6 +247,8 @@ def get_guest_portal_settings():
         'guest_gift_account_holder',
         # Witnesses (Maid of Honor & Best Man)
         'guest_witnesses',
+        # Bride & Groom contact cards
+        'guest_couple_cards',
     ]
     items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
 
@@ -286,6 +288,8 @@ def get_guest_portal_settings():
         'giftAccountHolder': pack('guest_gift_account_holder'),
         # Witnesses (Maid of Honor & Best Man)
         'witnesses': one('guest_witnesses'),
+        # Bride & Groom contact cards
+        'coupleCards': one('guest_couple_cards'),
     }), 200
 
 
@@ -314,6 +318,9 @@ def set_guest_portal_settings():
     
     # Witnesses (Maid of Honor & Best Man)
     witnesses_json = str(data.get('witnesses') or '[]')
+
+    # Bride & Groom contact cards
+    couple_cards_json = str(data.get('coupleCards') or '[]')
 
     selected_event = None
     if guest_event_id:
@@ -516,6 +523,12 @@ def set_guest_portal_settings():
         'guest_witnesses',
         'Guest: Witnesses (Maid of Honor & Best Man)',
         witnesses_json, witnesses_json, witnesses_json
+    )
+
+    _upsert_public_content_key(
+        'guest_couple_cards',
+        'Guest: Bride & Groom Contact Cards',
+        couple_cards_json, couple_cards_json, couple_cards_json
     )
 
     try:
