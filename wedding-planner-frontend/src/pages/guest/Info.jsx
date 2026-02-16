@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info, Car, TrainFront } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
@@ -27,6 +27,7 @@ export default function GuestInfo() {
   const [isEditing, setIsEditing] = useState(false)
   const [showWizard, setShowWizard] = useState(false)
   const [ibanCopied, setIbanCopied] = useState(false)
+  const [travelMode, setTravelMode] = useState('car')
   const [isPageLoading, setIsPageLoading] = useState(true)
   const [imagesPreloaded, setImagesPreloaded] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -643,6 +644,65 @@ export default function GuestInfo() {
                   ) : (
                     <div style={{ color: 'var(--wp-primary)', opacity: 0.7 }}>
                       {t('guestAccommodationBookingStayTuned')}
+                    </div>
+                  )}
+                </div>
+
+                {/* Travel Directions Section */}
+                <div className="pt-6 border-t border-black/10">
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <Car className="w-5 h-5" style={{ color: 'var(--wp-primary)' }} />
+                    <div className="text-xl font-semibold" style={{ color: 'var(--wp-primary)' }}>
+                      {t('travelSectionTitle')}
+                    </div>
+                  </div>
+
+                  {/* Car / Public Transport Toggle */}
+                  <div className="flex justify-center gap-3 mb-6">
+                    <button
+                      onClick={() => setTravelMode('car')}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all"
+                      style={travelMode === 'car'
+                        ? { backgroundColor: 'var(--wp-primary)', color: '#fff' }
+                        : { border: '1.5px solid var(--wp-primary)', color: 'var(--wp-primary)', background: 'transparent' }
+                      }
+                    >
+                      <Car className="w-4 h-4" />
+                      {t('travelByCar')}
+                    </button>
+                    <button
+                      onClick={() => setTravelMode('public')}
+                      className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all"
+                      style={travelMode === 'public'
+                        ? { backgroundColor: 'var(--wp-primary)', color: '#fff' }
+                        : { border: '1.5px solid var(--wp-primary)', color: 'var(--wp-primary)', background: 'transparent' }
+                      }
+                    >
+                      <TrainFront className="w-4 h-4" />
+                      {t('travelByPublicTransport')}
+                    </button>
+                  </div>
+
+                  {/* Car Directions */}
+                  {travelMode === 'car' && (
+                    <div className="text-center space-y-4" style={{ color: 'var(--wp-primary)' }}>
+                      <p className="leading-relaxed">{t('travelCarDirections')}</p>
+                      <div className="whitespace-pre-line text-sm" style={{ opacity: 0.85 }}>
+                        {t('travelCarTimes')}
+                      </div>
+                      <div className="pt-4 border-t border-black/5">
+                        <div className="text-sm font-semibold mb-1">{t('travelCarParkingTitle')}</div>
+                        <div className="whitespace-pre-line text-sm" style={{ opacity: 0.85 }}>
+                          {t('travelCarParking')}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Public Transport Directions */}
+                  {travelMode === 'public' && (
+                    <div className="text-center" style={{ color: 'var(--wp-primary)' }}>
+                      <p className="leading-relaxed">{t('travelPublicTransportDirections')}</p>
                     </div>
                   )}
                 </div>
