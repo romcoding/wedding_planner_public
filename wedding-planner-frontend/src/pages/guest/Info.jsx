@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info, Car, TrainFront } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info, Car, TrainFront, Plane, Flag, Theater, Mountain, UtensilsCrossed } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
@@ -914,6 +914,37 @@ export default function GuestInfo() {
                 {!readContent('guest_gift_message') && (
                   <p className="mt-2" style={{ color: 'var(--wp-primary)' }}>{t('guestGiftsInfoBody')}</p>
                 )}
+              </div>
+
+              {/* Activity Wishlist */}
+              <div className="mb-8">
+                <div className="text-lg font-semibold mb-5 text-center" style={{ color: 'var(--wp-primary)' }}>
+                  {t('giftWishlistTitle')}
+                </div>
+                <div className="flex flex-wrap justify-center gap-5 md:gap-8">
+                  {[
+                    { icon: Plane, label: t('activitySkydiving') },
+                    { icon: Flag, label: t('activityGolf') },
+                    { icon: Theater, label: t('activityTheater') },
+                    { icon: Mountain, label: t('activityHiking') },
+                    { icon: UtensilsCrossed, label: t('activityDining') },
+                  ].map(({ icon: Icon, label }) => (
+                    <div key={label} className="flex flex-col items-center gap-2">
+                      <div
+                        className="w-14 h-14 rounded-full flex items-center justify-center"
+                        style={{
+                          backgroundColor: 'color-mix(in srgb, var(--wp-primary) 10%, white)',
+                          color: 'var(--wp-primary)',
+                        }}
+                      >
+                        <Icon className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-medium" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* IBAN Section */}
