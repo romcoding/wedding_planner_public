@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info, Car, TrainFront, Plane, Flag, Theater, Mountain, UtensilsCrossed } from 'lucide-react'
+import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info, Car, TrainFront, Plane, Flag, Theater, UtensilsCrossed } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import Timeline from '../../components/Timeline'
 import BrandedMapEmbed from '../../components/BrandedMapEmbed'
@@ -926,7 +926,13 @@ export default function GuestInfo() {
                     { icon: Plane, label: t('activitySkydiving') },
                     { icon: Flag, label: t('activityGolf') },
                     { icon: Theater, label: t('activityTheater') },
-                    { icon: Mountain, label: t('activityHiking') },
+                    { icon: ({ className }) => (
+                      <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="13" cy="9" r="6" />
+                        <path d="m7.5 14.5-5 5" />
+                        <path d="m5 12-2 2" />
+                      </svg>
+                    ), label: t('activityTennis') },
                     { icon: UtensilsCrossed, label: t('activityDining') },
                   ].map(({ icon: Icon, label }) => (
                     <div key={label} className="flex flex-col items-center gap-2">
