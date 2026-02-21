@@ -481,6 +481,33 @@ export default function MoodboardPage() {
     return () => clearTimeout(t)
   }, [pastePrompt.open])
 
+  const viewportCenterCanvasPos = useCallback(() => {
+    const el = containerRef.current
+    const scale = stageState.scale || 1
+    const cx = (el?.clientWidth || viewport.w || 900) / 2
+    const cy = (el?.clientHeight || viewport.h || 600) / 2
+    return {
+      x: (cx - (stageState.x || 0)) / scale,
+      y: (cy - (stageState.y || 0)) / scale,
+    }
+  }, [stageState.scale, stageState.x, stageState.y, viewport.h, viewport.w])
+
+  const clientPointToCanvasPos = useCallback(
+    (clientX, clientY) => {
+      const el = containerRef.current
+      const scale = stageState.scale || 1
+      if (!el) return viewportCenterCanvasPos()
+      const r = el.getBoundingClientRect()
+      const localX = clientX - r.left
+      const localY = clientY - r.top
+      return {
+        x: (localX - (stageState.x || 0)) / scale,
+        y: (localY - (stageState.y || 0)) / scale,
+      }
+    },
+    [stageState.scale, stageState.x, stageState.y, viewportCenterCanvasPos]
+  )
+
   const tryPasteFromClipboard = useCallback(
     async (preferredPos) => {
       // Best-effort clipboard read (works on some browsers; iOS often blocks it).
@@ -520,33 +547,6 @@ export default function MoodboardPage() {
       }
     },
     [toast, tryUploadFile, viewportCenterCanvasPos]
-  )
-
-  const viewportCenterCanvasPos = useCallback(() => {
-    const el = containerRef.current
-    const scale = stageState.scale || 1
-    const cx = (el?.clientWidth || viewport.w || 900) / 2
-    const cy = (el?.clientHeight || viewport.h || 600) / 2
-    return {
-      x: (cx - (stageState.x || 0)) / scale,
-      y: (cy - (stageState.y || 0)) / scale,
-    }
-  }, [stageState.scale, stageState.x, stageState.y, viewport.h, viewport.w])
-
-  const clientPointToCanvasPos = useCallback(
-    (clientX, clientY) => {
-      const el = containerRef.current
-      const scale = stageState.scale || 1
-      if (!el) return viewportCenterCanvasPos()
-      const r = el.getBoundingClientRect()
-      const localX = clientX - r.left
-      const localY = clientY - r.top
-      return {
-        x: (localX - (stageState.x || 0)) / scale,
-        y: (localY - (stageState.y || 0)) / scale,
-      }
-    },
-    [stageState.scale, stageState.x, stageState.y, viewportCenterCanvasPos]
   )
 
   const snap = useCallback(
@@ -980,7 +980,7 @@ export default function MoodboardPage() {
     setContent((prev) => ({ ...prev, grid: { ...prev.grid, snap: !prev.grid?.snap } }))
   }
 
-  const tryUploadFile = async (file, preferredPos) => {
+  async function tryUploadFile(file, preferredPos) {
     if (!file) return
     const name = (file.name || '').toLowerCase()
     const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif')
@@ -2022,4 +2022,3 @@ export default function MoodboardPage() {
     </div>
   )
 }
-
