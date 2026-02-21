@@ -980,7 +980,7 @@ export default function MoodboardPage() {
     setContent((prev) => ({ ...prev, grid: { ...prev.grid, snap: !prev.grid?.snap } }))
   }
 
-  const tryUploadFile = async (file, preferredPos) => {
+  async function tryUploadFile(file, preferredPos) {
     if (!file) return
     const name = (file.name || '').toLowerCase()
     const isHeic = file.type === 'image/heic' || file.type === 'image/heif' || name.endsWith('.heic') || name.endsWith('.heif')
