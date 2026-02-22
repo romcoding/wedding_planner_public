@@ -889,12 +889,16 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 {currentStepKey === 'attendance' && (
                   <StepShell
                     title={tp('qCelebrateOnDate').replace('{{date}}', weddingDateLabel)}
-                    subtitle={tp('qCelebrateSub')}
+                    subtitle={
+                      <>
+                        <span className="flex items-center gap-1.5 mb-1">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          {t('attendanceVenueHint')}
+                        </span>
+                        {tp('qCelebrateSub')}
+                      </>
+                    }
                   >
-                    <p className="text-sm text-gray-500 mb-4 -mt-2 flex items-center justify-center gap-1.5">
-                      <MapPin className="w-4 h-4 flex-shrink-0" />
-                      {t('attendanceVenueHint')}
-                    </p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <PrimaryButton
                         onClick={() => handleChooseAttendance(true)}
