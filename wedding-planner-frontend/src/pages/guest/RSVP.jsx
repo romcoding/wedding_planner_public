@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Heart,
+  MapPin,
 
 } from 'lucide-react'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
@@ -419,7 +420,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     const base = ['attendance']
     if (isCoupleInvite) base.push('couple')
     if (isGroupInvite) base.push('group')
-    base.push('overnight', 'dietary', 'notes', 'done')
+    base.push('dietary', 'notes', 'done')
     return base
   }, [isCoupleInvite, isGroupInvite])
 
@@ -650,7 +651,8 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     URL.revokeObjectURL(url)
   }
 
-  if (loading || loadingGuest || authMutation.isPending) {
+  const dateNotReady = weddingDateLabel === t('ourBigDay')
+  if (loading || loadingGuest || authMutation.isPending || dateNotReady) {
     return null
   }
 
@@ -887,7 +889,15 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                 {currentStepKey === 'attendance' && (
                   <StepShell
                     title={tp('qCelebrateOnDate').replace('{{date}}', weddingDateLabel)}
-                    subtitle={tp('qCelebrateSub')}
+                    subtitle={
+                      <>
+                        <span className="flex items-center gap-1.5 mb-1">
+                          <MapPin className="w-4 h-4 flex-shrink-0" />
+                          {t('attendanceVenueHint')}
+                        </span>
+                        {tp('qCelebrateSub')}
+                      </>
+                    }
                   >
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <PrimaryButton
@@ -992,76 +1002,6 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                   </StepShell>
                 )}
 
-                {currentStepKey === 'overnight' && (
-                  <StepShell title={tp('qOvernight')} subtitle={tp('qOvernightSub')}>
-                    {/* Show Yes/No buttons only if not yet selected "Yes" */}
-                    {!pass.overnight_stay && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <PrimaryButton
-                          onClick={() => handleOvernight(true)}
-                          disabled={updateRSVPMutation.isPending || isStepFading}
-                        >
-                          {t('yes')}
-                        </PrimaryButton>
-                        <PrimaryButton
-                          variant="secondary"
-                          onClick={() => handleOvernight(false)}
-                          disabled={updateRSVPMutation.isPending || isStepFading}
-                        >
-                          {t('no')}
-                        </PrimaryButton>
-                      </div>
-                    )}
-                    {/* Booking link info - shown when overnight_stay is selected as yes */}
-                    {pass.overnight_stay && (
-                      <>
-                        <div className="p-4 rounded-xl" style={{ backgroundColor: 'var(--wp-primary-20)' }}>
-                          {bookingLink ? (
-                            <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
-                              {t('bookingLinkHint')}{' '}
-                              <a
-                                href={bookingLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="underline font-semibold"
-                                style={{ color: 'var(--wp-primary)' }}
-                              >
-                                {t('bookingLinkClick')}
-                              </a>
-                            </p>
-                          ) : (
-                            <p className="text-sm" style={{ color: 'var(--wp-primary)' }}>
-                              {t('bookingLinkComingSoon')}
-                            </p>
-                          )}
-                          <p className="text-sm mt-2" style={{ color: 'var(--wp-primary)', opacity: 0.8 }}>
-                            {t('overnightAccommodationHint')}
-                          </p>
-                        </div>
-                        {/* Continue button after seeing booking info */}
-                        <div className="mt-4">
-                          <PrimaryButton onClick={handleOvernightContinue} disabled={isStepFading}>
-                            <span className="flex items-center justify-center gap-2">
-                              {t('continue')} <ChevronRight className="w-4 h-4" />
-                            </span>
-                          </PrimaryButton>
-                        </div>
-                      </>
-                    )}
-                    <p className="text-xs text-gray-500 mt-4">{t('overnightNoteSoft')}</p>
-                    <div className="mt-5 flex items-center justify-between">
-                      <button
-                        type="button"
-                        onClick={goPrevSmooth}
-                        disabled={isStepFading}
-                        className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1 disabled:opacity-50"
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        {t('back')}
-                      </button>
-                    </div>
-                  </StepShell>
-                )}
 
                 {currentStepKey === 'dietary' && (
                   <StepShell title={tp('qDietary')} subtitle={tp('qDietarySub')}>
@@ -1164,6 +1104,13 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                           ) : null}
 
                           <SavePageBlock />
+
+                          <div className="rounded-2xl border border-gray-200 bg-white p-4">
+                            <p className="text-sm text-gray-700 flex items-start gap-2">
+                              <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0 text-gray-400" />
+                              <span>{t('doneOvernightHint')}</span>
+                            </p>
+                          </div>
 
                           <div className="rounded-2xl border border-gray-200 bg-white p-4">
                             <p className="text-sm text-gray-700">
