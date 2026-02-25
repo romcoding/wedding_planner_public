@@ -1,7 +1,7 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": "dist",
-  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build --prefix wedding-planner-frontend",
+  "outputDirectory": "wedding-planner-frontend/dist",
+  "installCommand": "npm install --prefix wedding-planner-frontend --legacy-peer-deps",
   "framework": "vite",
   "rewrites": [
     {
