@@ -1,12 +1,17 @@
 databases:
-  - name: wedding-planner-db
-    databaseName: wedding_planner
-    user: wedding_planner_user
+  - name: wedding-planner-db-prod
+    databaseName: wedding_planner_prod
+    user: wedding_planner_prod_user
+    plan: free
+
+  - name: wedding-planner-db-dev
+    databaseName: wedding_planner_dev
+    user: wedding_planner_dev_user
     plan: free
 
 services:
   - type: web
-    name: wedding-planner-backend
+    name: wedding-planner-backend-prod
     env: python
     plan: free
     rootDir: wedding-planner-backend
@@ -16,7 +21,7 @@ services:
     envVars:
       - key: DATABASE_URL
         fromDatabase:
-          name: wedding-planner-db
+          name: wedding-planner-db-prod
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
@@ -32,51 +37,32 @@ services:
         sync: false
       - key: MAX_UPLOAD_MB
         value: "25"
-services:
-  # Production backend
-  - type: web
-    name: wedding-planner-backend
-    env: python
-    buildCommand: pip install -r wedding-planner-backend/requirements.txt
-    startCommand: cd wedding-planner-backend && PYTHONPATH=$(pwd):$PYTHONPATH gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 'src.main:create_app()'
-    rootDir: .
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: SECRET_KEY
-        generateValue: true
-      - key: JWT_SECRET_KEY
-        generateValue: true
-      - key: FRONTEND_URL
-        sync: false
-      - key: CORS_EXTRA_ORIGINS
-        sync: false
-      - key: PORT
-        value: 10000
 
-  # Development backend
   - type: web
     name: wedding-planner-backend-dev
     env: python
-    buildCommand: pip install -r wedding-planner-backend/requirements.txt
-    startCommand: cd wedding-planner-backend && PYTHONPATH=$(pwd):$PYTHONPATH gunicorn --bind 0.0.0.0:$PORT --workers 1 --timeout 120 'src.main:create_app()'
-    rootDir: .
+    plan: free
+    rootDir: wedding-planner-backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT "src.main:create_app()"
+    healthCheckPath: /api/health
     envVars:
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: wedding-planner-db-dev
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
         generateValue: true
+      - key: FLASK_ENV
+        value: development
       - key: FRONTEND_URL
-        value: https://weddingplanner-mu.vercel.app
+        sync: false
+      - key: VERCEL_URL
+        sync: false
       - key: CORS_EXTRA_ORIGINS
-        value: https://weddingplanner-mu.vercel.app
-      - key: PORT
-        value: 10000
-
-databases:
-  # Development database
-  - name: wedding-planner-db-dev
-    plan: free
+        sync: false
+      - key: MAX_UPLOAD_MB
+        value: "25"
 
