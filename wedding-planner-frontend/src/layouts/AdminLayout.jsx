@@ -2,7 +2,6 @@ import { Outlet, Link, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { 
-  LayoutDashboard, 
   Users, 
   CheckSquare, 
   DollarSign, 
@@ -19,7 +18,8 @@ import {
   Shield,
   Palette,
   Menu,
-  X
+  X,
+  Wand2
 } from 'lucide-react'
 
 export default function AdminLayout() {
@@ -32,6 +32,7 @@ export default function AdminLayout() {
   const navItems = isPlanner
     ? [
         { path: '/admin/guests', icon: Users, label: 'Guest Management' },
+        { path: '/admin/setup', icon: Wand2, label: 'Quick Setup' },
         { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
         { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
         { path: '/admin/events', icon: Calendar, label: 'Timeline' },
@@ -40,6 +41,7 @@ export default function AdminLayout() {
       ]
     : [
         { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
+        { path: '/admin/setup', icon: Wand2, label: 'Quick Setup' },
         { path: '/admin/guests', icon: Users, label: 'Guest Management' },
         { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
         { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },

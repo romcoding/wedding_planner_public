@@ -27,6 +27,7 @@ from src.routes.venue_documents import documents_bp
 from src.routes.venue_chat import chat_bp
 from src.routes.moodboards import moodboards_bp
 from src.routes.agenda import agenda_bp
+from src.routes.onboarding import onboarding_bp
 
 load_dotenv()
 
@@ -162,6 +163,7 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix='/api/users')
     app.register_blueprint(moodboards_bp, url_prefix='')
     app.register_blueprint(agenda_bp, url_prefix='/api/agenda')
+    app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
     
     # Create tables
     with app.app_context():

@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { Calendar, MapPin, Users, DollarSign, FileText, Heart } from 'lucide-react'
+import { Calendar, Users, DollarSign, FileText, Heart, Wand2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function WeddingManagement() {
   const BASE_CURRENCY = 'CHF'
@@ -49,6 +50,10 @@ export default function WeddingManagement() {
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Wedding Management</h1>
         <p className="text-gray-600 mt-1">Complete overview and process information for your wedding</p>
+        <Link to="/admin/setup" className="mt-4 inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg text-sm">
+          <Wand2 className="w-4 h-4" />
+          Run quick setup wizard
+        </Link>
       </div>
 
       {/* Key Metrics */}

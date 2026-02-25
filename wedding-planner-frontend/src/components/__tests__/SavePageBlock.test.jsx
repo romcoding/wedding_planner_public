@@ -53,8 +53,9 @@ describe('SavePageBlock', () => {
   it('shows Copied! when copy link is clicked and clipboard succeeds', async () => {
     const user = userEvent.setup()
     const writeText = vi.fn().mockResolvedValue(undefined)
-    Object.assign(navigator, {
-      clipboard: { writeText },
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText },
+      configurable: true,
     })
 
     render(<SavePageBlock />)
