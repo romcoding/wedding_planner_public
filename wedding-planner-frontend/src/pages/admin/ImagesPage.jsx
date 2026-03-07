@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X, Clock, GripVertical, ChevronUp, ChevronDown } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X, Clock, GripVertical, ChevronUp, ChevronDown, Wand2 } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import {
   Church,
@@ -369,6 +369,57 @@ const ImagesPage = () => {
     
     didInitGuestCardsRef.current = true
   }, [guestPortalSettings])
+
+
+  const generateGuestPortalDraft = useMutation({
+    mutationFn: async () => {
+      const payload = {
+        guestEventId: guestEventId || '',
+        coupleNames: (coupleCards || []).map((c) => c.name).filter(Boolean).join(' & '),
+        existingGuestEventDetails: guestEventDetails?.en || '',
+        existingDresscode: guestDresscode?.en || '',
+      }
+      return api.post('/events/guest-portal-ai-draft', payload).then((r) => r.data)
+    },
+    onSuccess: (draft) => {
+      if (!draft) {
+        toast.error('No AI draft returned')
+        return
+      }
+      setGuestEventDetails({
+        en: String(draft?.en?.guestEventDetails || ''),
+        de: String(draft?.de?.guestEventDetails || ''),
+        fr: String(draft?.fr?.guestEventDetails || ''),
+      })
+      setGuestAgenda({
+        en: String(draft?.en?.guestAgenda || ''),
+        de: String(draft?.de?.guestAgenda || ''),
+        fr: String(draft?.fr?.guestAgenda || ''),
+      })
+      setGuestDresscode({
+        en: String(draft?.en?.guestDresscode || ''),
+        de: String(draft?.de?.guestDresscode || ''),
+        fr: String(draft?.fr?.guestDresscode || ''),
+      })
+      setGuestAccommodationDetails({
+        en: String(draft?.en?.guestAccommodationDetails || ''),
+        de: String(draft?.de?.guestAccommodationDetails || ''),
+        fr: String(draft?.fr?.guestAccommodationDetails || ''),
+      })
+      setGiftMessage({
+        en: String(draft?.en?.giftMessage || ''),
+        de: String(draft?.de?.giftMessage || ''),
+        fr: String(draft?.fr?.giftMessage || ''),
+      })
+      const warning = draft?.meta?.warning
+      if (warning) {
+        toast.success(`Draft generated with fallback: ${warning}`)
+      } else {
+        toast.success('AI draft generated. Review and save changes.')
+      }
+    },
+    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to generate AI draft'),
+  })
 
   const saveGuestPortalItems = useMutation({
     mutationFn: async () => {
@@ -1541,7 +1592,16 @@ const ImagesPage = () => {
           </div>
         </div>
 
-        <div className="mt-4 flex justify-end">
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => generateGuestPortalDraft.mutate()}
+            disabled={generateGuestPortalDraft.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-violet-300 text-violet-700 bg-violet-50 rounded-lg hover:bg-violet-100 disabled:opacity-50"
+          >
+            <Wand2 className="w-4 h-4" />
+            {generateGuestPortalDraft.isPending ? 'Generating...' : 'Generate site content (AI)'}
+          </button>
           <button
             type="button"
             onClick={() => saveGuestPortalItems.mutate()}
