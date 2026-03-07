@@ -5,6 +5,7 @@ from src.utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 from src.utils.rbac import require_roles
+from src.services.guest_portal_ai_service import GuestPortalAIService
 
 events_bp = Blueprint('events', __name__)
 
@@ -538,3 +539,59 @@ def set_guest_portal_settings():
         db.session.rollback()
         return jsonify({'error': 'Failed to save guest portal settings', 'details': str(e)}), 500
 
+
+@events_bp.route('/guest-portal-ai-draft', methods=['POST'])
+@jwt_required()
+def generate_guest_portal_ai_draft():
+    """Generate AI draft copy for guest portal fields (admin/planner)."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    data = request.get_json() or {}
+
+    content_keys = [
+        'welcome',
+        'joinOurCelebration',
+        'wedding_date_iso',
+        'attendanceVenueHint',
+        'guest_event_gifts_timeline_details',
+        'guest_dresscode',
+    ]
+    content_items = {c.key: c for c in Content.query.filter(Content.key.in_(content_keys)).all()}
+
+    def content_value(key):
+        item = content_items.get(key)
+        if not item:
+            return ''
+        return item.content_en or item.content or ''
+
+    selected_event = None
+    event_id = str(data.get('guestEventId') or '').strip()
+    if event_id:
+        try:
+            selected_event = Event.query.get(int(event_id))
+        except Exception:
+            selected_event = None
+
+    wedding_date = data.get('weddingDate') or content_value('wedding_date_iso')
+    if selected_event and selected_event.start_time:
+        wedding_date = selected_event.start_time.isoformat()
+
+    wedding_location = data.get('weddingLocation') or content_value('attendanceVenueHint')
+    if selected_event and selected_event.location:
+        wedding_location = selected_event.location
+
+    style_note = data.get('styleNote') or content_value('joinOurCelebration') or content_value('welcome')
+
+    context = {
+        'couple_names': data.get('coupleNames') or '',
+        'wedding_date': wedding_date,
+        'wedding_location': wedding_location,
+        'style_note': style_note,
+        'existing_guest_event_details': data.get('existingGuestEventDetails') or content_value('guest_event_gifts_timeline_details'),
+        'existing_dresscode': data.get('existingDresscode') or content_value('guest_dresscode'),
+    }
+
+    draft = GuestPortalAIService.generate_guest_portal_draft(context)
+    return jsonify(draft), 200
