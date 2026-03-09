@@ -4,6 +4,7 @@ from flask_jwt_extended import JWTManager
 from dotenv import load_dotenv
 import os
 import logging
+from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
 from src.models import db
 from src.routes.auth import auth_bp
 from src.routes.guest_auth import guest_auth_bp
@@ -67,6 +68,11 @@ def create_app():
         # Render PostgreSQL connection string format
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
+        # Avoid very long startup hangs if DB is cold/unreachable.
+        parsed = urlparse(database_url)
+        params = dict(parse_qsl(parsed.query))
+        params.setdefault('connect_timeout', '10')
+        database_url = urlunparse(parsed._replace(query=urlencode(params)))
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///wedding_planner.db'
@@ -165,9 +171,18 @@ def create_app():
     app.register_blueprint(agenda_bp, url_prefix='/api/agenda')
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
     
-    # Create tables
-    with app.app_context():
-        db.create_all()
+    # In production, don't block startup on create_all; this can cause Render port-scan timeouts.
+    auto_create_db = os.getenv('AUTO_CREATE_DB', 'true').lower() in ('1', 'true', 'yes', 'on')
+    if auto_create_db:
+        try:
+            with app.app_context():
+                db.create_all()
+        except Exception as exc:
+            logger.exception("Database initialization failed during startup: %s", exc)
+            if os.getenv('FLASK_ENV') != 'production':
+                raise
+    else:
+        logger.info("Skipping automatic db.create_all() because AUTO_CREATE_DB is disabled.")
     
     @app.route('/api/health')
     def health():
