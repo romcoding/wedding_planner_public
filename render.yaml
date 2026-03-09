@@ -1,7 +1,7 @@
 services:
   - type: web
     name: wedding-planner-backend-prod
-    env: python
+    runtime: python
     plan: free
     rootDir: wedding-planner-backend
     buildCommand: pip install -r requirements.txt
@@ -11,7 +11,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: wedding-planner-db-prod
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
@@ -29,7 +31,7 @@ services:
 
   - type: web
     name: wedding-planner-backend-dev
-    env: python
+    runtime: python
     plan: free
     rootDir: wedding-planner-backend
     buildCommand: pip install -r requirements.txt
@@ -39,7 +41,9 @@ services:
       - key: PYTHON_VERSION
         value: 3.11.9
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: wedding-planner-db-dev
+          property: connectionString
       - key: SECRET_KEY
         generateValue: true
       - key: JWT_SECRET_KEY
@@ -54,4 +58,15 @@ services:
         sync: false
       - key: MAX_UPLOAD_MB
         value: "25"
+
+databases:
+  - name: wedding-planner-db-prod
+    plan: free
+    databaseName: wedding_planner_prod
+    user: wedding_planner_prod_user
+
+  - name: wedding-planner-db-dev
+    plan: free
+    databaseName: wedding_planner_dev
+    user: wedding_planner_dev_user
 
