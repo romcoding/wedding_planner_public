@@ -23,11 +23,11 @@ services:
       - key: AUTO_CREATE_DB
         value: "false"
       - key: FRONTEND_URL
-        sync: false
+        value: https://wedding-planner-public.vercel.app
       - key: VERCEL_URL
-        sync: false
+        value: https://wedding-planner-public.vercel.app
       - key: CORS_EXTRA_ORIGINS
-        sync: false
+        value: https://wedding-planner-public-dev.vercel.app
       - key: MAX_UPLOAD_MB
         value: "25"
 
@@ -55,11 +55,11 @@ services:
       - key: AUTO_CREATE_DB
         value: "true"
       - key: FRONTEND_URL
-        sync: false
+        value: https://wedding-planner-public-dev.vercel.app
       - key: VERCEL_URL
-        sync: false
+        value: https://wedding-planner-public-dev.vercel.app
       - key: CORS_EXTRA_ORIGINS
-        sync: false
+        value: https://wedding-planner-public.vercel.app
       - key: MAX_UPLOAD_MB
         value: "25"
 
