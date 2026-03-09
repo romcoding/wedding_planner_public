@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: wedding-planner-backend-prod
+    name: wedding-wonder-backend-prod
     runtime: python
     plan: free
     rootDir: wedding-planner-backend
@@ -12,7 +12,7 @@ services:
         value: 3.11.9
       - key: DATABASE_URL
         fromDatabase:
-          name: wedding-planner-db-prod
+          name: wedding-wonder-db-prod
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
@@ -30,7 +30,7 @@ services:
         value: "25"
 
   - type: web
-    name: wedding-planner-backend-dev
+    name: wedding-wonder-backend-dev
     runtime: python
     plan: free
     rootDir: wedding-planner-backend
@@ -42,7 +42,7 @@ services:
         value: 3.11.9
       - key: DATABASE_URL
         fromDatabase:
-          name: wedding-planner-db-dev
+          name: wedding-wonder-db-dev
           property: connectionString
       - key: SECRET_KEY
         generateValue: true
@@ -60,13 +60,13 @@ services:
         value: "25"
 
 databases:
-  - name: wedding-planner-db-prod
+  - name: wedding-wonder-db-prod
     plan: free
-    databaseName: wedding_planner_prod
-    user: wedding_planner_prod_user
+    databaseName: wedding_wonder_prod
+    user: wedding_wonder_prod_user
 
-  - name: wedding-planner-db-dev
+  - name: wedding-wonder-db-dev
     plan: free
-    databaseName: wedding_planner_dev
-    user: wedding_planner_dev_user
+    databaseName: wedding_wonder_dev
+    user: wedding_wonder_dev_user
 
