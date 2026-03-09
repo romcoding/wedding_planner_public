@@ -22,6 +22,10 @@ services:
         value: production
       - key: AUTO_CREATE_DB
         value: "false"
+      - key: ALLOW_ADMIN_REGISTRATION
+        value: "false"
+      - key: ADMIN_SETUP_TOKEN
+        sync: false
       - key: FRONTEND_URL
         value: https://wedding-planner-public.vercel.app
       - key: VERCEL_URL
@@ -54,6 +58,10 @@ services:
         value: development
       - key: AUTO_CREATE_DB
         value: "true"
+      - key: ALLOW_ADMIN_REGISTRATION
+        value: "false"
+      - key: ADMIN_SETUP_TOKEN
+        sync: false
       - key: FRONTEND_URL
         value: https://wedding-planner-public-dev.vercel.app
       - key: VERCEL_URL

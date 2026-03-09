@@ -4,6 +4,7 @@ from src.models import db, User
 from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
+import os
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -29,6 +30,21 @@ def _check_admin_rate_limit(ip):
 @auth_bp.route('/register', methods=['POST'])
 def register():
     """Register a new admin user"""
+    # Public admin registration must be explicitly enabled.
+    allow_registration = os.getenv('ALLOW_ADMIN_REGISTRATION', 'false').lower() in ('1', 'true', 'yes', 'on')
+    if not allow_registration:
+        return jsonify({'error': 'Admin registration is disabled'}), 403
+
+    # Optional setup token guard for one-time bootstrap flows.
+    required_setup_token = os.getenv('ADMIN_SETUP_TOKEN', '').strip()
+    provided_setup_token = (
+        request.headers.get('X-Admin-Setup-Token')
+        or (request.get_json(silent=True) or {}).get('setup_token')
+        or ''
+    ).strip()
+    if required_setup_token and provided_setup_token != required_setup_token:
+        return jsonify({'error': 'Invalid admin setup token'}), 403
+
     # Rate limit by IP
     if not _check_admin_rate_limit(request.remote_addr or 'unknown'):
         return jsonify({'error': 'Too many attempts. Please try again later.'}), 429
@@ -40,11 +56,15 @@ def register():
     
     if User.query.filter_by(email=data['email']).first():
         return jsonify({'error': 'User already exists'}), 400
-    
+
+    requested_role = data.get('role', 'admin')
+    if requested_role != 'admin':
+        return jsonify({'error': 'Only admin role can be created via this endpoint'}), 400
+
     user = User(
         email=data['email'],
         name=data.get('name', data['email'].split('@')[0]),
-        role=data.get('role', 'admin')
+        role='admin'
     )
     user.set_password(data['password'])
     
