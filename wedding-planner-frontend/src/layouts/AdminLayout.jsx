@@ -49,7 +49,7 @@ export default function AdminLayout() {
         { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
         { path: '/admin/events', icon: Calendar, label: 'Timeline' },
         { path: '/admin/venues', icon: MapPin, label: 'Venues' },
-        { path: '/admin/images', icon: ImageIcon, label: 'Web page' },
+        { path: '/admin/images', icon: ImageIcon, label: 'Webpage Builder' },
         { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
         { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
         { path: '/admin/content', icon: FileText, label: 'Content' },
@@ -135,4 +135,3 @@ export default function AdminLayout() {
     </div>
   )
 }
-

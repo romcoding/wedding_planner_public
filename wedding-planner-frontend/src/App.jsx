@@ -8,6 +8,7 @@ import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
 import GuestThemeShell from './layouts/GuestThemeShell'
 import LoginPage from './pages/admin/LoginPage'
+import RegisterPage from './pages/admin/RegisterPage'
 import GuestsPage from './pages/admin/GuestsPage'
 import TasksPage from './pages/admin/TasksPage'
 import CostsPage from './pages/admin/CostsPage'
@@ -137,6 +138,10 @@ function AppRoutes() {
       <Route
         path="/admin/login"
         element={user ? <Navigate to={user?.role === 'planner' ? '/admin/guests' : '/admin/wedding'} replace /> : <LoginPage />}
+      />
+      <Route
+        path="/admin/register"
+        element={user ? <Navigate to="/admin/wedding" replace /> : <RegisterPage />}
       />
     </Routes>
   )

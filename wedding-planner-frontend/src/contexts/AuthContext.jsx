@@ -54,8 +54,24 @@ export function AuthProvider({ children }) {
     setUser(null)
   }
 
+  const registerCouple = async (payload) => {
+    try {
+      const response = await api.post('/auth/couple/register', payload)
+      const { access_token, user } = response.data
+      localStorage.setItem('access_token', access_token)
+      localStorage.setItem('user', JSON.stringify(user))
+      setUser(user)
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Registration failed',
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout, registerCouple }}>
       {children}
     </AuthContext.Provider>
   )
@@ -68,4 +84,3 @@ export function useAuth() {
   }
   return context
 }
-
