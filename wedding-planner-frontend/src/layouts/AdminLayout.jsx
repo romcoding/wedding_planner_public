@@ -38,6 +38,7 @@ export default function AdminLayout() {
         { path: '/admin/events', icon: Calendar, label: 'Timeline' },
         { path: '/admin/venues', icon: MapPin, label: 'Venues' },
         { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
+        { path: '/admin/billing', icon: DollarSign, label: 'Pricing & Billing' },
       ]
     : [
         { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
@@ -55,6 +56,7 @@ export default function AdminLayout() {
         { path: '/admin/content', icon: FileText, label: 'Content' },
         { path: '/admin/analytics', icon: BarChart3, label: 'Technical Analytics' },
         { path: '/admin/users', icon: Shield, label: 'User Management' },
+        { path: '/admin/billing', icon: DollarSign, label: 'Pricing & Billing' },
       ]
 
   return (

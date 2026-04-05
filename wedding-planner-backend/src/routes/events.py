@@ -5,6 +5,7 @@ from src.utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
 from src.utils.rbac import require_roles
+from src.utils.token_billing import requires_tokens, charge_tokens
 from src.services.guest_portal_ai_service import GuestPortalAIService
 
 events_bp = Blueprint('events', __name__)
@@ -546,6 +547,7 @@ def set_guest_portal_settings():
 
 @events_bp.route('/guest-portal-ai-draft', methods=['POST'])
 @jwt_required()
+@requires_tokens('guest_portal_ai_draft')
 def generate_guest_portal_ai_draft():
     """Generate AI draft copy for guest portal fields (admin/planner)."""
     user, err = require_roles(['admin', 'planner'])
@@ -598,4 +600,5 @@ def generate_guest_portal_ai_draft():
     }
 
     draft = GuestPortalAIService.generate_guest_portal_draft(context)
-    return jsonify(draft), 200
+    usage = charge_tokens('guest_portal_ai_draft', context, draft)
+    return jsonify({**draft, 'meta': {'tokens_charged': usage.tokens_consumed if usage else 0}}), 200

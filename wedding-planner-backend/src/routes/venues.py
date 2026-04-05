@@ -9,9 +9,34 @@ import csv
 import io
 import logging
 from src.utils.rbac import require_roles
+from src.utils.token_billing import requires_tokens, charge_tokens
+import requests
+from bs4 import BeautifulSoup
 
 venues_bp = Blueprint('venues', __name__)
 logger = logging.getLogger(__name__)
+
+SEARCH_CACHE = {}
+
+
+def _duckduckgo_links(query, limit=5):
+    try:
+        url = "https://duckduckgo.com/html/"
+        res = requests.post(url, data={"q": query}, timeout=10)
+        res.raise_for_status()
+        soup = BeautifulSoup(res.text, "html.parser")
+        links = []
+        for a in soup.select("a.result__a"):
+            href = a.get("href")
+            if href and href.startswith("http"):
+                links.append(href)
+            if len(links) >= limit:
+                break
+        return links
+    except Exception:
+        return []
+
+
 
 @venues_bp.route('', methods=['GET'])
 @jwt_required()
@@ -667,3 +692,59 @@ def import_venues_csv():
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': f'Error importing CSV: {str(e)}'}), 500
+
+
+@venues_bp.route('/search-ai', methods=['POST'])
+@jwt_required()
+@requires_tokens('venue_ai_search')
+def search_venues_ai():
+    """AI-assisted venue discovery via safe web search + structured extraction."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    data = request.get_json() or {}
+    query = str(data.get('query') or '').strip()
+    if not query:
+        return jsonify({'error': 'query is required'}), 400
+
+    budget = data.get('budget')
+    capacity = data.get('capacity')
+    region = data.get('region')
+
+    composed_query = query
+    if budget:
+        composed_query += f' budget {budget}'
+    if capacity:
+        composed_query += f' capacity {capacity}'
+    if region:
+        composed_query += f' {region}'
+
+    links = _duckduckgo_links(composed_query, limit=5)
+    venues = []
+    for link in links:
+        if link in SEARCH_CACHE:
+            extracted = SEARCH_CACHE[link]
+        else:
+            extracted = VenueScraperService.scrape_venue_from_url(link)
+            SEARCH_CACHE[link] = extracted
+
+        if extracted.get('error'):
+            continue
+
+        venues.append({
+            'name': extracted.get('name') or 'Unknown Venue',
+            'description': extracted.get('description'),
+            'location': extracted.get('location'),
+            'capacity': extracted.get('capacity'),
+            'price_range': extracted.get('price_range'),
+            'style': extracted.get('style'),
+            'amenities': extracted.get('amenities') or [],
+            'url': link,
+            'source': 'duckduckgo+scraper',
+        })
+
+    explicit_tokens = max(5, len(composed_query) // 4 + len(venues) * 30)
+    usage = charge_tokens('venue_ai_search', {'query': composed_query}, {'venues': venues}, explicit_tokens=explicit_tokens)
+
+    return jsonify({'venues': venues, 'meta': {'tokens_charged': usage.tokens_consumed if usage else 0, 'results': len(venues)}}), 200

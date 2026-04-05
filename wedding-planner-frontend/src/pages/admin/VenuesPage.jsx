@@ -21,7 +21,8 @@ import {
   Loader,
   Image as ImageIcon,
   Calendar,
-  Check
+  Check,
+  Sparkles
 } from 'lucide-react'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageComponents'
@@ -80,6 +81,8 @@ export default function VenuesPage() {
   const [styleFilter, setStyleFilter] = useState('')
   const [cityFilter, setCityFilter] = useState('')
   const [regionFilter, setRegionFilter] = useState('')
+  const [aiSearchQuery, setAiSearchQuery] = useState('')
+  const [aiResults, setAiResults] = useState([])
   
   const [formData, setFormData] = useState({
     name: '',
@@ -149,6 +152,19 @@ export default function VenuesPage() {
   const deleteVenue = useMutation({
     mutationFn: (id) => api.delete(`/venues/${id}`),
     onSuccess: () => queryClient.invalidateQueries(['venues']),
+  })
+
+  const searchVenuesAI = useMutation({
+    mutationFn: async (payload) => {
+      const response = await api.post('/venues/search-ai', payload)
+      return response.data
+    },
+    onSuccess: (data) => {
+      setAiResults(data?.venues || [])
+    },
+    onError: (error) => {
+      alert(error?.response?.data?.error || 'AI venue search failed')
+    },
   })
 
   const scrapeVenue = useMutation({
@@ -514,6 +530,62 @@ export default function VenuesPage() {
           )}
         </div>
       )}
+
+      <div className="bg-white border border-purple-200 rounded-lg p-4 mb-6">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4 text-purple-600" />
+          <h2 className="font-semibold text-purple-900">AI Venue Assistant</h2>
+        </div>
+        <p className="text-sm text-gray-600 mb-3">Search with natural language. This feature consumes AI tokens.</p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={aiSearchQuery}
+            onChange={(e) => setAiSearchQuery(e.target.value)}
+            className="flex-1 px-3 py-2 border rounded-lg"
+            placeholder="e.g. mountain wedding venues in Zurich under CHF 5,000"
+          />
+          <button
+            onClick={() => searchVenuesAI.mutate({ query: aiSearchQuery })}
+            disabled={!aiSearchQuery.trim() || searchVenuesAI.isPending}
+            className="px-4 py-2 rounded-lg bg-purple-600 text-white disabled:opacity-50"
+          >
+            {searchVenuesAI.isPending ? 'Searching...' : 'AI Search'}
+          </button>
+        </div>
+        {aiResults.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {aiResults.map((venue, idx) => (
+              <div key={`${venue.url}-${idx}`} className="border rounded p-3 bg-purple-50/30">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-medium">{venue.name}</h3>
+                    <p className="text-xs text-gray-600">{venue.location || 'Location unavailable'}</p>
+                    <p className="text-sm text-gray-700 mt-1">{venue.description || 'No summary available.'}</p>
+                    {venue.url && <a href={venue.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">Source</a>}
+                  </div>
+                  <button
+                    onClick={() => createVenue.mutate({
+                      name: venue.name,
+                      description: venue.description,
+                      location: venue.location,
+                      style: venue.style,
+                      price_range: venue.price_range,
+                      capacity: venue.capacity,
+                      amenities: venue.amenities || [],
+                      external_url: venue.url,
+                      imported_via_scraper: true,
+                    })}
+                    className="px-3 py-2 text-sm rounded border border-purple-300 bg-white hover:bg-purple-50"
+                  >
+                    Save
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">

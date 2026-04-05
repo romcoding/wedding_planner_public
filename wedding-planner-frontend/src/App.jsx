@@ -23,6 +23,7 @@ import SeatingChartPage from './pages/admin/SeatingChartPage'
 import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import UsersPage from './pages/admin/UsersPage'
 import QuickSetupPage from './pages/admin/QuickSetupPage'
+import PricingBillingPage from './pages/admin/PricingBillingPage'
 
 // Moodboard loads in isolated iframe (moodboard.html) - main app never loads react-konva
 function MoodboardFrame() {
@@ -132,6 +133,7 @@ function AppRoutes() {
         <Route path="content" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ContentPage />} fallbackTo="/admin/guests" />} />
         <Route path="analytics" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<AnalyticsPage />} fallbackTo="/admin/guests" />} />
         <Route path="users" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<UsersPage />} fallbackTo="/admin/guests" />} />
+        <Route path="billing" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<PricingBillingPage />} fallbackTo="/admin/guests" />} />
         <Route path="setup" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin', 'planner']} element={<QuickSetupPage />} fallbackTo="/admin/guests" />} />
       </Route>
 
