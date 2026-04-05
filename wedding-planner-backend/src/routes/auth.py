@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from src.models import db, User
+from src.models import db, User, Event
 from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
@@ -118,6 +118,75 @@ def login():
         'user': user.to_dict()
     }), 200
 
+
+@auth_bp.route('/couple/register', methods=['POST'])
+def register_couple():
+    """Public-facing registration for couples creating their own wedding space."""
+    if not _check_admin_rate_limit(request.remote_addr or 'unknown'):
+        return jsonify({'error': 'Too many attempts. Please try again later.'}), 429
+
+    data = request.get_json() or {}
+
+    required_fields = [
+        'email',
+        'password',
+        'password_confirmation',
+        'partner_one_first_name',
+        'partner_one_last_name',
+        'partner_two_first_name',
+        'partner_two_last_name',
+        'wedding_date',
+    ]
+    missing = [field for field in required_fields if not str(data.get(field, '')).strip()]
+    if missing:
+        return jsonify({'error': 'Missing required fields', 'fields': missing}), 400
+
+    if data['password'] != data['password_confirmation']:
+        return jsonify({'error': 'Password confirmation does not match'}), 400
+
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'error': 'User already exists'}), 400
+
+    try:
+        wedding_dt = datetime.fromisoformat(str(data['wedding_date']).replace('Z', '+00:00'))
+    except ValueError:
+        return jsonify({'error': 'Invalid wedding_date. Use ISO-8601 format.'}), 400
+
+    partner_one = f"{data['partner_one_first_name'].strip()} {data['partner_one_last_name'].strip()}".strip()
+    partner_two = f"{data['partner_two_first_name'].strip()} {data['partner_two_last_name'].strip()}".strip()
+    couple_display_name = f"{partner_one} & {partner_two}"
+    style_notes = str(data.get('style_notes') or '').strip()
+    location = str(data.get('location') or '').strip()
+
+    user = User(
+        email=data['email'].strip().lower(),
+        name=couple_display_name,
+        role='admin',
+    )
+    user.set_password(data['password'])
+    db.session.add(user)
+    db.session.flush()
+
+    event = Event(
+        user_id=user.id,
+        name=f"{couple_display_name} Wedding",
+        description=style_notes,
+        location=location or None,
+        start_time=wedding_dt,
+        is_public=True,
+        is_active=True,
+    )
+    db.session.add(event)
+    db.session.commit()
+
+    access_token = create_access_token(identity=str(user.id))
+    return jsonify({
+        'message': 'Couple registered successfully',
+        'access_token': access_token,
+        'user': user.to_dict(),
+        'event': event.to_dict(),
+    }), 201
+
 @auth_bp.route('/profile', methods=['GET'])
 @jwt_required()
 def get_profile():
@@ -178,4 +247,3 @@ def update_profile():
     db.session.commit()
     
     return jsonify(user.to_dict()), 200
-

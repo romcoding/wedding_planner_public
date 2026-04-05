@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 
 export default function LoginPage() {
@@ -35,6 +35,9 @@ export default function LoginPage() {
           </h2>
           <p className="mt-2 text-center text-sm text-gray-600">
             Admin Login
+          </p>
+          <p className="mt-1 text-center text-sm text-gray-600">
+            New couple? <Link to="/admin/register" className="text-blue-600 hover:underline">Create account</Link>
           </p>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
@@ -85,4 +88,3 @@ export default function LoginPage() {
     </div>
   )
 }
-

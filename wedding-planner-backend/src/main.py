@@ -29,6 +29,7 @@ from src.routes.venue_chat import chat_bp
 from src.routes.moodboards import moodboards_bp
 from src.routes.agenda import agenda_bp
 from src.routes.onboarding import onboarding_bp
+from src.routes.ai import ai_bp
 
 load_dotenv()
 
@@ -69,21 +70,28 @@ def create_app():
         if database_url.startswith('postgres://'):
             database_url = database_url.replace('postgres://', 'postgresql://', 1)
         # Avoid very long startup hangs if DB is cold/unreachable.
-        parsed = urlparse(database_url)
-        params = dict(parse_qsl(parsed.query))
-        params.setdefault('connect_timeout', '10')
-        database_url = urlunparse(parsed._replace(query=urlencode(params)))
+        if not database_url.startswith('sqlite'):
+            parsed = urlparse(database_url)
+            params = dict(parse_qsl(parsed.query))
+            params.setdefault('connect_timeout', '10')
+            database_url = urlunparse(parsed._replace(query=urlencode(params)))
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     else:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///wedding_planner.db'
     
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'pool_pre_ping': True,     # Test connections before using them
-        'pool_recycle': 300,       # Recycle connections every 5 minutes
-        'pool_size': 5,            # Max pool connections
-        'max_overflow': 10,        # Extra connections under load
-    }
+    is_sqlite = str(app.config['SQLALCHEMY_DATABASE_URI']).startswith('sqlite')
+    if is_sqlite:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,
+        }
+    else:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,     # Test connections before using them
+            'pool_recycle': 300,       # Recycle connections every 5 minutes
+            'pool_size': 5,            # Max pool connections
+            'max_overflow': 10,        # Extra connections under load
+        }
     
     # CORS configuration
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
@@ -170,6 +178,7 @@ def create_app():
     app.register_blueprint(moodboards_bp, url_prefix='')
     app.register_blueprint(agenda_bp, url_prefix='/api/agenda')
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
+    app.register_blueprint(ai_bp, url_prefix='/api/ai')
     
     # In production, don't block startup on create_all; this can cause Render port-scan timeouts.
     auto_create_db = os.getenv('AUTO_CREATE_DB', 'true').lower() in ('1', 'true', 'yes', 'on')
@@ -194,4 +203,3 @@ if __name__ == '__main__':
     app = create_app()
     port = int(os.getenv('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=os.getenv('FLASK_ENV') == 'development')
-

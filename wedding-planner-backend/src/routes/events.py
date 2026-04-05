@@ -15,6 +15,7 @@ def get_events():
     # Check if user is authenticated (admin)
     auth_header = request.headers.get('Authorization')
     is_admin = False
+    user = None
     
     if auth_header and auth_header.startswith('Bearer '):
         try:
@@ -38,8 +39,11 @@ def get_events():
             pass
     
     if is_admin:
-        # Admins see all events
-        events = Event.query.filter_by(is_active=True).order_by(Event.order, Event.start_time).all()
+        # Super admins/planners may view all, regular admins are scoped to their own wedding space.
+        if user and user.role in ['super_admin', 'planner']:
+            events = Event.query.filter_by(is_active=True).order_by(Event.order, Event.start_time).all()
+        else:
+            events = Event.query.filter_by(user_id=user.id, is_active=True).order_by(Event.order, Event.start_time).all()
     else:
         # Guests see only public, active events (always filter by is_public=True)
         events = Event.query.filter_by(is_public=True, is_active=True).order_by(Event.order, Event.start_time).all()
