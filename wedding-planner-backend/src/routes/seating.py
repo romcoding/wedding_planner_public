@@ -1,8 +1,11 @@
 from flask import Blueprint, request, jsonify
+from flask import Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Table, SeatAssignment, Guest, User
 from datetime import datetime
 from src.utils.rbac import require_roles
+import csv
+import io
 
 seating_bp = Blueprint('seating', __name__)
 
@@ -355,3 +358,106 @@ def get_unassigned_guests():
             })
 
     return jsonify(result), 200
+
+
+@seating_bp.route('/auto-assign', methods=['POST'])
+@jwt_required()
+def auto_assign():
+    """Auto-assign unassigned guests to available seats, grouped by category label."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    tables = Table.query.order_by(Table.name.asc()).all()
+    if not tables:
+        return jsonify({'error': 'No tables found'}), 400
+
+    # Build all empty seats by table label/name.
+    empty_by_group = {}
+    for table in tables:
+        label = (table.notes or table.name or 'General').strip().lower()
+        empty = [a for a in table.assignments if not a.guest_id]
+        if empty:
+            empty_by_group.setdefault(label, []).extend(sorted(empty, key=lambda a: a.seat_number))
+
+    unassigned_guests_resp = get_unassigned_guests()
+    unassigned = unassigned_guests_resp[0].get_json() if isinstance(unassigned_guests_resp, tuple) else []
+
+    assigned = []
+    for person in unassigned:
+        guest = person.get('guest') or {}
+        raw_category = str((guest.get('last_name') or '')).strip().lower()
+        preferred_groups = [raw_category, 'family' if raw_category == 'family' else 'friends', 'general']
+
+        target_seat = None
+        target_group = None
+        for group in preferred_groups:
+            seats = empty_by_group.get(group) or []
+            if seats:
+                target_group = group
+                target_seat = seats.pop(0)
+                break
+
+        if not target_seat:
+            # fallback: first available seat across all groups
+            for group, seats in empty_by_group.items():
+                if seats:
+                    target_group = group
+                    target_seat = seats.pop(0)
+                    break
+
+        if not target_seat:
+            break
+
+        target_seat.guest_id = person.get('guest_id')
+        target_seat.attendee_name = person.get('attendee_name')
+        target_seat.updated_at = datetime.utcnow()
+        assigned.append({
+            'assignment_id': target_seat.id,
+            'table_id': target_seat.table_id,
+            'seat_number': target_seat.seat_number,
+            'guest_id': target_seat.guest_id,
+            'attendee_name': target_seat.attendee_name,
+            'group': target_group,
+        })
+
+    db.session.commit()
+    return jsonify({'assigned_count': len(assigned), 'assigned': assigned}), 200
+
+
+@seating_bp.route('/export.csv', methods=['GET'])
+@jwt_required()
+def export_csv():
+    """Export seating plan to CSV for printing/import into external tools."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    tables = Table.query.order_by(Table.name.asc()).all()
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['table_name', 'table_label', 'seat_number', 'guest_name', 'rsvp_status', 'dietary_restrictions'])
+
+    for table in tables:
+        for assignment in sorted(table.assignments, key=lambda a: a.seat_number):
+            guest_name = ''
+            rsvp = ''
+            dietary = ''
+            if assignment.guest:
+                guest_name = assignment.attendee_name or f"{assignment.guest.first_name or ''} {assignment.guest.last_name or ''}".strip()
+                rsvp = assignment.guest.rsvp_status or ''
+                dietary = assignment.guest.dietary_restrictions or ''
+            writer.writerow([
+                table.name,
+                table.notes or '',
+                assignment.seat_number,
+                guest_name,
+                rsvp,
+                dietary,
+            ])
+
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=seating-plan.csv'}
+    )

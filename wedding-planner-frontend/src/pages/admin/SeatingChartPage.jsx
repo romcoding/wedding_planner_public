@@ -104,6 +104,14 @@ const SeatingChartPage = () => {
     },
   })
 
+  const autoAssign = useMutation({
+    mutationFn: () => api.post('/seating/auto-assign'),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['seating-tables'])
+      queryClient.invalidateQueries(['unassigned-guests'])
+    },
+  })
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -380,6 +388,21 @@ const SeatingChartPage = () => {
     setIsPanning(false)
   }
 
+  const handleExportCsv = async () => {
+    try {
+      const response = await api.get('/seating/export.csv', { responseType: 'blob' })
+      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'seating-plan.csv'
+      link.click()
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      alert(error?.response?.data?.error || 'Failed to export CSV')
+    }
+  }
+
   useEffect(() => {
     const room = roomRef.current
     if (room) {
@@ -420,6 +443,18 @@ const SeatingChartPage = () => {
           <p className="text-gray-700 mt-1">Drag tables to arrange them, drag guests to assign seats</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => autoAssign.mutate()}
+            className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 font-medium"
+          >
+            Auto-assign
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 bg-gray-800 text-white px-3 py-2 rounded-lg hover:bg-black font-medium"
+          >
+            Export CSV
+          </button>
           <button
             onClick={() => setZoom(Math.min(2, zoom + 0.1))}
             className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"

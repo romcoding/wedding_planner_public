@@ -87,6 +87,12 @@ function defaultBoardContent() {
   }
 }
 
+const BOARD_TEMPLATES = [
+  { id: 'rustic', label: 'Rustic', palette: ['#8B5E3C', '#D4A373', '#E9C46A', '#F4E1D2'] },
+  { id: 'modern', label: 'Modern', palette: ['#111827', '#374151', '#9CA3AF', '#F9FAFB'] },
+  { id: 'classic', label: 'Classic', palette: ['#1D3557', '#457B9D', '#A8DADC', '#F1FAEE'] },
+]
+
 function useHtmlImage(src) {
   const [image, setImage] = useState(null)
   useEffect(() => {
@@ -267,6 +273,7 @@ export default function MoodboardPage() {
   const [saveError, setSaveError] = useState('')
 
   const [content, setContent] = useState(defaultBoardContent)
+  const [paletteImportUrl, setPaletteImportUrl] = useState('')
   const [selectedIds, setSelectedIds] = useState([])
 
   const [drawingLine, setDrawingLine] = useState(null) // { id, points: [] } preview
@@ -1124,6 +1131,46 @@ export default function MoodboardPage() {
     toast.success('Added to palette')
   }
 
+  const applyTemplate = (templateId) => {
+    const template = BOARD_TEMPLATES.find((t) => t.id === templateId)
+    if (!template) return
+    setContent((prev) => ({ ...prev, palette: template.palette }))
+    toast.success(`${template.label} template loaded`)
+  }
+
+  const importPaletteFromUrl = async () => {
+    const raw = (paletteImportUrl || '').trim()
+    if (!raw) return
+    try {
+      const url = new URL(raw)
+      const pathColors = url.pathname
+        .split('/')
+        .filter(Boolean)
+        .join('-')
+        .split('-')
+        .map((token) => token.replace('#', '').trim())
+        .filter((token) => /^[0-9a-fA-F]{6}$/.test(token))
+        .map((token) => `#${token.toUpperCase()}`)
+
+      let colors = pathColors
+      if (!colors.length) {
+        const res = await fetch(raw)
+        const text = await res.text()
+        colors = Array.from(text.matchAll(/#([0-9a-fA-F]{6})/g)).map((m) => `#${m[1].toUpperCase()}`)
+      }
+
+      const deduped = [...new Set(colors)].slice(0, 24)
+      if (!deduped.length) {
+        toast.error('No valid hex colors found in URL')
+        return
+      }
+      setContent((prev) => ({ ...prev, palette: deduped }))
+      toast.success(`Imported ${deduped.length} colors`)
+    } catch {
+      toast.error('Failed to import palette from URL')
+    }
+  }
+
   const exportPaletteJson = () => {
     const json = JSON.stringify({ palette: content.palette || [] }, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
@@ -1934,6 +1981,39 @@ export default function MoodboardPage() {
                 </div>
               </div>
             )}
+
+            <div className="rounded-xl border border-gray-200 p-3">
+              <div className="text-sm font-bold text-gray-900 mb-2">Templates</div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {BOARD_TEMPLATES.map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => applyTemplate(template.id)}
+                    className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:bg-gray-50 text-xs font-medium"
+                  >
+                    {template.label}
+                  </button>
+                ))}
+              </div>
+              <div className="text-sm font-bold text-gray-900 mb-2">Import palette</div>
+              <div className="flex gap-2">
+                <input
+                  type="url"
+                  value={paletteImportUrl}
+                  onChange={(e) => setPaletteImportUrl(e.target.value)}
+                  placeholder="https://coolors.co/264653-2a9d8f-e9c46a"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg bg-white text-gray-900 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={importPaletteFromUrl}
+                  className="px-3 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold"
+                >
+                  Import
+                </button>
+              </div>
+            </div>
 
             <div className="rounded-xl border border-gray-200 p-3">
               <div className="flex items-center justify-between mb-2">
