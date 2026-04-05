@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from src.models import db, Event, User, Content, Venue
+import json
 from src.utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
@@ -255,6 +256,7 @@ def get_guest_portal_settings():
         'guest_witnesses',
         # Bride & Groom contact cards
         'guest_couple_cards',
+        'guest_webpage_builder_config',
     ]
     items = {c.key: c for c in Content.query.filter(Content.key.in_(keys)).all()}
 
@@ -269,6 +271,15 @@ def get_guest_portal_settings():
     def one(key):
         c = items.get(key)
         return (c.content_en or c.content or '') if c else ''
+
+    def json_one(key):
+        raw = one(key)
+        if not raw:
+            return None
+        try:
+            return json.loads(raw)
+        except Exception:
+            return None
 
     return jsonify({
         'guestEventId': one('guest_event_gifts_event_id'),
@@ -296,6 +307,8 @@ def get_guest_portal_settings():
         'witnesses': one('guest_witnesses'),
         # Bride & Groom contact cards
         'coupleCards': one('guest_couple_cards'),
+        # JSON config used by the drag-and-drop webpage builder
+        'webpageConfig': json_one('guest_webpage_builder_config'),
     }), 200
 
 
@@ -327,6 +340,7 @@ def set_guest_portal_settings():
 
     # Bride & Groom contact cards
     couple_cards_json = str(data.get('coupleCards') or '[]')
+    webpage_config = data.get('webpageConfig')
 
     selected_event = None
     if guest_event_id:
@@ -536,6 +550,14 @@ def set_guest_portal_settings():
         'Guest: Bride & Groom Contact Cards',
         couple_cards_json, couple_cards_json, couple_cards_json
     )
+
+    if webpage_config is not None:
+        safe_raw = json.dumps(webpage_config)
+        _upsert_public_content_key(
+            'guest_webpage_builder_config',
+            'Guest: Webpage builder config',
+            safe_raw, safe_raw, safe_raw
+        )
 
     try:
         db.session.commit()

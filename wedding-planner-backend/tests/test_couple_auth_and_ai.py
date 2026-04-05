@@ -46,6 +46,29 @@ def test_webpage_command_updates_template(client, init_db, admin_user):
     assert response.status_code == 200
     body = response.get_json()
     assert body['updated_config']['template'] == 'modern'
+    assert 'tokens_remaining' in body['meta']
+
+
+def test_webpage_command_drops_non_allowlisted_keys(client, init_db, admin_user):
+    login = client.post('/api/auth/login', json={'email': admin_user.email, 'password': 'adminpass'})
+    token = login.get_json()['access_token']
+
+    response = client.post(
+        '/api/ai/webpage-command',
+        headers={'Authorization': f'Bearer {token}'},
+        json={
+            'message': 'switch to classic template',
+            'current_config': {
+                'template': 'modern',
+                'evil_script': '<script>alert(1)</script>',
+                'sectionOrder': ['hero', 'registry', 'DROP_TABLES'],
+            },
+        },
+    )
+    assert response.status_code == 200
+    body = response.get_json()
+    assert 'evil_script' not in body['updated_config']
+    assert body['updated_config']['sectionOrder'] == ['hero', 'registry']
 
 
 def test_webpage_command_charges_tokens(client, init_db, admin_user):

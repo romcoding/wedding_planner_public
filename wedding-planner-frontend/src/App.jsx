@@ -16,6 +16,7 @@ import ContentPage from './pages/admin/ContentPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
 import WeddingManagement from './pages/admin/WeddingManagement'
 import ImagesPage from './pages/admin/ImagesPage'
+import WebpageBuilderPage from './pages/admin/WebpageBuilderPage'
 import InvitationsPage from './pages/admin/InvitationsPage'
 import EventsPage from './pages/admin/EventsPage'
 import VenuesPage from './pages/admin/VenuesPage'
@@ -127,6 +128,7 @@ function AppRoutes() {
         {/* Admin-only */}
         <Route path="wedding" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WeddingManagement />} fallbackTo="/admin/guests" />} />
         <Route path="images" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ImagesPage />} fallbackTo="/admin/guests" />} />
+        <Route path="webpage" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<WebpageBuilderPage />} fallbackTo="/admin/guests" />} />
         <Route path="invitations" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<InvitationsPage />} fallbackTo="/admin/guests" />} />
         <Route path="rsvp-reminders" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<RSVPRemindersPage />} fallbackTo="/admin/guests" />} />
         <Route path="costs" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<CostsPage />} fallbackTo="/admin/guests" />} />

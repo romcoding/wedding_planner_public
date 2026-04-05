@@ -21,6 +21,18 @@ class OpenClawService:
         'guestGroomCard',
         'sectionOrder',
     }
+    ALLOWED_SECTION_TYPES = {
+        'hero',
+        'about',
+        'gallery',
+        'timeline',
+        'agenda',
+        'registry',
+        'rsvp',
+        'contact',
+        'witnesses',
+        'couple_cards',
+    }
 
     @staticmethod
     def _default_reply():
@@ -40,8 +52,96 @@ class OpenClawService:
         return sanitized
 
     @staticmethod
+    def _normalize_hex(value):
+        if not isinstance(value, str):
+            return None
+        value = value.strip()
+        if re.fullmatch(r'#[0-9a-fA-F]{6}', value):
+            return value.lower()
+        return None
+
+    @staticmethod
+    def validate_config(config):
+        """
+        Enforce a strict allow-list and shape validation for supported keys.
+        Any unsupported keys are dropped; malformed values are ignored.
+        """
+        safe = OpenClawService._safe_config(config)
+        validated = {}
+
+        template = safe.get('template')
+        if isinstance(template, str) and template.strip():
+            validated['template'] = template.strip()[:50]
+
+        colors = safe.get('guestThemeColors')
+        if isinstance(colors, dict):
+            cleaned = {}
+            for key in ['primary', 'secondary', 'accent', 'background', 'text']:
+                hex_value = OpenClawService._normalize_hex(colors.get(key))
+                if hex_value:
+                    cleaned[key] = hex_value
+            if cleaned:
+                validated['guestThemeColors'] = cleaned
+
+        hero = safe.get('heroImages')
+        if isinstance(hero, list):
+            cleaned_hero = []
+            for item in hero[:20]:
+                if not isinstance(item, dict):
+                    continue
+                url = str(item.get('url') or '').strip()
+                if not url:
+                    continue
+                cleaned_hero.append({
+                    'url': url[:1000],
+                    'alt': str(item.get('alt') or '').strip()[:200],
+                })
+            validated['heroImages'] = cleaned_hero
+
+        for key in ['guestTimeline', 'guestAgenda']:
+            rows = safe.get(key)
+            if isinstance(rows, list):
+                cleaned_rows = []
+                for row in rows[:50]:
+                    if isinstance(row, dict):
+                        cleaned_rows.append({
+                            'title': str(row.get('title') or '').strip()[:120],
+                            'description': str(row.get('description') or '').strip()[:2000],
+                            'time': str(row.get('time') or '').strip()[:60],
+                        })
+                    elif isinstance(row, str):
+                        cleaned_rows.append({'title': row.strip()[:120], 'description': ''})
+                validated[key] = cleaned_rows
+
+        text_sections = safe.get('guestTextSections')
+        if isinstance(text_sections, dict):
+            cleaned_sections = {}
+            for key, value in text_sections.items():
+                if not isinstance(key, str):
+                    continue
+                cleaned_sections[key[:60]] = str(value or '').strip()[:6000]
+            validated['guestTextSections'] = cleaned_sections
+
+        for key in ['guestWitnessCards', 'guestBrideCard', 'guestGroomCard']:
+            card = safe.get(key)
+            if isinstance(card, (list, dict)):
+                validated[key] = card
+
+        order = safe.get('sectionOrder')
+        if isinstance(order, list):
+            cleaned_order = []
+            for item in order:
+                token = str(item or '').strip().lower()
+                if token in OpenClawService.ALLOWED_SECTION_TYPES and token not in cleaned_order:
+                    cleaned_order.append(token)
+            if cleaned_order:
+                validated['sectionOrder'] = cleaned_order
+
+        return validated
+
+    @staticmethod
     def apply_command(message, current_config):
-        config = OpenClawService._safe_config(current_config)
+        config = OpenClawService.validate_config(current_config)
         text = (message or '').strip()
         lower = text.lower()
         reply = OpenClawService._default_reply()
@@ -92,5 +192,5 @@ class OpenClawService:
 
         return {
             'assistant_reply': reply,
-            'updated_config': config,
+            'updated_config': OpenClawService.validate_config(config),
         }

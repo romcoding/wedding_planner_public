@@ -76,15 +76,33 @@ cd wedding-planner-backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python src/main.py
+python run_all_migrations.py   # or: python -m flask --app src.main db upgrade (if alembic configured)
+flask --app src.main run --debug
 ```
 
 ### Frontend Setup
 
 ```bash
 cd wedding-planner-frontend
-pnpm install
-pnpm run dev
+npm install
+npm run dev
+```
+
+### Production frontend build
+
+```bash
+cd wedding-planner-frontend
+npm run build
+```
+
+### Running tests
+
+```bash
+cd wedding-planner-backend
+pytest
+
+cd ../wedding-planner-frontend
+npm test
 ```
 
 ### Environment Variables
@@ -96,6 +114,10 @@ SECRET_KEY=your-secret-key-here
 JWT_SECRET_KEY=your-jwt-secret-here
 DATABASE_URL=postgresql://user:password@host:port/database  # For production
 FRONTEND_URL=http://localhost:5173  # For development, use production URL in production
+OPENAI_API_KEY=...
+OPENCLAW_BASE_PRICE_PER_TOKEN=0.001
+FREE_PLAN_MONTHLY_TOKENS=100
+DUCKDUCKGO_PROXY_URL=
 ```
 
 #### Frontend (.env.local)
@@ -103,6 +125,8 @@ FRONTEND_URL=http://localhost:5173  # For development, use production URL in pro
 ```env
 VITE_API_URL=http://localhost:5000/api  # For development
 ```
+
+> A full sample is available at the repository root: `.env.example`.
 
 ## 🚀 Deployment
 
@@ -175,4 +199,3 @@ VITE_API_URL=http://localhost:5000/api  # For development
 ## 📄 License
 
 This project is licensed under the MIT License.
-
