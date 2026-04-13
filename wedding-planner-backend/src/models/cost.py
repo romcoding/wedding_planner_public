@@ -7,7 +7,9 @@ class Cost(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
+    # Multi-tenant FK
+    wedding_id = db.Column(db.String(36), db.ForeignKey('weddings.id'), nullable=True, index=True)
+
     name = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     category = db.Column(db.String(50), nullable=False)  # venue, catering, decoration, etc.

@@ -9,6 +9,8 @@ class Guest(db.Model):
     __tablename__ = 'guests'
     
     id = db.Column(db.Integer, primary_key=True)
+    # Multi-tenant FK — which wedding this guest belongs to (nullable for backward compat)
+    wedding_id = db.Column(db.String(36), db.ForeignKey('weddings.id'), nullable=True, index=True)
     # Primary guest information
     first_name = db.Column(db.String(100), nullable=False)
     last_name = db.Column(db.String(100), nullable=False)

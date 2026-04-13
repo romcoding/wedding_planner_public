@@ -31,6 +31,8 @@ from src.routes.agenda import agenda_bp
 from src.routes.onboarding import onboarding_bp
 from src.routes.ai import ai_bp
 from src.routes.subscriptions import subscriptions_bp
+from src.routes.weddings import weddings_bp
+from src.routes.billing import billing_bp
 
 load_dotenv()
 
@@ -181,6 +183,8 @@ def create_app():
     app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
     app.register_blueprint(ai_bp, url_prefix='/api/ai')
     app.register_blueprint(subscriptions_bp, url_prefix='/api/subscriptions')
+    app.register_blueprint(weddings_bp, url_prefix='/api/weddings')
+    app.register_blueprint(billing_bp, url_prefix='/api/billing')
     
     # In production, don't block startup on create_all; this can cause Render port-scan timeouts.
     auto_create_db = os.getenv('AUTO_CREATE_DB', 'true').lower() in ('1', 'true', 'yes', 'on')

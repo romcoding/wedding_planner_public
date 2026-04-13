@@ -2,11 +2,14 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { GuestAuthProvider, useGuestAuth } from './contexts/GuestAuthContext'
+import { WeddingProvider } from './contexts/WeddingContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { trackRouteChange } from './utils/analytics'
 import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
 import GuestThemeShell from './layouts/GuestThemeShell'
+
+// Admin pages
 import LoginPage from './pages/admin/LoginPage'
 import RegisterPage from './pages/admin/RegisterPage'
 import GuestsPage from './pages/admin/GuestsPage'
@@ -24,7 +27,16 @@ import SeatingChartPage from './pages/admin/SeatingChartPage'
 import RSVPRemindersPage from './pages/admin/RSVPRemindersPage'
 import UsersPage from './pages/admin/UsersPage'
 import QuickSetupPage from './pages/admin/QuickSetupPage'
-import PricingBillingPage from './pages/admin/PricingBillingPage'
+import BillingPage from './pages/admin/BillingPage'
+import OnboardingWizard from './pages/admin/OnboardingWizard'
+
+// Guest pages
+import GuestHome from './pages/guest/Home'
+import GuestLogin from './pages/guest/GuestLogin'
+import GuestInfo from './pages/guest/Info'
+import GuestRegister from './pages/guest/Register'
+import GuestEntry from './pages/guest/GuestEntry'
+import WeddingPortal from './pages/guest/WeddingPortal'
 
 // Moodboard loads in isolated iframe (moodboard.html) - main app never loads react-konva
 function MoodboardFrame() {
@@ -39,12 +51,6 @@ function MoodboardFrame() {
     </div>
   )
 }
-import GuestHome from './pages/guest/Home'
-import GuestLogin from './pages/guest/GuestLogin'
-import GuestInfo from './pages/guest/Info'
-import GuestRegister from './pages/guest/Register'
-import RSVP from './pages/guest/RSVP'
-import GuestEntry from './pages/guest/GuestEntry'
 
 function AdminRouteGuard({ allowRoles, user, element, fallbackTo = '/admin/guests' }) {
   if (!user) return <Navigate to="/admin/login" replace />
@@ -102,10 +108,19 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Guest Routes (Protected) */}
+      {/* ── Public: Tenant Guest Portal (/w/:slug) ── */}
+      <Route path="/w/:slug" element={<WeddingPortal />} />
+
+      {/* ── Onboarding (post-signup wizard) ── */}
+      <Route
+        path="/onboarding"
+        element={user ? <OnboardingWizard /> : <Navigate to="/admin/login" replace />}
+      />
+
+      {/* ── Guest Routes (existing portal) ── */}
       <Route path="/*" element={<GuestRoutes />} />
 
-      {/* Admin Routes (Protected) */}
+      {/* ── Admin Routes ── */}
       <Route
         path="/admin"
         element={user ? <AdminLayout /> : <Navigate to="/admin/login" replace />}
@@ -135,7 +150,7 @@ function AppRoutes() {
         <Route path="content" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ContentPage />} fallbackTo="/admin/guests" />} />
         <Route path="analytics" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<AnalyticsPage />} fallbackTo="/admin/guests" />} />
         <Route path="users" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<UsersPage />} fallbackTo="/admin/guests" />} />
-        <Route path="billing" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<PricingBillingPage />} fallbackTo="/admin/guests" />} />
+        <Route path="billing" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<BillingPage />} fallbackTo="/admin/guests" />} />
         <Route path="setup" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin', 'planner']} element={<QuickSetupPage />} fallbackTo="/admin/guests" />} />
       </Route>
 
@@ -155,7 +170,9 @@ function App() {
   return (
     <AuthProvider>
       <GuestAuthProvider>
-        <AppRoutes />
+        <WeddingProvider>
+          <AppRoutes />
+        </WeddingProvider>
       </GuestAuthProvider>
     </AuthProvider>
   )
