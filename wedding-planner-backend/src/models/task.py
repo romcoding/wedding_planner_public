@@ -7,7 +7,9 @@ class Task(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
+    # Multi-tenant FK
+    wedding_id = db.Column(db.String(36), db.ForeignKey('weddings.id'), nullable=True, index=True)
+
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text)
     priority = db.Column(db.String(20), default='medium')  # low, medium, high, urgent

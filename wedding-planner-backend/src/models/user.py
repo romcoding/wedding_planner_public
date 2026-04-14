@@ -13,6 +13,8 @@ class User(db.Model):
     role = db.Column(db.String(20), default='admin', nullable=False)  # guest, vendor, planner, admin, super_admin
     is_active = db.Column(db.Boolean, default=True, nullable=False)  # Can be deactivated
     permissions = db.Column(db.Text)  # JSON string of additional custom permissions (optional)
+    # Multi-tenant: the wedding this user is currently managing
+    current_wedding_id = db.Column(db.String(36), db.ForeignKey('weddings.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -32,6 +34,7 @@ class User(db.Model):
             'name': self.name,
             'role': self.role,
             'is_active': self.is_active,
+            'current_wedding_id': self.current_wedding_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

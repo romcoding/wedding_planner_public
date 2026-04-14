@@ -6,7 +6,9 @@ class Content(db.Model):
     __tablename__ = 'content'
     
     id = db.Column(db.Integer, primary_key=True)
-    key = db.Column(db.String(100), unique=True, nullable=False, index=True)  # e.g., 'welcome_message', 'venue_info'
+    # Multi-tenant FK (nullable so existing single-tenant content still works)
+    wedding_id = db.Column(db.String(36), db.ForeignKey('weddings.id'), nullable=True, index=True)
+    key = db.Column(db.String(100), nullable=False, index=True)  # e.g., 'welcome_message', 'venue_info'
     title = db.Column(db.String(200))
     content = db.Column(db.Text, nullable=False)  # Legacy field, kept for backward compatibility
     # Multilingual content
