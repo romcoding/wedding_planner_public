@@ -9,6 +9,9 @@ import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
 import GuestThemeShell from './layouts/GuestThemeShell'
 
+// Auth page (unified login + register)
+import AuthPage from './pages/AuthPage'
+
 // Admin pages
 import LoginPage from './pages/admin/LoginPage'
 import RegisterPage from './pages/admin/RegisterPage'
@@ -38,7 +41,7 @@ import GuestRegister from './pages/guest/Register'
 import GuestEntry from './pages/guest/GuestEntry'
 import WeddingPortal from './pages/guest/WeddingPortal'
 
-// Moodboard loads in isolated iframe (moodboard.html) - main app never loads react-konva
+// Moodboard loads in isolated iframe
 function MoodboardFrame() {
   return (
     <div className="-m-4 lg:-m-8 min-h-[calc(100vh-2rem)]">
@@ -52,8 +55,15 @@ function MoodboardFrame() {
   )
 }
 
+function AuthGuard({ children }) {
+  const { user, loading } = useAuth()
+  if (loading) return null
+  if (!user) return <Navigate to="/auth?tab=login" replace />
+  return children
+}
+
 function AdminRouteGuard({ allowRoles, user, element, fallbackTo = '/admin/guests' }) {
-  if (!user) return <Navigate to="/admin/login" replace />
+  if (!user) return <Navigate to="/auth?tab=login" replace />
   if (!allowRoles || allowRoles.length === 0) return element
   if (allowRoles.includes(user.role)) return element
   return <Navigate to={fallbackTo} replace />
@@ -76,7 +86,7 @@ function GuestRoutes() {
         <Route element={<GuestThemeShell />}>
           <Route path="login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
           <Route path="register" element={<GuestRegister />} />
-          {/* Guest entry point - authenticates with token and redirects to /info */}
+          {/* Guest entry point — authenticates with token and redirects to /info */}
           <Route path="rsvp/:token" element={<GuestEntry />} />
           <Route element={<GuestLayout />}>
             <Route index element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
@@ -93,7 +103,6 @@ function AppRoutes() {
   const { user, loading } = useAuth()
   const location = useLocation()
 
-  // Track route changes
   useEffect(() => {
     trackRouteChange(location.pathname, document.title)
   }, [location.pathname])
@@ -111,19 +120,35 @@ function AppRoutes() {
       {/* ── Public: Tenant Guest Portal (/w/:slug) ── */}
       <Route path="/w/:slug" element={<WeddingPortal />} />
 
+      {/* ── Unified Auth Page (new) ── */}
+      <Route
+        path="/auth"
+        element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />}
+      />
+
+      {/* ── Dashboard shortcut ── */}
+      <Route
+        path="/dashboard"
+        element={
+          <AuthGuard>
+            <Navigate to={user?.role === 'planner' ? '/admin/guests' : '/admin/wedding'} replace />
+          </AuthGuard>
+        }
+      />
+
       {/* ── Onboarding (post-signup wizard) ── */}
       <Route
         path="/onboarding"
-        element={user ? <OnboardingWizard /> : <Navigate to="/admin/login" replace />}
+        element={user ? <OnboardingWizard /> : <Navigate to="/auth?tab=login" replace />}
       />
 
-      {/* ── Guest Routes (existing portal) ── */}
+      {/* ── Guest Routes (existing RSVP portal) ── */}
       <Route path="/*" element={<GuestRoutes />} />
 
       {/* ── Admin Routes ── */}
       <Route
         path="/admin"
-        element={user ? <AdminLayout /> : <Navigate to="/admin/login" replace />}
+        element={user ? <AdminLayout /> : <Navigate to="/auth?tab=login" replace />}
       >
         <Route
           index
@@ -154,13 +179,14 @@ function AppRoutes() {
         <Route path="setup" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin', 'planner']} element={<QuickSetupPage />} fallbackTo="/admin/guests" />} />
       </Route>
 
+      {/* Legacy auth redirects — keep for backward compat */}
       <Route
         path="/admin/login"
-        element={user ? <Navigate to={user?.role === 'planner' ? '/admin/guests' : '/admin/wedding'} replace /> : <LoginPage />}
+        element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth?tab=login" replace />}
       />
       <Route
         path="/admin/register"
-        element={user ? <Navigate to="/admin/wedding" replace /> : <RegisterPage />}
+        element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth?tab=register" replace />}
       />
     </Routes>
   )

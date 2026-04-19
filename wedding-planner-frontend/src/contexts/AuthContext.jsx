@@ -8,20 +8,26 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const token = localStorage.getItem('access_token')
-    const storedUser = localStorage.getItem('user')
-    
+    // Use sessionStorage — no localStorage (XSS risk)
+    const token = sessionStorage.getItem('access_token')
+    const storedUser = sessionStorage.getItem('user')
+
     if (token && storedUser) {
-      setUser(JSON.parse(storedUser))
+      try {
+        setUser(JSON.parse(storedUser))
+      } catch {
+        sessionStorage.removeItem('access_token')
+        sessionStorage.removeItem('user')
+      }
       // Verify token is still valid
       api.get('/auth/profile')
         .then((response) => {
           setUser(response.data)
-          localStorage.setItem('user', JSON.stringify(response.data))
+          sessionStorage.setItem('user', JSON.stringify(response.data))
         })
         .catch(() => {
-          localStorage.removeItem('access_token')
-          localStorage.removeItem('user')
+          sessionStorage.removeItem('access_token')
+          sessionStorage.removeItem('user')
           setUser(null)
         })
         .finally(() => setLoading(false))
@@ -34,23 +40,23 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.post('/auth/login', { email, password })
       const { access_token, user } = response.data
-      
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('user', JSON.stringify(user))
+
+      sessionStorage.setItem('access_token', access_token)
+      sessionStorage.setItem('user', JSON.stringify(user))
       setUser(user)
-      
+
       return { success: true }
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Login failed',
+        error: error.response?.data?.error || error.response?.data?.detail || 'Login failed',
       }
     }
   }
 
   const logout = () => {
-    localStorage.removeItem('access_token')
-    localStorage.removeItem('user')
+    sessionStorage.removeItem('access_token')
+    sessionStorage.removeItem('user')
     setUser(null)
   }
 
@@ -58,14 +64,16 @@ export function AuthProvider({ children }) {
     try {
       const response = await api.post('/auth/couple/register', payload)
       const { access_token, user } = response.data
-      localStorage.setItem('access_token', access_token)
-      localStorage.setItem('user', JSON.stringify(user))
+
+      sessionStorage.setItem('access_token', access_token)
+      sessionStorage.setItem('user', JSON.stringify(user))
       setUser(user)
-      return { success: true }
+
+      return { success: true, wedding: response.data.wedding }
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.error || 'Registration failed',
+        error: error.response?.data?.error || error.response?.data?.detail || 'Registration failed',
       }
     }
   }

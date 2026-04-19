@@ -1,265 +1,146 @@
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from flask import current_app
+"""
+Email service using Resend (pure Python, Pyodide-compatible).
+"""
 import os
+import logging
 
-class EmailService:
-    """Service for sending emails"""
-    
-    @staticmethod
-    def send_invitation_email(email, invitation_token, guest_name, frontend_url, template=None):
-        """Send invitation email to guest"""
-        try:
-            # Get SMTP settings from environment
-            smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-            smtp_port = int(os.getenv('SMTP_PORT', '587'))
-            smtp_user = os.getenv('SMTP_USER')
-            smtp_password = os.getenv('SMTP_PASSWORD')
-            from_email = os.getenv('SMTP_FROM_EMAIL', smtp_user)
-            
-            if not smtp_user or not smtp_password:
-                # If no SMTP configured, log and return False
-                print(f"SMTP not configured. Would send invitation to {email} with token {invitation_token}")
-                return False
-            
-            # Create message with proper content type
-            # Use 'alternative' to let email client choose best format
-            msg = MIMEMultipart('alternative')
-            
-            # Use template if provided, otherwise use default
-            if template:
-                msg['Subject'] = template.subject.replace('{guest_name}', guest_name or 'Guest')
-                html_body = template.html_content
-            else:
-                msg['Subject'] = "You're Invited to Our Wedding! 💍✨"
-                html_body = None  # Will use default template below
-            
-            msg['From'] = from_email
-            msg['To'] = email
-            # Don't set Content-Type on multipart - let it be set automatically
-            
-            # Create invitation link with tracking
-            invitation_link = f"{frontend_url}/rsvp/{invitation_token}"
-            tracking_pixel_url = f"{frontend_url}/api/invitations/track/open/{invitation_token}"
-            
-            # If using template, replace placeholders
-            if template and html_body:
-                html_body = html_body.replace('{guest_name}', guest_name or 'Guest')
-                html_body = html_body.replace('{invitation_link}', invitation_link)
-                html_body = html_body.replace('{token}', invitation_token)
-                # Add tracking pixel if not already present
-                if '<img' not in html_body or 'track/open' not in html_body:
-                    html_body += f'<img src="{tracking_pixel_url}" width="1" height="1" style="display:none;" />'
-            else:
-                # Use default template
-                html_body = f"""
-            <!DOCTYPE html>
-            <html>
-              <head>
-                <meta charset="utf-8">
-                <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <style>
-                  @media only screen and (max-width: 600px) {{
-                    .container {{ width: 100% !important; padding: 10px !important; }}
-                    .button {{ padding: 14px 28px !important; font-size: 18px !important; }}
-                    h1 {{ font-size: 36px !important; }}
-                    .header-emoji {{ font-size: 48px !important; }}
-                  }}
-                </style>
-              </head>
-              <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #f5576c 75%, #4facfe 100%); background-size: 400% 400%; animation: gradient 15s ease infinite; line-height: 1.6;">
-                <style>
-                  @keyframes gradient {{
-                    0% {{ background-position: 0% 50%; }}
-                    50% {{ background-position: 100% 50%; }}
-                    100% {{ background-position: 0% 50%; }}
-                  }}
-                </style>
-                <table role="presentation" style="width: 100%; border-collapse: collapse; padding: 40px 20px;">
-                  <tr>
-                    <td align="center" style="padding: 20px 0;">
-                      <table role="presentation" class="container" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin: 0 auto; overflow: hidden;">
-                        <!-- Header with gradient and emoji -->
-                        <tr>
-                          <td style="padding: 50px 30px; text-align: center; background: linear-gradient(135deg, #fce7f3 0%, #f3e8ff 50%, #e0e7ff 100%); border-radius: 20px 20px 0 0; position: relative; overflow: hidden;">
-                            <div class="header-emoji" style="font-size: 64px; margin-bottom: 10px; animation: bounce 2s ease-in-out infinite;">💍✨</div>
-                            <h1 style="margin: 0; color: #d63384; font-size: 48px; font-weight: 800; letter-spacing: -1px; text-shadow: 2px 2px 4px rgba(214, 51, 132, 0.2);">You're Invited!</h1>
-                            <p style="margin: 10px 0 0; color: #764ba2; font-size: 20px; font-weight: 500;">Join us for our special celebration</p>
-                            <style>
-                              @keyframes bounce {{
-                                0%, 100% {{ transform: translateY(0); }}
-                                50% {{ transform: translateY(-10px); }}
-                              }}
-                            </style>
-                          </td>
-                        </tr>
-                        <!-- Decorative divider -->
-                        <tr>
-                          <td style="padding: 0 30px;">
-                            <div style="text-align: center; font-size: 24px; color: #d63384; opacity: 0.3; letter-spacing: 10px;">✦ ✧ ✦ ✧ ✦</div>
-                          </td>
-                        </tr>
-                        <!-- Main content -->
-                        <tr>
-                          <td style="padding: 40px 30px;">
-                            <p style="margin: 0 0 20px; color: #333333; font-size: 18px; font-weight: 600;">Dear {guest_name or 'Guest'},</p>
-                            <p style="margin: 0 0 20px; color: #555555; font-size: 16px; line-height: 1.8;">We're absolutely <span style="color: #d63384; font-weight: 600;">thrilled</span> to invite you to celebrate our special day with us! 🎉</p>
-                            <p style="margin: 0 0 20px; color: #555555; font-size: 16px; line-height: 1.8;">Your presence would make our celebration even more meaningful and joyful.</p>
-                            <div style="background: linear-gradient(135deg, #fff5f5 0%, #fef5ff 100%); padding: 20px; border-radius: 12px; margin: 20px 0; border-left: 4px solid #d63384;">
-                              <p style="margin: 0 0 10px; color: #333333; font-size: 16px; font-weight: 600;">📅 What to expect:</p>
-                              <ul style="margin: 0; padding-left: 20px; color: #555555; font-size: 15px; line-height: 1.8;">
-                                <li>A beautiful ceremony filled with love and joy</li>
-                                <li>Delicious food and drinks to celebrate together</li>
-                                <li>Dancing and music to make memories</li>
-                                <li>An unforgettable evening with friends and family</li>
-                              </ul>
-                            </div>
-                            <p style="margin: 20px 0 30px; color: #555555; font-size: 16px; line-height: 1.8;">Please click the button below to register and RSVP:</p>
-                          </td>
-                        </tr>
-                        <!-- CTA Button -->
-                        <tr>
-                          <td align="center" style="padding: 0 30px 30px;">
-                            <a href="{invitation_link}" 
-                               class="button"
-                               style="background: linear-gradient(135deg, #d63384 0%, #f5576c 100%); color: #ffffff; padding: 18px 50px; text-decoration: none; border-radius: 50px; display: inline-block; font-weight: 700; font-size: 20px; letter-spacing: 0.5px; box-shadow: 0 8px 20px rgba(214, 51, 132, 0.4); transition: all 0.3s ease; text-transform: uppercase;">
-                              ✨ Register & RSVP ✨
-                            </a>
-                          </td>
-                        </tr>
-                        <!-- Alternative link -->
-                        <tr>
-                          <td style="padding: 0 30px 30px;">
-                            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 10px; border-left: 4px solid #d63384;">
-                              <p style="margin: 0 0 10px; color: #666666; font-size: 14px; font-weight: 600;">Or copy and paste this link:</p>
-                              <p style="margin: 0; word-break: break-all; color: #0066cc; font-size: 13px; line-height: 1.6; font-family: monospace;">{invitation_link}</p>
-                            </div>
-                          </td>
-                        </tr>
-                        <!-- Info boxes -->
-                        <tr>
-                          <td style="padding: 0 30px 30px;">
-                            <div style="display: table; width: 100%; border-collapse: separate; border-spacing: 15px;">
-                              <div style="display: table-cell; width: 50%; background: linear-gradient(135deg, #fff5f5 0%, #fef5ff 100%); padding: 20px; border-radius: 12px; vertical-align: top; border: 2px solid #fce7f3;">
-                                <div style="font-size: 32px; margin-bottom: 10px;">💐</div>
-                                <p style="margin: 0 0 5px; color: #333333; font-size: 14px; font-weight: 600;">Dress Code</p>
-                                <p style="margin: 0; color: #666666; font-size: 13px;">Elegant & festive</p>
-                              </div>
-                              <div style="display: table-cell; width: 50%; background: linear-gradient(135deg, #f0f9ff 0%, #e0e7ff 100%); padding: 20px; border-radius: 12px; vertical-align: top; border: 2px solid #e0e7ff;">
-                                <div style="font-size: 32px; margin-bottom: 10px;">🎁</div>
-                                <p style="margin: 0 0 5px; color: #333333; font-size: 14px; font-weight: 600;">Gifts</p>
-                                <p style="margin: 0; color: #666666; font-size: 13px;">Your presence is the best gift</p>
-                              </div>
-                            </div>
-                          </td>
-                        </tr>
-                        <!-- Closing message -->
-                        <tr>
-                          <td style="padding: 0 30px 40px; text-align: center;">
-                            <p style="margin: 0 0 15px; color: #333333; font-size: 18px; font-weight: 600;">We can't wait to celebrate with you! 🎊</p>
-                            <p style="margin: 0; color: #666666; font-size: 16px;">Looking forward to sharing this beautiful moment together.</p>
-                            <div style="margin-top: 20px; font-size: 20px; color: #d63384;">💕 ✨ 💕</div>
-                          </td>
-                        </tr>
-                        <!-- Footer -->
-                        <tr>
-                          <td style="padding: 30px; border-top: 2px solid #f0f0f0; text-align: center; background: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);">
-                            <p style="margin: 0 0 10px; color: #666666; font-size: 16px; font-style: italic;">With love and joy,</p>
-                            <p style="margin: 0; color: #d63384; font-size: 20px; font-weight: 700; letter-spacing: 1px;">💕 The Happy Couple 💕</p>
-                            <div style="margin-top: 20px; font-size: 24px; letter-spacing: 5px;">✨ 🎉 💐 🎊 ✨</div>
-                          </td>
-                        </tr>
-                      </table>
-                    </td>
-                  </tr>
-                </table>
-                <!-- Tracking pixel -->
-                <img src="{tracking_pixel_url}" width="1" height="1" style="display:none;" />
-              </body>
-            </html>
-            """
-            
-            # Plain text version
-            text_body = f"""
-            You're Invited!
-            
-            Dear {guest_name or 'Guest'},
-            
-            We're thrilled to invite you to celebrate our special day with us!
-            
-            Please visit the following link to register and RSVP:
-            {invitation_link}
-            
-            We can't wait to celebrate with you!
-            
-            With love,
-            The Happy Couple
-            """
-            
-            # Attach both versions (plain text first, then HTML)
-            # Email clients will prefer HTML if both are present
-            # Order matters: plain text first, then HTML
-            text_part = MIMEText(text_body, 'plain', 'utf-8')
-            text_part.set_charset('utf-8')
-            msg.attach(text_part)
-            
-            html_part = MIMEText(html_body, 'html', 'utf-8')
-            html_part.set_charset('utf-8')
-            # Set Content-Type explicitly for HTML part
-            html_part.replace_header('Content-Type', 'text/html; charset=utf-8')
-            msg.attach(html_part)
-            
-            # Send email
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.send_message(msg)
-            
-            return True
-        except Exception as e:
-            print(f"Error sending email to {email}: {str(e)}")
-            return False
-    
-    @staticmethod
-    def send_notification_email(email, subject, message, frontend_url=None):
-        """Send a general notification email"""
-        try:
-            smtp_host = os.getenv('SMTP_HOST', 'smtp.gmail.com')
-            smtp_port = int(os.getenv('SMTP_PORT', '587'))
-            smtp_user = os.getenv('SMTP_USER')
-            smtp_password = os.getenv('SMTP_PASSWORD')
-            from_email = os.getenv('SMTP_FROM_EMAIL', smtp_user)
-            
-            if not smtp_user or not smtp_password:
-                print(f"SMTP not configured. Would send notification to {email}")
-                return False
-            
-            msg = MIMEMultipart('alternative')
-            msg['Subject'] = subject
-            msg['From'] = from_email
-            msg['To'] = email
-            
-            html_body = f"""
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-                  {message}
-                </div>
-              </body>
-            </html>
-            """
-            
-            msg.attach(MIMEText(message, 'plain'))
-            msg.attach(MIMEText(html_body, 'html'))
-            
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_user, smtp_password)
-                server.send_message(msg)
-            
-            return True
-        except Exception as e:
-            print(f"Error sending notification email: {str(e)}")
-            return False
+logger = logging.getLogger(__name__)
 
+RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
+FROM_EMAIL = os.environ.get("FROM_EMAIL", "noreply@wedding-planner.app")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+
+async def _send_via_resend(to: str, subject: str, html: str) -> bool:
+    """Send email via Resend API using httpx."""
+    if not RESEND_API_KEY:
+        logger.info(f"[email] RESEND_API_KEY not set, skipping email to {to}")
+        return False
+    try:
+        import httpx
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
+            json={"from": FROM_EMAIL, "to": [to], "subject": subject, "html": html},
+            timeout=10.0,
+        )
+        response.raise_for_status()
+        return True
+    except Exception as e:
+        logger.error(f"Failed to send email to {to}: {e}")
+        return False
+
+
+async def send_welcome_email(email: str, couple_name: str, slug: str) -> bool:
+    """Send welcome email to a newly registered couple."""
+    dashboard_url = f"{FRONTEND_URL}/admin/wedding"
+    portal_url = f"{FRONTEND_URL}/w/{slug}"
+    subject = f"Welcome to Wedding Planner, {couple_name}!"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <h1 style="color: #d63384; font-size: 32px; margin: 0;">💍 Welcome!</h1>
+        <p style="color: #666; font-size: 18px; margin-top: 8px;">Your wedding OS is ready</p>
+      </div>
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">
+        Congratulations, {couple_name}! Your wedding planning dashboard is set up and ready to go.
+      </p>
+      <div style="background: #fdf4ff; border-radius: 12px; padding: 24px; margin: 24px 0;">
+        <p style="margin: 0 0 16px; font-weight: 600; color: #333;">Get started:</p>
+        <ul style="margin: 0; padding-left: 20px; color: #555; line-height: 2;">
+          <li>Add your guests and send invitations</li>
+          <li>Track your budget and costs</li>
+          <li>Manage tasks and timeline</li>
+          <li>Share your guest portal: <a href="{portal_url}" style="color: #d63384;">{portal_url}</a></li>
+        </ul>
+      </div>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{dashboard_url}"
+           style="background: #d63384; color: white; padding: 14px 32px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
+          Open Dashboard
+        </a>
+      </div>
+      <p style="color: #999; font-size: 14px; text-align: center; margin-top: 32px;">
+        Wedding Planner — AI Wedding OS
+      </p>
+    </body>
+    </html>
+    """
+    return await _send_via_resend(email, subject, html)
+
+
+async def send_plan_upgrade_email(email: str, couple_name: str, new_plan: str) -> bool:
+    """Send confirmation email when a couple upgrades their plan."""
+    plan_display = new_plan.capitalize()
+    subject = f"You're now on the {plan_display} plan!"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <h1 style="color: #d63384; font-size: 28px;">Plan Upgraded! 🎉</h1>
+      </div>
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">
+        Hi {couple_name}, your plan has been upgraded to <strong>{plan_display}</strong>.
+        Enjoy your new features!
+      </p>
+      <p style="color: #999; font-size: 14px; text-align: center; margin-top: 32px;">
+        Wedding Planner — AI Wedding OS
+      </p>
+    </body>
+    </html>
+    """
+    return await _send_via_resend(email, subject, html)
+
+
+async def send_invitation_email(
+    email: str,
+    token: str,
+    guest_name: str,
+    frontend_url: str,
+    template=None,
+) -> bool:
+    """Send RSVP invitation email to a guest."""
+    invitation_link = f"{frontend_url}/rsvp/{token}"
+    subject = "You're Invited to Our Wedding! 💍✨"
+
+    if template:
+        subject = getattr(template, "subject", subject).replace("{guest_name}", guest_name or "Guest")
+        html = getattr(template, "html_content", "").replace("{guest_name}", guest_name or "Guest")
+        html = html.replace("{invitation_link}", invitation_link)
+    else:
+        html = f"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+          <div style="text-align: center; background: linear-gradient(135deg, #fce7f3, #f3e8ff); padding: 40px; border-radius: 16px; margin-bottom: 24px;">
+            <div style="font-size: 48px; margin-bottom: 16px;">💍✨</div>
+            <h1 style="color: #d63384; margin: 0; font-size: 36px;">You're Invited!</h1>
+            <p style="color: #764ba2; font-size: 18px; margin-top: 8px;">Join us for our special celebration</p>
+          </div>
+          <p style="color: #333; font-size: 16px; line-height: 1.6;">Dear {guest_name or "Guest"},</p>
+          <p style="color: #555; font-size: 16px; line-height: 1.6;">
+            We're thrilled to invite you to celebrate our wedding! Please click below to RSVP.
+          </p>
+          <div style="text-align: center; margin: 32px 0;">
+            <a href="{invitation_link}"
+               style="background: linear-gradient(135deg, #d63384, #f5576c); color: white;
+                      padding: 16px 40px; border-radius: 50px; text-decoration: none;
+                      font-weight: 700; font-size: 18px; display: inline-block;">
+              ✨ RSVP Now ✨
+            </a>
+          </div>
+          <p style="color: #999; font-size: 13px; text-align: center;">
+            Or copy: <a href="{invitation_link}" style="color: #d63384;">{invitation_link}</a>
+          </p>
+          <p style="color: #d63384; font-size: 18px; text-align: center; margin-top: 32px;">
+            💕 With love, The Happy Couple 💕
+          </p>
+        </body>
+        </html>
+        """
+
+    return await _send_via_resend(email, subject, html)

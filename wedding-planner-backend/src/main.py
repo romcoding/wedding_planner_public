@@ -1,211 +1,95 @@
-from flask import Flask, jsonify
-from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from dotenv import load_dotenv
-import os
-import logging
-from urllib.parse import urlparse, parse_qsl, urlencode, urlunparse
-from src.models import db
-from src.routes.auth import auth_bp
-from src.routes.guest_auth import guest_auth_bp
-from src.routes.guests import guests_bp
-from src.routes.tasks import tasks_bp
-from src.routes.costs import costs_bp
-from src.routes.content import content_bp
-from src.routes.analytics import analytics_bp
-from src.routes.images import images_bp
-from src.routes.invitations import invitations_bp
-from src.routes.events import events_bp
-from src.routes.messages import messages_bp
-from src.routes.gift_registry import gift_registry_bp
-from src.routes.guest_photos import guest_photos_bp
-from src.routes.venues import venues_bp
-from src.routes.seating import seating_bp
-from src.routes.rsvp_reminders import reminders_bp
-from src.routes.users import users_bp
-from src.routes.venue_offers import offers_bp
-from src.routes.venue_documents import documents_bp
-from src.routes.venue_chat import chat_bp
-from src.routes.moodboards import moodboards_bp
-from src.routes.agenda import agenda_bp
-from src.routes.onboarding import onboarding_bp
-from src.routes.ai import ai_bp
-from src.routes.subscriptions import subscriptions_bp
-from src.routes.weddings import weddings_bp
-from src.routes.billing import billing_bp
+"""
+Wedding Planner API — FastAPI on Cloudflare Python Workers.
+"""
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()
+# Route imports
+from routes.auth_routes import router as auth_router
+from routes.guest_routes import router as guest_router
+from routes.guest_auth_routes import router as guest_auth_router
+from routes.wedding_routes import router as wedding_router
+from routes.task_routes import router as task_router
+from routes.cost_routes import router as cost_router
+from routes.content_routes import router as content_router
+from routes.analytics_routes import router as analytics_router
+from routes.billing_routes import router as billing_router
+from routes.ai_routes import router as ai_router
+from routes.invitation_routes import router as invitation_router
+from routes.event_routes import router as event_router
+from routes.message_routes import router as message_router
+from routes.gift_registry_routes import router as gift_registry_router
+from routes.guest_photo_routes import router as guest_photo_router
+from routes.venue_routes import router as venue_router
+from routes.seating_routes import router as seating_router
+from routes.rsvp_reminder_routes import router as rsvp_reminder_router
+from routes.user_routes import router as user_router
+from routes.moodboard_routes import router as moodboard_router
+from routes.agenda_routes import router as agenda_router
+from routes.onboarding_routes import router as onboarding_router
+from routes.subscription_routes import router as subscription_router
+from routes.image_routes import router as image_router
 
-def create_app():
-    app = Flask(__name__)
-    
-    # Configure logging
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        force=True  # Force reconfiguration
+app = FastAPI(title="Wedding Planner API", version="2.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Tighten to CF Pages URL after first deploy
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def inject_cloudflare_env(request: Request, call_next):
+    """
+    Cloudflare Workers injects the env (D1 bindings, secrets) via the ASGI scope.
+    We extract it and store on request.state so dependencies can access it.
+    """
+    scope = request.scope
+    env = (
+        scope.get("extensions", {}).get("cloudflare", {}).get("env")
+        or scope.get("cf", {}).get("env")
+        or scope.get("env")
     )
-    
-    # Get logger after configuration
-    logger = logging.getLogger(__name__)
-    
-    # Configuration
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-in-production')
-    # Tokens expire on 31 Dec 2026 – compute remaining time from now
-    from datetime import datetime, timedelta, timezone
-    _token_deadline = datetime(2026, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
-    _remaining = _token_deadline - datetime.now(timezone.utc)
-    app.config['JWT_ACCESS_TOKEN_EXPIRES'] = _remaining if _remaining.total_seconds() > 0 else timedelta(hours=1)
-    
-    # Upload limits (Render free tier can 502 if requests run too long; keep uploads reasonable)
-    # Default 25MB; can override via MAX_UPLOAD_MB env var.
-    try:
-        max_upload_mb = int(os.getenv('MAX_UPLOAD_MB', '25'))
-    except ValueError:
-        max_upload_mb = 25
-    app.config['MAX_CONTENT_LENGTH'] = max_upload_mb * 1024 * 1024
-    
-    # Database configuration
-    database_url = os.getenv('DATABASE_URL')
-    if database_url:
-        # Render PostgreSQL connection string format
-        if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql://', 1)
-        # Avoid very long startup hangs if DB is cold/unreachable.
-        if not database_url.startswith('sqlite'):
-            parsed = urlparse(database_url)
-            params = dict(parse_qsl(parsed.query))
-            params.setdefault('connect_timeout', '10')
-            database_url = urlunparse(parsed._replace(query=urlencode(params)))
-        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    else:
-        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///wedding_planner.db'
-    
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    is_sqlite = str(app.config['SQLALCHEMY_DATABASE_URI']).startswith('sqlite')
-    if is_sqlite:
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            'pool_pre_ping': True,
-        }
-    else:
-        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-            'pool_pre_ping': True,     # Test connections before using them
-            'pool_recycle': 300,       # Recycle connections every 5 minutes
-            'pool_size': 5,            # Max pool connections
-            'max_overflow': 10,        # Extra connections under load
-        }
-    
-    # CORS configuration
-    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    # Build list of allowed origins
-    allowed_origins = [frontend_url]
-    
-    # Add Vercel deployment URL if provided
-    vercel_url = os.getenv('VERCEL_URL')
-    if vercel_url and not vercel_url.startswith('http'):
-        vercel_url = f'https://{vercel_url}'
-    if vercel_url and vercel_url not in allowed_origins:
-        allowed_origins.append(vercel_url)
-    
-    # Always allow known production frontends
-    for origin in (
-        'https://weddingplanner-mu.vercel.app',
-        'https://rovi.studio',
-    ):
-        if origin not in allowed_origins:
-            allowed_origins.append(origin)
+    if env is not None:
+        request.state.env = env
+    return await call_next(request)
 
-    # Optional extra origins (comma-separated env, e.g. CORS_EXTRA_ORIGINS=https://other.app)
-    extra = os.getenv('CORS_EXTRA_ORIGINS', '')
-    for origin in (o.strip() for o in extra.split(',') if o.strip()):
-        if origin not in allowed_origins:
-            allowed_origins.append(origin)
-    
-    # Remove duplicates and None values
-    allowed_origins = list(set([origin for origin in allowed_origins if origin]))
-    
-    logger.info(f"CORS allowed origins: {allowed_origins}")
-    
-    # Single CORS policy for all routes (including analytics): explicit origins + credentials
-    CORS(app,
-         origins=allowed_origins,
-         supports_credentials=True,
-         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-         allow_headers=['Content-Type', 'Authorization'],
-         expose_headers=['Content-Length', 'Content-Type'],
-         always_send=True)  # Always send CORS headers, even on errors
-    
-    # Initialize extensions
-    db.init_app(app)
-    jwt = JWTManager(app)
-    
-    # Add error handlers for JWT
-    @jwt.expired_token_loader
-    def expired_token_callback(jwt_header, jwt_payload):
-        return jsonify({'error': 'Token has expired'}), 401
-    
-    @jwt.invalid_token_loader
-    def invalid_token_callback(error):
-        import logging
-        logging.error(f'Invalid JWT token: {str(error)}')
-        return jsonify({'error': f'Invalid token: {str(error)}'}), 401
-    
-    @jwt.unauthorized_loader
-    def missing_token_callback(error):
-        import logging
-        logging.error(f'Missing JWT token: {str(error)}')
-        return jsonify({'error': 'Authorization token is missing'}), 401
-    
-    # Register blueprints
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(guest_auth_bp, url_prefix='/api/guest-auth')
-    app.register_blueprint(guests_bp, url_prefix='/api/guests')
-    app.register_blueprint(tasks_bp, url_prefix='/api/tasks')
-    app.register_blueprint(costs_bp, url_prefix='/api/costs')
-    app.register_blueprint(content_bp, url_prefix='/api/content')
-    app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
-    app.register_blueprint(images_bp, url_prefix='')
-    app.register_blueprint(invitations_bp, url_prefix='/api/invitations')
-    app.register_blueprint(events_bp, url_prefix='/api/events')
-    app.register_blueprint(messages_bp, url_prefix='/api/messages')
-    app.register_blueprint(gift_registry_bp, url_prefix='/api/gift-registry')
-    app.register_blueprint(guest_photos_bp, url_prefix='/api/guest-photos')
-    app.register_blueprint(venues_bp, url_prefix='/api/venues')
-    app.register_blueprint(offers_bp, url_prefix='/api')
-    app.register_blueprint(documents_bp, url_prefix='/api')
-    app.register_blueprint(chat_bp, url_prefix='/api')
-    app.register_blueprint(seating_bp, url_prefix='/api/seating')
-    app.register_blueprint(reminders_bp, url_prefix='/api/rsvp-reminders')
-    app.register_blueprint(users_bp, url_prefix='/api/users')
-    app.register_blueprint(moodboards_bp, url_prefix='')
-    app.register_blueprint(agenda_bp, url_prefix='/api/agenda')
-    app.register_blueprint(onboarding_bp, url_prefix='/api/onboarding')
-    app.register_blueprint(ai_bp, url_prefix='/api/ai')
-    app.register_blueprint(subscriptions_bp, url_prefix='/api/subscriptions')
-    app.register_blueprint(weddings_bp, url_prefix='/api/weddings')
-    app.register_blueprint(billing_bp, url_prefix='/api/billing')
-    
-    # In production, don't block startup on create_all; this can cause Render port-scan timeouts.
-    auto_create_db = os.getenv('AUTO_CREATE_DB', 'true').lower() in ('1', 'true', 'yes', 'on')
-    if auto_create_db:
-        try:
-            with app.app_context():
-                db.create_all()
-        except Exception as exc:
-            logger.exception("Database initialization failed during startup: %s", exc)
-            if os.getenv('FLASK_ENV') != 'production':
-                raise
-    else:
-        logger.info("Skipping automatic db.create_all() because AUTO_CREATE_DB is disabled.")
-    
-    @app.route('/api/health')
-    def health():
-        return {'status': 'ok'}, 200
-    
-    return app
 
-if __name__ == '__main__':
-    app = create_app()
-    port = int(os.getenv('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=os.getenv('FLASK_ENV') == 'development')
+# Health check
+@app.get("/api/health")
+async def health():
+    return {"status": "ok"}
+
+
+# Auth
+app.include_router(auth_router, prefix="/api/auth")
+app.include_router(guest_auth_router, prefix="/api/guest-auth")
+
+# Core tenant routes
+app.include_router(wedding_router, prefix="/api/weddings")
+app.include_router(guest_router, prefix="/api/guests")
+app.include_router(task_router, prefix="/api/tasks")
+app.include_router(cost_router, prefix="/api/costs")
+app.include_router(content_router, prefix="/api/content")
+app.include_router(analytics_router, prefix="/api/analytics")
+app.include_router(billing_router, prefix="/api/billing")
+app.include_router(ai_router, prefix="/api/ai")
+
+# Additional feature routes
+app.include_router(invitation_router, prefix="/api/invitations")
+app.include_router(event_router, prefix="/api/events")
+app.include_router(message_router, prefix="/api/messages")
+app.include_router(gift_registry_router, prefix="/api/gift-registry")
+app.include_router(guest_photo_router, prefix="/api/guest-photos")
+app.include_router(venue_router, prefix="/api/venues")
+app.include_router(seating_router, prefix="/api/seating")
+app.include_router(rsvp_reminder_router, prefix="/api/rsvp-reminders")
+app.include_router(user_router, prefix="/api/users")
+app.include_router(moodboard_router)  # Has own /api/moodboards prefix in routes
+app.include_router(agenda_router, prefix="/api/agenda")
+app.include_router(onboarding_router, prefix="/api/onboarding")
+app.include_router(subscription_router, prefix="/api/subscriptions")
+app.include_router(image_router)  # Has own /api/images prefix in routes
