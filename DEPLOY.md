@@ -61,7 +61,7 @@ npx wrangler secret put FROM_EMAIL --name wedding-planner-api
 
 ```bash
 cd wedding-planner-backend
-npx wrangler deploy
+uv run pywrangler deploy
 ```
 
 Note the deployed URL, e.g. `https://wedding-planner-api.romcoding.workers.dev`
@@ -124,5 +124,5 @@ allow_origins=["https://wedding-planner-frontend.romcoding.workers.dev"],
 Redeploy the backend:
 
 ```bash
-cd wedding-planner-backend && npx wrangler deploy
+cd wedding-planner-backend && uv run pywrangler deploy
 ```

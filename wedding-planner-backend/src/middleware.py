@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, Depends
-from src.auth import require_admin_auth
+from src.auth import require_admin_auth, decode_token
 
 PLAN_ORDER = {"free": 0, "starter": 1, "premium": 2}
 
@@ -30,10 +30,29 @@ PLAN_LIMITS = {
 
 async def get_db(request: Request):
     """Dependency: return D1 database binding from Cloudflare Workers env."""
-    env = getattr(request.state, "env", None)
-    if env is None:
-        raise HTTPException(500, "Database binding not available")
-    return env.DB
+    return request.scope["env"].DB
+
+
+async def get_env(request: Request):
+    """Dependency: return the full CF Workers env object."""
+    return request.scope["env"]
+
+
+async def get_current_user(request: Request, db=Depends(get_db)):
+    """Validates Bearer JWT and returns decoded payload."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        raise HTTPException(401, "Missing token")
+    try:
+        payload = decode_token(auth.split(" ", 1)[1])
+        return payload
+    except Exception:
+        raise HTTPException(401, "Invalid token")
+
+
+async def get_wedding_db(current_user=Depends(get_current_user)):
+    """Returns the wedding_id from the current JWT."""
+    return current_user["wedding_id"]
 
 
 async def get_wedding(

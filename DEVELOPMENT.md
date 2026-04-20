@@ -40,7 +40,7 @@ cd wedding-planner-backend
 npx wrangler d1 execute wedding-planner-db --local --file=schema.sql
 
 # Run local worker
-npx wrangler dev --local --port 8787
+uv run pywrangler dev
 ```
 
 API available at: `http://localhost:8787`

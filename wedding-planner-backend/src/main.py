@@ -1,8 +1,10 @@
 """
 Wedding Planner API — FastAPI on Cloudflare Python Workers.
 """
-from fastapi import FastAPI, Request
+from workers import WorkerEntrypoint
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import asgi
 
 # Route imports
 from routes.auth_routes import router as auth_router
@@ -30,6 +32,11 @@ from routes.onboarding_routes import router as onboarding_router
 from routes.subscription_routes import router as subscription_router
 from routes.image_routes import router as image_router
 
+class Default(WorkerEntrypoint):
+    async def fetch(self, request):
+        return await asgi.fetch(app, request, self.env)
+
+
 app = FastAPI(title="Wedding Planner API", version="2.0.0")
 
 app.add_middleware(
@@ -39,23 +46,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-@app.middleware("http")
-async def inject_cloudflare_env(request: Request, call_next):
-    """
-    Cloudflare Workers injects the env (D1 bindings, secrets) via the ASGI scope.
-    We extract it and store on request.state so dependencies can access it.
-    """
-    scope = request.scope
-    env = (
-        scope.get("extensions", {}).get("cloudflare", {}).get("env")
-        or scope.get("cf", {}).get("env")
-        or scope.get("env")
-    )
-    if env is not None:
-        request.state.env = env
-    return await call_next(request)
 
 
 # Health check
