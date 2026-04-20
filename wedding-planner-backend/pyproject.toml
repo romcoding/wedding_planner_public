@@ -1,0 +1,17 @@
+[project]
+name = "wedding-planner-api"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "pyjwt",
+    "passlib",
+    "resend",
+    "httpx"
+]
+
+[dependency-groups]
+dev = [
+    "workers-py",
+    "workers-runtime-sdk"
+]

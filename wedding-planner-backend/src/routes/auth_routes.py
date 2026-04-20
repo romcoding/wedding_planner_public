@@ -1,6 +1,6 @@
 import uuid
 import re
-import bcrypt
+from passlib.hash import pbkdf2_sha256
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from src.auth import create_token, create_guest_token, require_admin_auth, decode_token
@@ -54,10 +54,10 @@ async def _ensure_unique_slug(db, base_slug: str) -> str:
         counter += 1
 
 def _hash_password(password: str) -> str:
-    return bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
+    return pbkdf2_sha256.hash(password)
 
 def _check_password(password: str, hashed: str) -> bool:
-    return bcrypt.checkpw(password.encode(), hashed.encode())
+    return pbkdf2_sha256.verify(password, hashed)
 
 
 # ---------- Routes ----------
@@ -118,34 +118,27 @@ async def register_couple(body: RegisterBody, request: Request):
             pass
 
     user_id = str(uuid.uuid4())
+    wedding_id = str(uuid.uuid4())
     password_hash = _hash_password(body.password)
     couple_name = f"{partner_one} & {partner_two}"
 
-    # 1. Create user
-    await db.prepare(
-        "INSERT INTO users (id, email, password_hash, name, role, is_active, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, 'admin', 1, datetime('now'), datetime('now'))"
-    ).bind(user_id, email, password_hash, couple_name).run()
-
-    # 2. Generate unique slug
+    # Generate unique slug before batch
     base_slug = _generate_slug(partner_one, partner_two, year)
     slug = await _ensure_unique_slug(db, base_slug)
-    wedding_id = str(uuid.uuid4())
 
-    # 3. Create wedding
-    await db.prepare(
-        "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
-        "wedding_date, location, plan, is_active, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
-    ).bind(
-        wedding_id, slug, user_id, partner_one, partner_two,
-        body.wedding_date, body.location
-    ).run()
-
-    # 4. Link wedding to user
-    await db.prepare(
-        "UPDATE users SET current_wedding_id = ?, updated_at = datetime('now') WHERE id = ?"
-    ).bind(wedding_id, user_id).run()
+    # Atomically create user (with wedding link) + wedding in one batch
+    await db.batch([
+        db.prepare(
+            "INSERT INTO users (id, email, password_hash, name, role, is_active, "
+            "current_wedding_id, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, 'admin', 1, ?, datetime('now'), datetime('now'))"
+        ).bind(user_id, email, password_hash, couple_name, wedding_id),
+        db.prepare(
+            "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
+            "wedding_date, location, plan, is_active, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
+        ).bind(wedding_id, slug, user_id, partner_one, partner_two, body.wedding_date, body.location),
+    ])
 
     token = create_token(user_id, wedding_id, "admin")
 
