@@ -64,6 +64,7 @@ export default function AdminLayout() {
         { path: '/admin/events', icon: Calendar, label: 'Timeline' },
         { path: '/admin/venues', icon: MapPin, label: 'Venues' },
         { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
+        { path: '/admin/webpage', icon: ImageIcon, label: 'Guest Website Builder' },
         { path: '/admin/billing', icon: CreditCard, label: 'Billing' },
       ]
     : [
