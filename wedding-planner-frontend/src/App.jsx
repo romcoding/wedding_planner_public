@@ -40,6 +40,7 @@ import GuestInfo from './pages/guest/Info'
 import GuestRegister from './pages/guest/Register'
 import GuestEntry from './pages/guest/GuestEntry'
 import WeddingPortal from './pages/guest/WeddingPortal'
+import PublicLandingPage from './pages/PublicLandingPage'
 
 // Moodboard loads in isolated iframe
 function MoodboardFrame() {
@@ -84,14 +85,14 @@ function GuestRoutes() {
     <LanguageProvider initialLanguage={guest?.language || 'en'}>
       <Routes>
         <Route element={<GuestThemeShell />}>
-          <Route path="login" element={guest ? <Navigate to="/" replace /> : <GuestLogin />} />
+          <Route path="login" element={guest ? <Navigate to="/guest" replace /> : <GuestLogin />} />
           <Route path="register" element={<GuestRegister />} />
           {/* Guest entry point — authenticates with token and redirects to /info */}
           <Route path="rsvp/:token" element={<GuestEntry />} />
           <Route element={<GuestLayout />}>
-            <Route index element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
-            <Route path="home" element={guest ? <GuestHome /> : <Navigate to="/login" replace />} />
-            <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/login" replace />} />
+            <Route index element={guest ? <GuestInfo /> : <Navigate to="/guest/login" replace />} />
+            <Route path="home" element={guest ? <GuestHome /> : <Navigate to="/guest/login" replace />} />
+            <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/guest/login" replace />} />
           </Route>
         </Route>
       </Routes>
@@ -142,8 +143,11 @@ function AppRoutes() {
         element={user ? <OnboardingWizard /> : <Navigate to="/auth?tab=login" replace />}
       />
 
+      {/* ── Public Landing ── */}
+      <Route path="/" element={<PublicLandingPage />} />
+
       {/* ── Guest Routes (existing RSVP portal) ── */}
-      <Route path="/*" element={<GuestRoutes />} />
+      <Route path="/guest/*" element={<GuestRoutes />} />
 
       {/* ── Admin Routes ── */}
       <Route

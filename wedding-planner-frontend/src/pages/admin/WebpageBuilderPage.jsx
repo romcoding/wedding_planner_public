@@ -181,6 +181,7 @@ export default function WebpageBuilderPage() {
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Webpage Builder</h1>
           <p className="text-gray-600">Drag/reorder sections and edit content. Changes auto-save.</p>
+          <p className="text-sm text-purple-700 mt-1">Use Clawed Bot to set up and edit the guest website with natural-language commands.</p>
         </div>
         <button className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg" onClick={() => saveMutation.mutate(savePayload)}>
           <Save className="h-4 w-4" /> Save now
@@ -225,9 +226,9 @@ export default function WebpageBuilderPage() {
           </div>
 
           <div className="bg-white border rounded-xl p-4">
-            <div className="flex items-center gap-2 mb-2"><MessageSquare className="h-4 w-4" /><h2 className="font-semibold">OpenClaw commands</h2></div>
+            <div className="flex items-center gap-2 mb-2"><MessageSquare className="h-4 w-4" /><h2 className="font-semibold">Clawed Bot commands</h2></div>
             <form onSubmit={onChatSubmit} className="flex gap-2">
-              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 border rounded-lg p-2" placeholder="e.g. change template to modern" />
+              <input value={chatInput} onChange={(e) => setChatInput(e.target.value)} className="flex-1 border rounded-lg p-2" placeholder="e.g. Clawed Bot: create a modern guest page with timeline first" />
               <button className="px-3 py-2 rounded-lg bg-purple-600 text-white inline-flex items-center gap-1"><Sparkles className="h-4 w-4" />Send</button>
             </form>
             <div className="text-xs text-gray-600 mt-2">Tokens used: {lastTokenMeta.consumed} · Remaining: {lastTokenMeta.remaining ?? '—'}</div>
