@@ -1,0 +1,137 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: wedding-planner-frontend/package-lock.json
+
+      # ── Resolve workers.dev subdomain ──────────────────────────
+      - name: Resolve workers.dev subdomain
+        id: subdomain
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          SUB=$(curl -sf \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/subdomain" \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            | jq -r '.result.subdomain')
+          echo "subdomain=$SUB" >> $GITHUB_OUTPUT
+          echo "backend_url=https://wedding-planner-api.${SUB}.workers.dev" >> $GITHUB_OUTPUT
+          echo "frontend_url=https://wedding-planner-frontend.${SUB}.workers.dev" >> $GITHUB_OUTPUT
+
+      # ── Backend ────────────────────────────────────────────────
+      - name: Install backend deps
+        working-directory: wedding-planner-backend
+        run: uv sync --all-groups
+
+      - name: Deploy backend
+        working-directory: wedding-planner-backend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: uv run pywrangler deploy
+
+      - name: Set JWT_SECRET_KEY
+        working-directory: wedding-planner-backend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          echo "${{ secrets.JWT_SECRET_KEY }}" \
+            | npx wrangler secret put JWT_SECRET_KEY --name wedding-planner-api
+
+      # ── Frontend ───────────────────────────────────────────────
+      - name: Write .env.production
+        working-directory: wedding-planner-frontend
+        run: |
+          echo "VITE_API_URL=${{ steps.subdomain.outputs.backend_url }}/api" > .env.production
+
+      - name: Install frontend deps
+        working-directory: wedding-planner-frontend
+        run: npm ci
+
+      - name: Deploy frontend
+        working-directory: wedding-planner-frontend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npm run deploy
+
+      # ── CORS tighten + backend redeploy ────────────────────────
+      - name: Tighten CORS to frontend origin
+        run: |
+          FRONTEND_URL="${{ steps.subdomain.outputs.frontend_url }}"
+          python3 - <<'PYEOF'
+          import re, os
+          path = "wedding-planner-backend/src/main.py"
+          src = open(path).read()
+          url = os.environ["FRONTEND_URL"]
+          src = re.sub(
+              r'allow_origins=\[.*?\]',
+              f'allow_origins=["{url}"]',
+              src,
+              count=1
+          )
+          open(path, "w").write(src)
+          print(f"CORS set to: {url}")
+          PYEOF
+        env:
+          FRONTEND_URL: ${{ steps.subdomain.outputs.frontend_url }}
+
+      - name: Redeploy backend with tightened CORS
+        working-directory: wedding-planner-backend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: uv run pywrangler deploy
+
+      # ── Smoke tests ────────────────────────────────────────────
+      - name: Smoke test — backend health
+        run: |
+          curl -fsS "${{ steps.subdomain.outputs.backend_url }}/api/health" \
+            | grep -q '"status":"ok"' && echo "Backend healthy ✓"
+
+      - name: Smoke test — frontend renders
+        run: |
+          curl -fsS "${{ steps.subdomain.outputs.frontend_url }}" \
+            | grep -qi "<title>" && echo "Frontend renders ✓"
+
+      # ── Summary ────────────────────────────────────────────────
+      - name: Job summary
+        if: always()
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## Deployment Summary
+
+          | Surface | URL |
+          |---------|-----|
+          | Backend API | ${{ steps.subdomain.outputs.backend_url }} |
+          | Frontend | ${{ steps.subdomain.outputs.frontend_url }} |
+          | Health check | ${{ steps.subdomain.outputs.backend_url }}/api/health |
+
+          ### Secrets required in GitHub → Settings → Secrets → Actions
+          - \`CLOUDFLARE_API_TOKEN\` — Workers edit token
+          - \`CLOUDFLARE_ACCOUNT_ID\` — \`6bc33c28b58f2279e3b72849a3f8e7ed\`
+          - \`JWT_SECRET_KEY\` — run \`openssl rand -hex 32\` to generate
+          EOF
