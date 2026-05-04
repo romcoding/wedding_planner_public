@@ -1,6 +1,5 @@
 import uuid
 import re
-from passlib.hash import pbkdf2_sha256
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from src.auth import create_token, create_guest_token, require_admin_auth, decode_token
@@ -54,9 +53,11 @@ async def _ensure_unique_slug(db, base_slug: str) -> str:
         counter += 1
 
 def _hash_password(password: str) -> str:
+    from passlib.hash import pbkdf2_sha256
     return pbkdf2_sha256.hash(password)
 
 def _check_password(password: str, hashed: str) -> bool:
+    from passlib.hash import pbkdf2_sha256
     return pbkdf2_sha256.verify(password, hashed)
 
 
