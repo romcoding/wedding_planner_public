@@ -2,7 +2,7 @@
 Utility functions for tracking analytics and security events
 """
 from flask import request
-from src.models import db, PageView, Visit, SecurityEvent
+from models import db, PageView, Visit, SecurityEvent
 from datetime import datetime
 import secrets
 

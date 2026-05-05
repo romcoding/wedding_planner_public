@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Message, User, Guest
+from models import db, Message, User, Guest
 from datetime import datetime, timedelta
 from sqlalchemy.exc import IntegrityError
 import os
@@ -8,7 +8,7 @@ import logging
 from collections import defaultdict
 from threading import Lock
 
-from src.services.email_service import EmailService
+from services.email_service import EmailService
 
 messages_bp = Blueprint('messages', __name__)
 logger = logging.getLogger(__name__)

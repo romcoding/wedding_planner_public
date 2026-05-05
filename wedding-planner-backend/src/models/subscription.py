@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.models import db
+from models import db
 
 
 class UserSubscription(db.Model):

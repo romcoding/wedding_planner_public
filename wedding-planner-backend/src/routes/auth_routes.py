@@ -6,8 +6,8 @@ import os
 import base64
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from src.auth import create_token, create_guest_token, require_admin_auth, decode_token
-from src.middleware import get_db
+from auth import create_token, create_guest_token, require_admin_auth, decode_token
+from middleware import get_db
 
 router = APIRouter()
 
@@ -163,7 +163,7 @@ async def register_couple(body: RegisterBody, request: Request):
 
     # 5. Send welcome email (non-blocking)
     try:
-        from src.services.email_service import send_welcome_email
+        from services.email_service import send_welcome_email
         await send_welcome_email(email, couple_name, slug)
     except Exception:
         pass

@@ -9,7 +9,7 @@ import os
 import logging
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from src.middleware import get_db, get_wedding, PLAN_LIMITS
+from middleware import get_db, get_wedding, PLAN_LIMITS
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

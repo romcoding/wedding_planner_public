@@ -8,10 +8,10 @@ GET  /api/weddings/<slug>    — Public: fetch a wedding by slug (for guest port
 """
 from flask import Blueprint, request, jsonify, g
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db
-from src.models.user import User
-from src.models.wedding import Wedding, _generate_slug
-from src.utils.tenant import tenant_required
+from models import db
+from models.user import User
+from models.wedding import Wedding, _generate_slug
+from utils.tenant import tenant_required
 from datetime import datetime, date
 import re
 

@@ -3,8 +3,8 @@ from functools import wraps
 
 from flask import jsonify, g, request
 
-from src.models import db, UserSubscription, TokenUsage
-from src.utils.rbac import get_current_user
+from models import db, UserSubscription, TokenUsage
+from utils.rbac import get_current_user
 
 FREE_PLAN_MONTHLY_TOKENS = int(os.getenv('FREE_PLAN_MONTHLY_TOKENS', '100'))
 DEFAULT_BASE_TOKEN_PRICE = float(os.getenv('OPENCLAW_BASE_PRICE_PER_TOKEN', '0.001'))

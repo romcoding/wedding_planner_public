@@ -1,10 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Guest, User, Invitation, GuestPhoto, SeatAssignment, Message, PageView, Visit, ReminderSent
+from models import db, Guest, User, Invitation, GuestPhoto, SeatAssignment, Message, PageView, Visit, ReminderSent
 from datetime import datetime
 import json
 import logging
-from src.utils.rbac import require_roles
+from utils.rbac import require_roles
 
 guests_bp = Blueprint('guests', __name__)
 logger = logging.getLogger(__name__)

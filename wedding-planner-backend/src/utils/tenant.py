@@ -17,9 +17,9 @@ from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
 
 def _get_wedding_for_user(user_id: int):
     """Resolve the active Wedding for a given admin user ID."""
-    from src.models import db
-    from src.models.user import User
-    from src.models.wedding import Wedding
+    from models import db
+    from models.user import User
+    from models.wedding import Wedding
 
     user = db.session.get(User, user_id)
     if not user:
@@ -72,7 +72,7 @@ def tenant_required(fn):
         if err:
             return jsonify({'error': err, 'needs_onboarding': True}), 403
 
-        from src.models.user import User
+        from models.user import User
         g.wedding = wedding
         g.current_user = User.query.get(user_id)
         return fn(*args, **kwargs)

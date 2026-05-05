@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Guest, Task, Cost, User, PageView, Visit, SecurityEvent
-from src.utils.jwt_helpers import get_admin_id
+from models import db, Guest, Task, Cost, User, PageView, Visit, SecurityEvent
+from utils.jwt_helpers import get_admin_id
 from sqlalchemy import func
 from datetime import datetime, timedelta
 
@@ -330,7 +330,7 @@ def track_pageview():
     user_id = data.get('user_id')
     guest_id = data.get('guest_id')
     
-    from src.utils.analytics_tracker import track_page_view
+    from utils.analytics_tracker import track_page_view
     track_page_view(
         page_path=page_path,
         page_title=page_title,
@@ -353,7 +353,7 @@ def start_visit_tracking():
     user_id = data.get('user_id')
     guest_id = data.get('guest_id')
     
-    from src.utils.analytics_tracker import start_visit
+    from utils.analytics_tracker import start_visit
     visit = start_visit(
         user_id=user_id,
         guest_id=guest_id,
@@ -380,7 +380,7 @@ def end_visit_tracking():
     if not session_id:
         return jsonify({'error': 'session_id is required'}), 400
     
-    from src.utils.analytics_tracker import end_visit
+    from utils.analytics_tracker import end_visit
     visit = end_visit(session_id)
     
     if visit:

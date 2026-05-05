@@ -1,4 +1,4 @@
-from src.models import db
+from models import db
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -40,7 +40,7 @@ class User(db.Model):
         }
         
         if include_permissions:
-            from src.utils.permissions import get_user_permissions
+            from utils.permissions import get_user_permissions
             result['permissions'] = get_user_permissions(self.role)
         
         return result

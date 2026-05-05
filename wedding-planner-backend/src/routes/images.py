@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Image, User
-from src.utils.jwt_helpers import get_admin_id
-from src.utils.rbac import require_roles
+from models import db, Image, User
+from utils.jwt_helpers import get_admin_id
+from utils.rbac import require_roles
 from sqlalchemy.exc import IntegrityError
 import base64
 from io import BytesIO

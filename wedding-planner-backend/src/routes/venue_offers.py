@@ -3,10 +3,10 @@ Routes for venue offer categories and offers
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Venue, VenueOfferCategory, VenueOffer, User
-from src.utils.jwt_helpers import get_admin_id
+from models import db, Venue, VenueOfferCategory, VenueOffer, User
+from utils.jwt_helpers import get_admin_id
 from sqlalchemy.exc import IntegrityError
-from src.utils.rbac import require_roles
+from utils.rbac import require_roles
 
 offers_bp = Blueprint('venue_offers', __name__)
 

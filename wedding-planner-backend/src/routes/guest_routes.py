@@ -3,8 +3,8 @@ import secrets
 import json
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from pydantic import BaseModel
-from src.auth import require_admin_auth, create_guest_token
-from src.middleware import get_db, get_wedding
+from auth import require_admin_auth, create_guest_token
+from middleware import get_db, get_wedding
 
 router = APIRouter()
 
@@ -91,7 +91,7 @@ def _guest_dict(g: dict, include_token: bool = False) -> dict:
 @router.put("/update-rsvp")
 async def update_rsvp(body: UpdateRsvpBody, request: Request):
     """Update RSVP — requires guest JWT."""
-    from src.auth import decode_token
+    from auth import decode_token
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(403, "Guest token required")

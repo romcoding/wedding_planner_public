@@ -1,5 +1,5 @@
 import uuid
-from src.models import db
+from models import db
 from datetime import datetime
 import re
 

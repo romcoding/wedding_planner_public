@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
-from src.auth import require_admin_auth
-from src.middleware import get_db
+from auth import require_admin_auth
+from middleware import get_db
 
 router = APIRouter()
 

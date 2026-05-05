@@ -1,7 +1,7 @@
 from flask import jsonify
 from flask_jwt_extended import get_jwt_identity
-from src.models import User
-from src.utils.jwt_helpers import get_user_id_from_jwt
+from models import User
+from utils.jwt_helpers import get_user_id_from_jwt
 
 
 def get_current_user():

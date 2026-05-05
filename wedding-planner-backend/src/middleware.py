@@ -1,5 +1,5 @@
 from fastapi import Request, HTTPException, Depends
-from src.auth import require_admin_auth, decode_token
+from auth import require_admin_auth, decode_token
 
 PLAN_ORDER = {"free": 0, "starter": 1, "premium": 2}
 

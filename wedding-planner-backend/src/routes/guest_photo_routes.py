@@ -1,8 +1,8 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from src.middleware import get_db, get_wedding
-from src.auth import decode_token
+from middleware import get_db, get_wedding
+from auth import decode_token
 
 router = APIRouter()
 

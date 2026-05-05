@@ -3,11 +3,11 @@ Routes for venue chat functionality
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Venue, VenueChatHistory, User
-from src.services.venue_chat_service import generate_chat_response
+from models import db, Venue, VenueChatHistory, User
+from services.venue_chat_service import generate_chat_response
 import logging
 import json
-from src.utils.rbac import require_roles
+from utils.rbac import require_roles
 
 logger = logging.getLogger(__name__)
 

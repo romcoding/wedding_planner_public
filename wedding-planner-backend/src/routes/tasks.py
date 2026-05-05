@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Task, User
+from models import db, Task, User
 from datetime import datetime
-from src.utils.rbac import require_roles
+from utils.rbac import require_roles
 
 tasks_bp = Blueprint('tasks', __name__)
 
