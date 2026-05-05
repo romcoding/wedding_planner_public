@@ -8,7 +8,6 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
 
     steps:
       - uses: actions/checkout@v4
@@ -24,6 +23,24 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: wedding-planner-frontend/package-lock.json
+
+      # ── Validate required secrets ──────────────────────────────
+      - name: Validate secrets
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JWT_KEY: ${{ secrets.JWT_SECRET_KEY }}
+        run: |
+          missing=""
+          [ -z "$CF_TOKEN" ]   && missing="$missing CLOUDFLARE_API_TOKEN"
+          [ -z "$CF_ACCOUNT" ] && missing="$missing CLOUDFLARE_ACCOUNT_ID"
+          [ -z "$JWT_KEY" ]    && missing="$missing JWT_SECRET_KEY"
+          if [ -n "$missing" ]; then
+            echo "❌ Missing GitHub secrets:$missing"
+            echo "Add them at: Settings → Secrets and variables → Actions → New repository secret"
+            exit 1
+          fi
+          echo "✅ All required secrets present"
 
       # ── Resolve workers.dev subdomain ──────────────────────────
       - name: Resolve workers.dev subdomain
