@@ -18,7 +18,7 @@ export function WeddingProvider({ children }) {
   const PLAN_ORDER = { free: 0, starter: 1, premium: 2 }
 
   const fetchWedding = useCallback(async () => {
-    const token = localStorage.getItem('access_token')
+    const token = sessionStorage.getItem('access_token')
     if (!token) {
       setLoading(false)
       return
