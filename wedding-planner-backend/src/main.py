@@ -1,6 +1,7 @@
 """
 Wedding Planner API — FastAPI on Cloudflare Python Workers.
 """
+import os
 from workers import WorkerEntrypoint
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,9 +40,19 @@ class Default(WorkerEntrypoint):
 
 app = FastAPI(title="Wedding Planner API", version="2.0.0")
 
+_allowed_origins = [
+    "https://wedding-planner-frontend.romanhess1994.workers.dev",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:8000",
+]
+_extra = os.environ.get("CORS_EXTRA_ORIGINS", "")
+if _extra:
+    _allowed_origins.extend(o.strip() for o in _extra.split(",") if o.strip())
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten to CF Pages URL after first deploy
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
