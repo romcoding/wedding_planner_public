@@ -1,5 +1,9 @@
 import uuid
 import re
+import hashlib
+import hmac
+import os
+import base64
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from src.auth import create_token, create_guest_token, require_admin_auth, decode_token
@@ -52,13 +56,27 @@ async def _ensure_unique_slug(db, base_slug: str) -> str:
         slug = f"{base_slug}-{counter}"
         counter += 1
 
+_ITERATIONS = 260000
+
 def _hash_password(password: str) -> str:
-    from passlib.hash import pbkdf2_sha256
-    return pbkdf2_sha256.hash(password)
+    salt = os.urandom(32)
+    key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, _ITERATIONS)
+    return "pbkdf2:sha256:{}${}${}".format(
+        _ITERATIONS,
+        base64.b64encode(salt).decode(),
+        base64.b64encode(key).decode(),
+    )
 
 def _check_password(password: str, hashed: str) -> bool:
-    from passlib.hash import pbkdf2_sha256
-    return pbkdf2_sha256.verify(password, hashed)
+    try:
+        _, params, salt_b64, key_b64 = hashed.split("$")
+        iterations = int(params.split(":")[-1])
+        salt = base64.b64decode(salt_b64)
+        expected = base64.b64decode(key_b64)
+        actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
+        return hmac.compare_digest(actual, expected)
+    except Exception:
+        return False
 
 
 # ---------- Routes ----------
