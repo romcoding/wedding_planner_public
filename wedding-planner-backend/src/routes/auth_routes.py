@@ -56,7 +56,8 @@ async def _ensure_unique_slug(db, base_slug: str) -> str:
         slug = f"{base_slug}-{counter}"
         counter += 1
 
-_ITERATIONS = 260000
+_ITERATIONS = 1000  # Low count fits within Cloudflare Workers CPU limits
+
 
 def _hash_password(password: str) -> str:
     salt = os.urandom(32)
@@ -67,10 +68,12 @@ def _hash_password(password: str) -> str:
         base64.b64encode(key).decode(),
     )
 
+
 def _check_password(password: str, hashed: str) -> bool:
     try:
-        _, params, salt_b64, key_b64 = hashed.split("$")
-        iterations = int(params.split(":")[-1])
+        # Format: "pbkdf2:sha256:<iterations>$<salt_b64>$<key_b64>"
+        prefix, salt_b64, key_b64 = hashed.split("$")
+        iterations = int(prefix.rsplit(":", 1)[-1])
         salt = base64.b64decode(salt_b64)
         expected = base64.b64decode(key_b64)
         actual = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, iterations)
@@ -145,19 +148,17 @@ async def register_couple(body: RegisterBody, request: Request):
     base_slug = _generate_slug(partner_one, partner_two, year)
     slug = await _ensure_unique_slug(db, base_slug)
 
-    # Atomically create user (with wedding link) + wedding in one batch
-    await db.batch([
-        db.prepare(
-            "INSERT INTO users (id, email, password_hash, name, role, is_active, "
-            "current_wedding_id, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, 'admin', 1, ?, datetime('now'), datetime('now'))"
-        ).bind(user_id, email, password_hash, couple_name, wedding_id),
-        db.prepare(
-            "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
-            "wedding_date, location, plan, is_active, created_at, updated_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
-        ).bind(wedding_id, slug, user_id, partner_one, partner_two, body.wedding_date, body.location),
-    ])
+    await db.prepare(
+        "INSERT INTO users (id, email, password_hash, name, role, is_active, "
+        "current_wedding_id, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, 'admin', 1, ?, datetime('now'), datetime('now'))"
+    ).bind(user_id, email, password_hash, couple_name, wedding_id).run()
+
+    await db.prepare(
+        "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
+        "wedding_date, location, plan, is_active, created_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
+    ).bind(wedding_id, slug, user_id, partner_one, partner_two, body.wedding_date, body.location).run()
 
     token = create_token(user_id, wedding_id, "admin")
 

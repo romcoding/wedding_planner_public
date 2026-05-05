@@ -35,7 +35,38 @@ from routes.image_routes import router as image_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
-        return await asgi.fetch(app, request, self.env)
+        origin = request.headers.get("origin") or ""
+        cors_origin = origin if origin in _allowed_origins else ""
+
+        # Handle OPTIONS preflight before the ASGI layer so it always works
+        if request.method == "OPTIONS":
+            from js import Response, Headers, Object
+            h = Headers.new()
+            if cors_origin:
+                h.set("access-control-allow-origin", cors_origin)
+                h.set("access-control-allow-methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
+                h.set("access-control-allow-headers", "content-type, authorization")
+                h.set("access-control-allow-credentials", "true")
+                h.set("access-control-max-age", "86400")
+            init = Object.new()
+            init.status = 204
+            init.headers = h
+            return Response.new("", init)
+
+        try:
+            return await asgi.fetch(app, request, self.env)
+        except Exception:
+            # Worker-level crash (e.g. CPU limit) — return CORS-aware 500
+            from js import Response, Headers, Object
+            h = Headers.new()
+            h.set("content-type", "application/json")
+            if cors_origin:
+                h.set("access-control-allow-origin", cors_origin)
+                h.set("access-control-allow-credentials", "true")
+            init = Object.new()
+            init.status = 500
+            init.headers = h
+            return Response.new('{"error":"Internal server error"}', init)
 
 
 app = FastAPI(title="Wedding Planner API", version="2.0.0")
