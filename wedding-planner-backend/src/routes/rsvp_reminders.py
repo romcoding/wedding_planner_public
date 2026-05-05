@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, RSVPReminder, ReminderSent, Guest, User, Event, SeatAssignment
-from src.services.email_service import EmailService
+from models import db, RSVPReminder, ReminderSent, Guest, User, Event, SeatAssignment
+from services.email_service import EmailService
 from datetime import datetime, timedelta
 import os
 

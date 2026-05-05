@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from src.middleware import get_db, get_wedding
+from middleware import get_db, get_wedding
 
 router = APIRouter()
 

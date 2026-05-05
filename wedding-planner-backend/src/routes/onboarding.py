@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required
 
-from src.models import Content, Event, Task, db
-from src.utils.rbac import require_roles
+from models import Content, Event, Task, db
+from utils.rbac import require_roles
 
 onboarding_bp = Blueprint('onboarding', __name__)
 

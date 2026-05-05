@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from src.models import db, User, Event
+from models import db, User, Event
 from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock
@@ -92,7 +92,7 @@ def login():
     
     if not user or not user.check_password(data['password']):
         # Track failed login attempt
-        from src.utils.analytics_tracker import track_security_event
+        from utils.analytics_tracker import track_security_event
         track_security_event(
             event_type='failed_login',
             user_id=user.id if user else None,
@@ -102,7 +102,7 @@ def login():
         return jsonify({'error': 'Invalid credentials'}), 401
     
     # Track successful login
-    from src.utils.analytics_tracker import track_security_event
+    from utils.analytics_tracker import track_security_event
     track_security_event(
         event_type='successful_login',
         user_id=user.id,

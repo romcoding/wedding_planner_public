@@ -7,12 +7,12 @@ import threading
 from flask import Blueprint, request, jsonify, send_file, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
-from src.models import db, Venue, VenueDocument, DocumentChunk, User, VenueOfferCategory, VenueOffer
-from src.services.document_parser import parse_document, chunk_text
-from src.services.embedding_service import get_embeddings_batch
-from src.services.offer_extractor import extract_offers_from_text
+from models import db, Venue, VenueDocument, DocumentChunk, User, VenueOfferCategory, VenueOffer
+from services.document_parser import parse_document, chunk_text
+from services.embedding_service import get_embeddings_batch
+from services.offer_extractor import extract_offers_from_text
 import logging
-from src.utils.rbac import require_roles
+from utils.rbac import require_roles
 
 logger = logging.getLogger(__name__)
 

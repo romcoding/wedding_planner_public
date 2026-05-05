@@ -3,9 +3,9 @@ User management routes for RBAC
 """
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, User
-from src.utils.permissions import require_permission, require_role, get_user_permissions
-from src.utils.jwt_helpers import get_admin_id
+from models import db, User
+from utils.permissions import require_permission, require_role, get_user_permissions
+from utils.jwt_helpers import get_admin_id
 
 users_bp = Blueprint('users', __name__)
 

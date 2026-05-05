@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Cost, User
+from models import db, Cost, User
 from datetime import datetime
 
 costs_bp = Blueprint('costs', __name__)

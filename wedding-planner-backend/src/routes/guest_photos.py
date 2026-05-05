@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, GuestPhoto, Guest
+from models import db, GuestPhoto, Guest
 from sqlalchemy.exc import IntegrityError
 import base64
 from io import BytesIO
@@ -21,7 +21,7 @@ def get_guest_photos():
             decoded = decode_token(token)
             user_id = decoded.get('sub')
             if not str(user_id).startswith('guest_'):
-                from src.models import User
+                from models import User
                 user = User.query.get(user_id)
                 is_admin = user and user.role == 'admin'
         except:
@@ -114,7 +114,7 @@ def approve_photo(photo_id):
     if str(identity).startswith('guest_'):
         return jsonify({'error': 'Unauthorized'}), 403
     
-    from src.models import User
+    from models import User
     user = User.query.get(identity)
     if not user or user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
@@ -137,7 +137,7 @@ def delete_photo(photo_id):
         if photo.guest_id != guest_id:
             return jsonify({'error': 'Unauthorized'}), 403
     else:
-        from src.models import User
+        from models import User
         user = User.query.get(identity)
         if not user or user.role != 'admin':
             return jsonify({'error': 'Unauthorized'}), 403

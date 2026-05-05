@@ -2,7 +2,7 @@ import uuid
 import secrets
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from src.middleware import get_db, get_wedding
+from middleware import get_db, get_wedding
 
 router = APIRouter()
 
@@ -73,7 +73,7 @@ async def send_invitation(
         if guest:
             guest = dict(guest)
             import os
-            from src.services.email_service import send_invitation_email
+            from services.email_service import send_invitation_email
             frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
             try:
                 await send_invitation_email(

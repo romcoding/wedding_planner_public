@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, GiftRegistry, User
+from models import db, GiftRegistry, User
 from sqlalchemy.exc import IntegrityError
 
 gift_registry_bp = Blueprint('gift_registry', __name__)

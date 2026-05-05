@@ -9,9 +9,9 @@ GET  /api/billing/status                   — Return current plan + subscriptio
 import os
 import logging
 from flask import Blueprint, request, jsonify, g
-from src.models import db
-from src.models.wedding import Wedding
-from src.utils.tenant import tenant_required
+from models import db
+from models.wedding import Wedding
+from utils.tenant import tenant_required
 
 logger = logging.getLogger(__name__)
 billing_bp = Blueprint('billing', __name__)

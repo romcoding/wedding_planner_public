@@ -1,7 +1,7 @@
 """Guest authentication routes — token-based passwordless auth for wedding guests."""
 from fastapi import APIRouter, Request, Depends, HTTPException
-from src.auth import create_guest_token, decode_token
-from src.middleware import get_db
+from auth import create_guest_token, decode_token
+from middleware import get_db
 
 router = APIRouter()
 

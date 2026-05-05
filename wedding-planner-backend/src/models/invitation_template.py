@@ -1,4 +1,4 @@
-from src.models import db
+from models import db
 from datetime import datetime
 
 class InvitationTemplate(db.Model):

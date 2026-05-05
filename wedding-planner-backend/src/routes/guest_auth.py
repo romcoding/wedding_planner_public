@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
-from src.models import db, Guest
+from models import db, Guest
 from datetime import datetime, timedelta
 from collections import defaultdict
 from threading import Lock

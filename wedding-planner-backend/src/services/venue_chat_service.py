@@ -16,8 +16,8 @@ except ImportError:
     OPENAI_AVAILABLE = False
     logger.warning("OpenAI library not available. Install with: pip install openai")
 
-from src.services.embedding_service import get_embedding, find_similar_chunks
-from src.models import DocumentChunk, VenueDocument
+from services.embedding_service import get_embedding, find_similar_chunks
+from models import DocumentChunk, VenueDocument
 
 
 def _create_chat_completion(client, model: str, messages: List[Dict], temperature: float, max_out: int):
@@ -68,7 +68,7 @@ def retrieve_relevant_chunks(venue_id: int, query: str, top_k: int = 5) -> List[
         return []
     
     # Get all chunks for this venue's documents
-    from src.models import db
+    from models import db
     chunks = db.session.query(DocumentChunk).join(VenueDocument).filter(
         VenueDocument.venue_id == venue_id,
         VenueDocument.status == 'processed'

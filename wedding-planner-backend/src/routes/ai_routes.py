@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from src.middleware import get_db, get_wedding, wedding_meets_plan, get_plan_limit
+from middleware import get_db, get_wedding, wedding_meets_plan, get_plan_limit
 
 router = APIRouter()
 
@@ -81,7 +81,7 @@ async def ai_timeline(
     db = await get_db(request)
     await _ai_gate(db, wedding)
 
-    from src.services.ai_service import generate_timeline
+    from services.ai_service import generate_timeline
     try:
         result = generate_timeline(
             wedding_date=body.wedding_date,
@@ -110,7 +110,7 @@ async def ai_vendor_suggestions(
     db = await get_db(request)
     await _ai_gate(db, wedding)
 
-    from src.services.ai_service import generate_vendor_suggestions
+    from services.ai_service import generate_vendor_suggestions
     try:
         result = generate_vendor_suggestions(
             budget=body.budget,
@@ -139,7 +139,7 @@ async def ai_copy_generator(
     db = await get_db(request)
     await _ai_gate(db, wedding)
 
-    from src.services.ai_service import generate_website_copy
+    from services.ai_service import generate_website_copy
     try:
         result = generate_website_copy(
             couple_names=body.couple_names,
@@ -170,7 +170,7 @@ async def ai_seating(
     if len(body.guests) > 500:
         raise HTTPException(400, "Too many guests. Maximum 500 per request.")
 
-    from src.services.ai_service import generate_seating_suggestions
+    from services.ai_service import generate_seating_suggestions
     try:
         result = generate_seating_suggestions(guests=body.guests)
     except RuntimeError as e:

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from src.auth import require_admin_auth
-from src.middleware import get_db, get_wedding
+from auth import require_admin_auth
+from middleware import get_db, get_wedding
 
 router = APIRouter()
 

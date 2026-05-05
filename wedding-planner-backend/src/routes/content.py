@@ -1,8 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Content, User
-from src.utils.jwt_helpers import get_admin_id
-from src.services.translation_service import TranslationService
+from models import db, Content, User
+from utils.jwt_helpers import get_admin_id
+from services.translation_service import TranslationService
 
 content_bp = Blueprint('content', __name__)
 

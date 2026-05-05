@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from src.models import db, AgendaItem, User
-from src.utils.rbac import require_roles
+from models import db, AgendaItem, User
+from utils.rbac import require_roles
 from sqlalchemy.exc import IntegrityError
 
 agenda_bp = Blueprint('agenda', __name__)

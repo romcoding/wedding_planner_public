@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 from flask import Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Table, SeatAssignment, Guest, User
+from models import db, Table, SeatAssignment, Guest, User
 from datetime import datetime
-from src.utils.rbac import require_roles
+from utils.rbac import require_roles
 import csv
 import io
 

@@ -1,11 +1,11 @@
 from flask import Blueprint, jsonify, request, g
 from flask_jwt_extended import jwt_required
 
-from src.services.openclaw_service import OpenClawService
-from src.utils.token_billing import ensure_subscription_for_user
-from src.utils.rbac import require_roles
-from src.utils.token_billing import requires_tokens, charge_tokens
-from src.utils.tenant import tenant_required, plan_required
+from services.openclaw_service import OpenClawService
+from utils.token_billing import ensure_subscription_for_user
+from utils.rbac import require_roles
+from utils.token_billing import requires_tokens, charge_tokens
+from utils.tenant import tenant_required, plan_required
 
 ai_bp = Blueprint('ai', __name__)
 
@@ -49,7 +49,7 @@ def _ai_gate(wedding):
     Check plan and daily usage limit. Returns (allowed, response_if_blocked).
     premium plan → unlimited. starter → 3/day. free → blocked.
     """
-    from src.services.ai_service import check_and_increment_usage
+    from services.ai_service import check_and_increment_usage
     if not wedding.meets_plan('starter'):
         return False, (jsonify({
             'error': 'AI features require the Starter plan or higher.',
@@ -73,7 +73,7 @@ def _ai_gate(wedding):
 @tenant_required
 def get_ai_usage():
     """Return today's AI usage count and limit for the active wedding."""
-    from src.models.ai_usage import AIUsage
+    from models.ai_usage import AIUsage
     wedding = g.wedding
     count = AIUsage.get_today_count(wedding.id)
     limit = wedding.get_limit('ai_uses_per_day')
@@ -97,7 +97,7 @@ def ai_timeline():
     if not allowed:
         return blocked
 
-    from src.services.ai_service import generate_timeline
+    from services.ai_service import generate_timeline
     data = request.get_json() or {}
 
     required = ['wedding_date', 'location', 'guest_count', 'ceremony_type']
@@ -130,7 +130,7 @@ def ai_vendor_suggestions():
     if not allowed:
         return blocked
 
-    from src.services.ai_service import generate_vendor_suggestions
+    from services.ai_service import generate_vendor_suggestions
     data = request.get_json() or {}
 
     required = ['budget', 'location', 'style_preferences', 'guest_count']
@@ -163,7 +163,7 @@ def ai_copy_generator():
     if not allowed:
         return blocked
 
-    from src.services.ai_service import generate_website_copy
+    from services.ai_service import generate_website_copy
     data = request.get_json() or {}
 
     required = ['couple_names', 'wedding_date', 'location', 'story_notes']
@@ -196,7 +196,7 @@ def ai_seating():
     if not allowed:
         return blocked
 
-    from src.services.ai_service import generate_seating_suggestions
+    from services.ai_service import generate_seating_suggestions
     data = request.get_json() or {}
     guests = data.get('guests', [])
 

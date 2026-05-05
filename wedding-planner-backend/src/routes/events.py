@@ -1,13 +1,13 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from src.models import db, Event, User, Content, Venue
+from models import db, Event, User, Content, Venue
 import json
-from src.utils.jwt_helpers import get_admin_id
+from utils.jwt_helpers import get_admin_id
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
-from src.utils.rbac import require_roles
-from src.utils.token_billing import requires_tokens, charge_tokens
-from src.services.guest_portal_ai_service import GuestPortalAIService
+from utils.rbac import require_roles
+from utils.token_billing import requires_tokens, charge_tokens
+from services.guest_portal_ai_service import GuestPortalAIService
 
 events_bp = Blueprint('events', __name__)
 

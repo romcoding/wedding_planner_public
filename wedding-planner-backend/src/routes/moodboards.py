@@ -2,8 +2,8 @@ import os
 import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
-from src.models import db, Moodboard, User
-from src.utils.rbac import require_roles
+from models import db, Moodboard, User
+from utils.rbac import require_roles
 
 
 moodboards_bp = Blueprint('moodboards', __name__)
