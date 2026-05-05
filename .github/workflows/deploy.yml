@@ -21,8 +21,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
-          cache-dependency-path: wedding-planner-frontend/package-lock.json
 
       # ── Validate required secrets ──────────────────────────────
       - name: Validate secrets
@@ -86,7 +84,7 @@ jobs:
 
       - name: Install frontend deps
         working-directory: wedding-planner-frontend
-        run: npm ci
+        run: npm install
 
       - name: Deploy frontend
         working-directory: wedding-planner-frontend
