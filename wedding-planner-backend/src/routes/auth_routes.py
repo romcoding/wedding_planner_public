@@ -93,6 +93,23 @@ def _get_client_ip(request: Request) -> str:
         return x_forwarded.split(",")[0].strip()
     return request.client.host if request.client else "unknown"
 
+
+def _row_to_dict(row) -> dict | None:
+    """Normalize Cloudflare D1 rows across dict/JsProxy representations."""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row
+    to_py = getattr(row, "to_py", None)
+    if callable(to_py):
+        converted = to_py()
+        if isinstance(converted, dict):
+            return converted
+    try:
+        return dict(row)
+    except Exception as exc:
+        raise HTTPException(500, f"Unexpected DB row format: {type(row).__name__}") from exc
+
 # ---------- Helpers ----------
 
 def _generate_slug(p1: str, p2: str, year: int) -> str:
@@ -171,10 +188,9 @@ async def login(body: LoginBody, request: Request):
         "SELECT * FROM users WHERE email = ?"
     ).bind(email).first()
 
-    if not user or not _check_password(body.password, user["password_hash"]):
+    user = _row_to_dict(user)
+    if not user or not _check_password(body.password, user.get("password_hash", "")):
         raise HTTPException(401, "Invalid credentials")
-
-    user = dict(user)
 
     # Block login if email not yet verified (when column exists)
     if user.get("email_verified") == 0:
@@ -326,7 +342,7 @@ async def verify_email(body: VerifyEmailBody, request: Request):
     if not row:
         raise HTTPException(400, "Invalid or already-used verification token")
 
-    row = dict(row)
+    row = _row_to_dict(row)
     now_utc = datetime.now(timezone.utc)
 
     # Check expiry
@@ -369,7 +385,7 @@ async def resend_verification(body: ResendVerificationBody, request: Request):
     if not user:
         return {"message": "If that email exists and is unverified, a new link has been sent."}
 
-    user = dict(user)
+    user = _row_to_dict(user)
     if user.get("email_verified") == 1:
         return {"message": "Email is already verified. You can log in."}
 
@@ -410,7 +426,7 @@ async def forgot_password(body: ForgotPasswordBody, request: Request):
     if not user:
         return {"message": "If that email is registered, a reset link has been sent."}
 
-    user = dict(user)
+    user = _row_to_dict(user)
 
     # Invalidate existing unused reset tokens for this user
     await db.prepare(
@@ -455,7 +471,7 @@ async def reset_password(body: ResetPasswordBody, request: Request):
     if not row:
         raise HTTPException(400, "Invalid or already-used reset token")
 
-    row = dict(row)
+    row = _row_to_dict(row)
     now_utc = datetime.now(timezone.utc)
     try:
         expires = datetime.fromisoformat(row["expires_at"]).replace(tzinfo=timezone.utc)
@@ -507,7 +523,7 @@ async def get_profile(payload: dict = Depends(require_admin_auth), request: Requ
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(payload["sub"]).first()
     if not user:
         raise HTTPException(404, "User not found")
-    user = dict(user)
+    user = _row_to_dict(user)
     return {
         "id": user["id"],
         "email": user["email"],
@@ -553,7 +569,7 @@ async def update_profile(
         ).bind(_hash_password(body.password), user_id).run()
 
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
-    user = dict(user)
+    user = _row_to_dict(user)
     return {
         "id": user["id"],
         "email": user["email"],
