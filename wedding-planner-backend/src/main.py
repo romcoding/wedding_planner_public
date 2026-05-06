@@ -35,12 +35,14 @@ from routes.image_routes import router as image_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
+        from js import Response, Headers
+
         origin = request.headers.get("origin") or ""
         cors_origin = origin if origin in _allowed_origins else ""
 
-        # Handle OPTIONS preflight before the ASGI layer so it always works
+        # Handle OPTIONS preflight at the worker level — always works regardless
+        # of whether the ASGI bridge passes the Origin header through correctly.
         if request.method == "OPTIONS":
-            from js import Response, Headers, Object
             h = Headers.new()
             if cors_origin:
                 h.set("access-control-allow-origin", cors_origin)
@@ -48,25 +50,28 @@ class Default(WorkerEntrypoint):
                 h.set("access-control-allow-headers", "content-type, authorization")
                 h.set("access-control-allow-credentials", "true")
                 h.set("access-control-max-age", "86400")
-            init = Object.new()
-            init.status = 204
-            init.headers = h
-            return Response.new("", init)
+            return Response.new("", status=204, headers=h)
 
         try:
-            return await asgi.fetch(app, request, self.env)
+            resp = await asgi.fetch(app, request, self.env)
         except Exception:
-            # Worker-level crash (e.g. CPU limit) — return CORS-aware 500
-            from js import Response, Headers, Object
             h = Headers.new()
             h.set("content-type", "application/json")
             if cors_origin:
                 h.set("access-control-allow-origin", cors_origin)
                 h.set("access-control-allow-credentials", "true")
-            init = Object.new()
-            init.status = 500
-            init.headers = h
-            return Response.new('{"error":"Internal server error"}', init)
+            return Response.new('{"error":"Internal server error"}', status=500, headers=h)
+
+        # Always patch CORS headers at the worker level. The Cloudflare Python
+        # Workers ASGI bridge may drop the Origin header from the ASGI scope,
+        # preventing FastAPI's CORSMiddleware from adding them to the response.
+        if cors_origin:
+            h = Headers.new(resp.headers)
+            h.set("access-control-allow-origin", cors_origin)
+            h.set("access-control-allow-credentials", "true")
+            return Response.new(resp.body, status=resp.status, headers=h)
+
+        return resp
 
 
 app = FastAPI(title="Wedding Planner API", version="2.0.0")
