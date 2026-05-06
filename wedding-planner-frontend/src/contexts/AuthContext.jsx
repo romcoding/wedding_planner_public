@@ -8,7 +8,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Use sessionStorage — no localStorage (XSS risk)
     const token = sessionStorage.getItem('access_token')
     const storedUser = sessionStorage.getItem('user')
 
@@ -19,7 +18,6 @@ export function AuthProvider({ children }) {
         sessionStorage.removeItem('access_token')
         sessionStorage.removeItem('user')
       }
-      // Verify token is still valid
       api.get('/auth/profile')
         .then((response) => {
           setUser(response.data)
@@ -47,9 +45,16 @@ export function AuthProvider({ children }) {
 
       return { success: true }
     } catch (error) {
+      const detail = error.response?.data?.detail
+      const errorCode = typeof detail === 'object' ? detail?.error_code : null
+      const message = typeof detail === 'object'
+        ? detail.message
+        : (typeof detail === 'string' ? detail : null)
       return {
         success: false,
-        error: error.response?.data?.error || error.response?.data?.detail || 'Login failed',
+        error: message || 'Login failed',
+        errorCode,
+        email,
       }
     }
   }
@@ -65,9 +70,14 @@ export function AuthProvider({ children }) {
       const response = await api.post('/auth/couple/register', payload)
       const { access_token, user } = response.data
 
-      sessionStorage.setItem('access_token', access_token)
-      sessionStorage.setItem('user', JSON.stringify(user))
-      setUser(user)
+      // Only open a session if email verification is NOT required.
+      // If it is required the user must verify first; setting user here
+      // would trigger the redirect-to-dashboard effect prematurely.
+      if (!response.data.email_verification_required) {
+        sessionStorage.setItem('access_token', access_token)
+        sessionStorage.setItem('user', JSON.stringify(user))
+        setUser(user)
+      }
 
       return {
         success: true,
@@ -76,7 +86,6 @@ export function AuthProvider({ children }) {
       }
     } catch (error) {
       const detail = error.response?.data?.detail
-      // FastAPI wraps structured errors as the detail field
       const errorData = typeof detail === 'object' ? detail : null
       return {
         success: false,
@@ -86,8 +95,55 @@ export function AuthProvider({ children }) {
     }
   }
 
+  const resendVerification = async (email) => {
+    try {
+      await api.post('/auth/resend-verification', { email })
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Could not resend verification email',
+      }
+    }
+  }
+
+  const forgotPassword = async (email) => {
+    try {
+      await api.post('/auth/forgot-password', { email })
+      return { success: true }
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Could not send reset email',
+      }
+    }
+  }
+
+  const resetPassword = async (token, password, passwordConfirmation) => {
+    try {
+      await api.post('/auth/reset-password', {
+        token,
+        password,
+        password_confirmation: passwordConfirmation,
+      })
+      return { success: true }
+    } catch (error) {
+      const detail = error.response?.data?.detail
+      const errorData = typeof detail === 'object' ? detail : null
+      return {
+        success: false,
+        error: errorData?.message || (typeof detail === 'string' ? detail : null) || 'Password reset failed',
+        errors: errorData?.errors,
+      }
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, registerCouple }}>
+    <AuthContext.Provider value={{
+      user, loading,
+      login, logout, registerCouple,
+      resendVerification, forgotPassword, resetPassword,
+    }}>
       {children}
     </AuthContext.Provider>
   )

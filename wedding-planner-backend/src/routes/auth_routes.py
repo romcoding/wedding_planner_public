@@ -40,6 +40,17 @@ class ProfileUpdateBody(BaseModel):
     email: str | None = None
     password: str | None = None
 
+class ResendVerificationBody(BaseModel):
+    email: str
+
+class ForgotPasswordBody(BaseModel):
+    email: str
+
+class ResetPasswordBody(BaseModel):
+    token: str
+    password: str
+    password_confirmation: str
+
 # ---------- Common weak passwords (OWASP top subset) ----------
 
 _WEAK_PASSWORDS = frozenset([
@@ -169,8 +180,11 @@ async def login(body: LoginBody, request: Request):
     if user.get("email_verified") == 0:
         raise HTTPException(
             403,
-            "Please verify your email address before logging in. "
-            "Check your inbox for the verification link.",
+            {
+                "error_code": "email_not_verified",
+                "message": "Please verify your email address before logging in. "
+                           "Check your inbox for the verification link.",
+            },
         )
 
     token = create_token(user["id"], user.get("current_wedding_id"), user.get("role", "admin"))
@@ -337,6 +351,130 @@ async def verify_email(body: VerifyEmailBody, request: Request):
     ).bind(row["id"]).run()
 
     return {"message": "Email verified successfully. You can now log in."}
+
+
+@router.post("/resend-verification")
+async def resend_verification(body: ResendVerificationBody, request: Request):
+    """Re-issue a verification token for an unverified account."""
+    db = await get_db(request)
+    ip = _get_client_ip(request)
+    _rate_check(f"resend-verification:ip:{ip}", 3)
+
+    email = body.email.strip().lower() if body.email else ""
+    if not email:
+        raise HTTPException(400, "Email is required")
+
+    user = await db.prepare("SELECT * FROM users WHERE email = ?").bind(email).first()
+    # Always return 200 to avoid email enumeration
+    if not user:
+        return {"message": "If that email exists and is unverified, a new link has been sent."}
+
+    user = dict(user)
+    if user.get("email_verified") == 1:
+        return {"message": "Email is already verified. You can log in."}
+
+    # Invalidate old tokens
+    await db.prepare(
+        "UPDATE email_verifications SET used_at = datetime('now') "
+        "WHERE user_id = ? AND used_at IS NULL"
+    ).bind(user["id"]).run()
+
+    verification_token = secrets.token_hex(64)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+    await db.prepare(
+        "INSERT INTO email_verifications (id, user_id, token, expires_at, created_at) "
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+    ).bind(str(uuid.uuid4()), user["id"], verification_token, expires_at).run()
+
+    try:
+        from services.email_service import send_verification_email
+        await send_verification_email(email, user.get("name", ""), verification_token)
+    except Exception:
+        pass
+
+    return {"message": "If that email exists and is unverified, a new link has been sent."}
+
+
+@router.post("/forgot-password")
+async def forgot_password(body: ForgotPasswordBody, request: Request):
+    """Generate a password-reset token and email it. Always returns 200."""
+    db = await get_db(request)
+    ip = _get_client_ip(request)
+    _rate_check(f"forgot-password:ip:{ip}", 3)
+
+    email = body.email.strip().lower() if body.email else ""
+    if not email:
+        raise HTTPException(400, "Email is required")
+
+    user = await db.prepare("SELECT * FROM users WHERE email = ?").bind(email).first()
+    if not user:
+        return {"message": "If that email is registered, a reset link has been sent."}
+
+    user = dict(user)
+
+    # Invalidate existing unused reset tokens for this user
+    await db.prepare(
+        "UPDATE password_reset_tokens SET used_at = datetime('now') "
+        "WHERE user_id = ? AND used_at IS NULL"
+    ).bind(user["id"]).run()
+
+    reset_token = secrets.token_hex(64)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M:%S")
+    await db.prepare(
+        "INSERT INTO password_reset_tokens (id, user_id, token, expires_at, created_at) "
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+    ).bind(str(uuid.uuid4()), user["id"], reset_token, expires_at).run()
+
+    try:
+        from services.email_service import send_password_reset_email
+        await send_password_reset_email(email, user.get("name", ""), reset_token)
+    except Exception:
+        pass
+
+    return {"message": "If that email is registered, a reset link has been sent."}
+
+
+@router.post("/reset-password")
+async def reset_password(body: ResetPasswordBody, request: Request):
+    """Consume a password-reset token and set the new password."""
+    if not body.token:
+        raise HTTPException(400, "Reset token is required")
+    if body.password != body.password_confirmation:
+        raise HTTPException(400, "Password confirmation does not match")
+
+    pw_errors = _validate_password_strength(body.password)
+    if pw_errors:
+        raise HTTPException(400, {"message": "Password too weak", "errors": pw_errors})
+
+    db = await get_db(request)
+
+    row = await db.prepare(
+        "SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL"
+    ).bind(body.token).first()
+
+    if not row:
+        raise HTTPException(400, "Invalid or already-used reset token")
+
+    row = dict(row)
+    now_utc = datetime.now(timezone.utc)
+    try:
+        expires = datetime.fromisoformat(row["expires_at"]).replace(tzinfo=timezone.utc)
+        if now_utc > expires:
+            raise HTTPException(400, "Reset token has expired. Please request a new one.")
+    except (KeyError, ValueError):
+        raise HTTPException(400, "Invalid reset token")
+
+    user_id = row["user_id"]
+    await db.prepare(
+        "UPDATE users SET password_hash = ?, email_verified = 1, "
+        "updated_at = datetime('now') WHERE id = ?"
+    ).bind(_hash_password(body.password), user_id).run()
+
+    await db.prepare(
+        "UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?"
+    ).bind(row["id"]).run()
+
+    return {"message": "Password reset successfully. You can now log in."}
 
 
 @router.post("/register", status_code=201)

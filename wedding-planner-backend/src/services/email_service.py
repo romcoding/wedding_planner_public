@@ -96,6 +96,78 @@ async def send_plan_upgrade_email(email: str, couple_name: str, new_plan: str) -
     return await _send_via_resend(email, subject, html)
 
 
+async def send_verification_email(email: str, couple_name: str, token: str) -> bool:
+    """Send email-verification link to a newly registered couple."""
+    verify_url = f"{FRONTEND_URL}/verify-email?token={token}"
+    subject = "Verify your Wedding Planner email"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <h1 style="color: #d63384; font-size: 28px; margin: 0;">💍 Confirm your email</h1>
+        <p style="color: #666; font-size: 16px; margin-top: 8px;">One quick step before you start planning</p>
+      </div>
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi {couple_name},</p>
+      <p style="color: #555; font-size: 16px; line-height: 1.6;">
+        Click the button below to verify your email address and activate your Wedding Planner account.
+        The link expires in <strong>24 hours</strong>.
+      </p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{verify_url}"
+           style="background: #d63384; color: white; padding: 14px 32px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
+          Verify my email
+        </a>
+      </div>
+      <p style="color: #999; font-size: 13px; text-align: center;">
+        Or copy this link: <a href="{verify_url}" style="color: #d63384;">{verify_url}</a>
+      </p>
+      <p style="color: #bbb; font-size: 12px; text-align: center; margin-top: 24px;">
+        If you didn't create this account you can safely ignore this email.
+      </p>
+    </body>
+    </html>
+    """
+    return await _send_via_resend(email, subject, html)
+
+
+async def send_password_reset_email(email: str, user_name: str, token: str) -> bool:
+    """Send a password-reset link."""
+    reset_url = f"{FRONTEND_URL}/reset-password?token={token}"
+    subject = "Reset your Wedding Planner password"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <h1 style="color: #d63384; font-size: 28px; margin: 0;">🔐 Password reset</h1>
+        <p style="color: #666; font-size: 16px; margin-top: 8px;">We got your request</p>
+      </div>
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi {user_name},</p>
+      <p style="color: #555; font-size: 16px; line-height: 1.6;">
+        Click the button below to choose a new password.
+        This link expires in <strong>1 hour</strong>.
+      </p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{reset_url}"
+           style="background: #d63384; color: white; padding: 14px 32px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
+          Reset my password
+        </a>
+      </div>
+      <p style="color: #999; font-size: 13px; text-align: center;">
+        Or copy: <a href="{reset_url}" style="color: #d63384;">{reset_url}</a>
+      </p>
+      <p style="color: #bbb; font-size: 12px; text-align: center; margin-top: 24px;">
+        If you didn't request this, ignore this email — your password won't change.
+      </p>
+    </body>
+    </html>
+    """
+    return await _send_via_resend(email, subject, html)
+
+
 async def send_invitation_email(
     email: str,
     token: str,

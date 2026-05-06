@@ -31,6 +31,20 @@ CREATE TABLE IF NOT EXISTS email_verifications (
 CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
 CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
 
+-- Password reset tokens (1-hour expiry, single use)
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user ON password_reset_tokens(user_id);
+
 -- Weddings (multi-tenant root)
 CREATE TABLE IF NOT EXISTS weddings (
   id TEXT PRIMARY KEY,
