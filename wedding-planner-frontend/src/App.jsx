@@ -41,6 +41,8 @@ import GuestRegister from './pages/guest/Register'
 import GuestEntry from './pages/guest/GuestEntry'
 import WeddingPortal from './pages/guest/WeddingPortal'
 import PublicLandingPage from './pages/PublicLandingPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
+import ResetPasswordPage from './pages/ResetPasswordPage'
 
 // Moodboard loads in isolated iframe
 function MoodboardFrame() {
@@ -145,6 +147,10 @@ function AppRoutes() {
 
       {/* ── Public Landing ── */}
       <Route path="/" element={<PublicLandingPage />} />
+
+      {/* ── Email verification & password reset (public, no auth required) ── */}
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* ── Guest Routes (existing RSVP portal) ── */}
       <Route path="/guest/*" element={<GuestRoutes />} />

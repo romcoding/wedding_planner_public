@@ -30,7 +30,9 @@ for _name in ("workers", "asgi", "js"):
 if "auth" not in sys.modules:
     auth_stub = _make_stub("auth")
     auth_stub.create_token = lambda user_id, wedding_id, role: f"token:{user_id}"
-    auth_stub.require_admin_auth = None
+    async def _fake_require_admin_auth():
+        return {"sub": "test-user-id"}
+    auth_stub.require_admin_auth = _fake_require_admin_auth
     auth_stub.decode_token = lambda t: {}
     auth_stub.create_guest_token = lambda *a, **kw: "guest_token"
 
@@ -44,6 +46,7 @@ services_stub = _make_stub("services")
 email_stub = _make_stub("services.email_service")
 email_stub.send_welcome_email = AsyncMock(return_value=None)
 email_stub.send_verification_email = AsyncMock(return_value=None)
+email_stub.send_password_reset_email = AsyncMock(return_value=None)
 services_stub.email_service = email_stub
 
 # ---------------------------------------------------------------------------
@@ -59,6 +62,9 @@ if _SRC not in sys.path:
 from routes.auth_routes import (  # noqa: E402
     RegisterBody,
     VerifyEmailBody,
+    ResendVerificationBody,
+    ForgotPasswordBody,
+    ResetPasswordBody,
     _hash_password,
     _check_password,
     _validate_password_strength,
@@ -66,6 +72,9 @@ from routes.auth_routes import (  # noqa: E402
     _rate_buckets,
     register_couple,
     verify_email,
+    resend_verification,
+    forgot_password,
+    reset_password,
     login,
 )
 
@@ -131,14 +140,32 @@ class _PreparedStmt:
             pass
 
 
+_ip_counter = 0
+
+
 def _make_request(db: FakeDB):
-    """Return a minimal FastAPI-like request stub with the fake DB attached."""
+    """Return a minimal FastAPI-like request stub with the fake DB attached.
+
+    Patches get_db directly on the routes module (not just the middleware stub)
+    so the already-imported reference inside auth_routes is updated.
+    Each call uses a unique IP to avoid cross-test rate-limit collisions.
+    """
+    global _ip_counter
+    _ip_counter += 1
+    ip = f"10.{(_ip_counter >> 16) & 0xFF}.{(_ip_counter >> 8) & 0xFF}.{_ip_counter & 0xFF}"
+
     req = MagicMock()
     req.headers.get = MagicMock(return_value=None)
-    req.client.host = "127.0.0.1"
+    req.client.host = ip
 
-    import middleware
-    middleware.get_db = AsyncMock(return_value=db)
+    # Patch the name that auth_routes actually uses (captured via `from middleware import get_db`)
+    import sys
+    ar = sys.modules.get("routes.auth_routes")
+    if ar:
+        ar.get_db = AsyncMock(return_value=db)
+    else:
+        import middleware
+        middleware.get_db = AsyncMock(return_value=db)
     return req
 
 
@@ -415,3 +442,203 @@ def test_login_verified_account_succeeds():
     result = run(login(body, req))
     assert result["user"]["email"] == "couple@example.com"
     assert "access_token" in result
+
+
+def test_login_unverified_returns_error_code():
+    """403 response for unverified email must include error_code field."""
+    from fastapi import HTTPException as FastHTTPException
+    db = FakeDB()
+    pw = "Str0ng!Pass"
+    user_row = FakeRow(
+        id="uid-1",
+        email="couple@example.com",
+        password_hash=_hash_password(pw),
+        name="Alice & Bob",
+        role="admin",
+        is_active=1,
+        email_verified=0,
+        current_wedding_id="wid-1",
+    )
+    db._add_result("SELECT * FROM USERS WHERE EMAIL", [user_row])
+    req = _make_request(db)
+
+    from routes.auth_routes import LoginBody
+    body = LoginBody(email="couple@example.com", password=pw)
+
+    with pytest.raises(FastHTTPException) as exc:
+        run(login(body, req))
+    assert exc.value.status_code == 403
+    assert exc.value.detail.get("error_code") == "email_not_verified"
+
+
+# ---------------------------------------------------------------------------
+# resend_verification tests
+# ---------------------------------------------------------------------------
+
+def test_resend_verification_unknown_email_returns_200():
+    """Must not leak whether an email exists (anti-enumeration)."""
+    db = FakeDB()
+    req = _make_request(db)
+    body = ResendVerificationBody(email="unknown@example.com")
+
+    result = run(resend_verification(body, req))
+    assert "sent" in result["message"].lower() or "link" in result["message"].lower()
+
+
+def test_resend_verification_already_verified_returns_200():
+    """Already-verified users should get a graceful response, not an error."""
+    db = FakeDB()
+    db._add_result("SELECT * FROM USERS WHERE EMAIL", [FakeRow(
+        id="uid-v", email="v@example.com", name="Verified User", email_verified=1
+    )])
+    req = _make_request(db)
+    body = ResendVerificationBody(email="v@example.com")
+
+    result = run(resend_verification(body, req))
+    assert "verified" in result["message"].lower() or "log in" in result["message"].lower()
+
+
+def test_resend_verification_unverified_issues_new_token():
+    db = FakeDB()
+    db._add_result("SELECT * FROM USERS WHERE EMAIL", [FakeRow(
+        id="uid-u", email="u@example.com", name="Unverified User", email_verified=0
+    )])
+    req = _make_request(db)
+    body = ResendVerificationBody(email="u@example.com")
+
+    run(resend_verification(body, req))
+
+    assert len(db.tables["email_verifications"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# forgot_password tests
+# ---------------------------------------------------------------------------
+
+def test_forgot_password_unknown_email_returns_200():
+    db = FakeDB()
+    req = _make_request(db)
+    body = ForgotPasswordBody(email="nobody@example.com")
+
+    result = run(forgot_password(body, req))
+    assert "sent" in result["message"].lower() or "registered" in result["message"].lower()
+
+
+def test_forgot_password_known_email_creates_reset_token():
+    db = FakeDB()
+    # Add password_reset_tokens table to fake db
+    db.tables["password_reset_tokens"] = []
+
+    class _ExtendedPreparedStmt(_PreparedStmt):
+        async def run(self):
+            if "INSERT INTO PASSWORD_RESET_TOKENS" in self._sql:
+                self._db.tables["password_reset_tokens"].append({"bindings": self._bindings})
+            else:
+                await super().run()
+
+    # Monkey-patch prepare to use extended stmt
+    original_prepare = db.prepare
+    def patched_prepare(sql):
+        stmt = original_prepare(sql)
+        stmt.__class__ = _ExtendedPreparedStmt
+        return stmt
+    db.prepare = patched_prepare
+
+    db._add_result("SELECT * FROM USERS WHERE EMAIL", [FakeRow(
+        id="uid-r", email="reset@example.com", name="Reset User", email_verified=1
+    )])
+    req = _make_request(db)
+    body = ForgotPasswordBody(email="reset@example.com")
+
+    run(forgot_password(body, req))
+
+    assert len(db.tables["password_reset_tokens"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# reset_password tests
+# ---------------------------------------------------------------------------
+
+def _reset_token_row(user_id="uid-r", token="reset" * 26, expired=False, used=False):
+    from datetime import datetime, timezone, timedelta
+    if expired:
+        expires = (datetime.now(timezone.utc) - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        expires = (datetime.now(timezone.utc) + timedelta(minutes=55)).strftime("%Y-%m-%d %H:%M:%S")
+    return FakeRow(
+        id="reset-id-1",
+        user_id=user_id,
+        token=token,
+        expires_at=expires,
+        used_at="2026-01-01 00:00:00" if used else None,
+    )
+
+
+def test_reset_password_valid_token_succeeds():
+    db = FakeDB()
+    row = _reset_token_row()
+    db._add_result("SELECT * FROM PASSWORD_RESET_TOKENS WHERE TOKEN", [row])
+    req = _make_request(db)
+    body = ResetPasswordBody(token=row["token"], password="N3wStr0ng!Pass", password_confirmation="N3wStr0ng!Pass")
+
+    result = run(reset_password(body, req))
+    assert "reset" in result["message"].lower()
+
+
+def test_reset_password_expired_token_raises_400():
+    from fastapi import HTTPException as FastHTTPException
+    db = FakeDB()
+    row = _reset_token_row(expired=True)
+    db._add_result("SELECT * FROM PASSWORD_RESET_TOKENS WHERE TOKEN", [row])
+    req = _make_request(db)
+    body = ResetPasswordBody(token=row["token"], password="N3wStr0ng!Pass", password_confirmation="N3wStr0ng!Pass")
+
+    with pytest.raises(FastHTTPException) as exc:
+        run(reset_password(body, req))
+    assert exc.value.status_code == 400
+    assert "expired" in str(exc.value.detail).lower()
+
+
+def test_reset_password_invalid_token_raises_400():
+    from fastapi import HTTPException as FastHTTPException
+    db = FakeDB()
+    req = _make_request(db)
+    body = ResetPasswordBody(token="nonexistent", password="N3wStr0ng!Pass", password_confirmation="N3wStr0ng!Pass")
+
+    with pytest.raises(FastHTTPException) as exc:
+        run(reset_password(body, req))
+    assert exc.value.status_code == 400
+
+
+def test_reset_password_mismatch_raises_400():
+    from fastapi import HTTPException as FastHTTPException
+    db = FakeDB()
+    req = _make_request(db)
+    body = ResetPasswordBody(token="tok", password="N3wStr0ng!Pass", password_confirmation="DifferentPass!1")
+
+    with pytest.raises(FastHTTPException) as exc:
+        run(reset_password(body, req))
+    assert exc.value.status_code == 400
+
+
+def test_reset_password_weak_password_raises_400():
+    from fastapi import HTTPException as FastHTTPException
+    db = FakeDB()
+    req = _make_request(db)
+    body = ResetPasswordBody(token="tok", password="password123", password_confirmation="password123")
+
+    with pytest.raises(FastHTTPException) as exc:
+        run(reset_password(body, req))
+    assert exc.value.status_code == 400
+
+
+def test_register_couple_with_empty_last_names_succeeds():
+    """Backend must accept empty-string last names (optional in quick-register flow)."""
+    db = FakeDB()
+    req = _make_request(db)
+    body = _make_body(partner_one_last_name="", partner_two_last_name="")
+
+    result = run(register_couple(body, req))
+
+    assert result["user"]["email"] == "couple@example.com"
+    assert len(db.tables["users"]) == 1
