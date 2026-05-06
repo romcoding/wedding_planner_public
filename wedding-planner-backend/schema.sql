@@ -10,10 +10,26 @@ CREATE TABLE IF NOT EXISTS users (
   name TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'admin',
   is_active INTEGER NOT NULL DEFAULT 1,
+  email_verified INTEGER NOT NULL DEFAULT 0,
+  email_verified_at TEXT,
   current_wedding_id TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Email verification tokens (24-hour expiry)
+CREATE TABLE IF NOT EXISTS email_verifications (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TEXT NOT NULL,
+  used_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
+CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
 
 -- Weddings (multi-tenant root)
 CREATE TABLE IF NOT EXISTS weddings (

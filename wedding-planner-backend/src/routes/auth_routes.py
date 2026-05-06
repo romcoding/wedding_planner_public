@@ -4,6 +4,9 @@ import hashlib
 import hmac
 import os
 import base64
+import secrets
+import time
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import create_token, create_guest_token, require_admin_auth, decode_token
@@ -29,10 +32,55 @@ class RegisterBody(BaseModel):
     location: str | None = None
     style_notes: str | None = None
 
+class VerifyEmailBody(BaseModel):
+    token: str
+
 class ProfileUpdateBody(BaseModel):
     name: str | None = None
     email: str | None = None
     password: str | None = None
+
+# ---------- Common weak passwords (OWASP top subset) ----------
+
+_WEAK_PASSWORDS = frozenset([
+    "password", "password1", "password123", "12345678", "123456789",
+    "1234567890", "qwerty123", "qwertyuiop", "iloveyou", "sunshine",
+    "princess", "letmein", "monkey123", "dragon123", "master123",
+    "welcome1", "login123", "abc12345", "passw0rd", "p@ssword",
+    "mustang1", "shadow123", "superman1", "michael1", "football1",
+])
+
+# ---------- In-memory rate limiter (per-IP, per-account) ----------
+# Maps key -> list of timestamps; evicted lazily.
+_rate_buckets: dict[str, list[float]] = {}
+
+_RATE_LIMIT_WINDOW = 900   # 15 minutes in seconds
+_RATE_LIMIT_REGISTER = 5   # max registration attempts per IP per window
+_RATE_LIMIT_LOGIN = 10     # max login attempts per IP/account per window
+
+def _rate_check(key: str, limit: int) -> None:
+    """Raise 429 if key has exceeded limit within the rolling window."""
+    now = time.time()
+    cutoff = now - _RATE_LIMIT_WINDOW
+    bucket = _rate_buckets.get(key, [])
+    bucket = [t for t in bucket if t > cutoff]
+    if len(bucket) >= limit:
+        retry_after = int(_RATE_LIMIT_WINDOW - (now - bucket[0]))
+        raise HTTPException(
+            429,
+            f"Too many attempts. Please try again in {retry_after // 60 + 1} minutes.",
+        )
+    bucket.append(now)
+    _rate_buckets[key] = bucket
+
+def _get_client_ip(request: Request) -> str:
+    cf_ip = request.headers.get("CF-Connecting-IP")
+    if cf_ip:
+        return cf_ip
+    x_forwarded = request.headers.get("X-Forwarded-For")
+    if x_forwarded:
+        return x_forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 # ---------- Helpers ----------
 
@@ -82,23 +130,49 @@ def _check_password(password: str, hashed: str) -> bool:
         return False
 
 
+def _validate_password_strength(password: str) -> list[str]:
+    """Return a list of error messages; empty list means the password is acceptable."""
+    errors: list[str] = []
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters long.")
+    if password.lower() in _WEAK_PASSWORDS:
+        errors.append("Password is too common. Please choose a stronger password.")
+    return errors
+
+
 # ---------- Routes ----------
 
 @router.post("/login")
 async def login(body: LoginBody, request: Request):
     db = await get_db(request)
 
-    if not body.email or not body.password:
+    ip = _get_client_ip(request)
+    email = body.email.strip().lower() if body.email else ""
+
+    if not email or not body.password:
         raise HTTPException(400, "Email and password are required")
+
+    # Rate-limit by IP and by account to prevent brute-force
+    _rate_check(f"login:ip:{ip}", _RATE_LIMIT_LOGIN)
+    _rate_check(f"login:account:{email}", _RATE_LIMIT_LOGIN)
 
     user = await db.prepare(
         "SELECT * FROM users WHERE email = ?"
-    ).bind(body.email.strip().lower()).first()
+    ).bind(email).first()
 
     if not user or not _check_password(body.password, user["password_hash"]):
         raise HTTPException(401, "Invalid credentials")
 
     user = dict(user)
+
+    # Block login if email not yet verified (when column exists)
+    if user.get("email_verified") == 0:
+        raise HTTPException(
+            403,
+            "Please verify your email address before logging in. "
+            "Check your inbox for the verification link.",
+        )
+
     token = create_token(user["id"], user.get("current_wedding_id"), user.get("role", "admin"))
     return {
         "access_token": token,
@@ -120,8 +194,28 @@ async def register_couple(body: RegisterBody, request: Request):
     """Public registration: creates user + wedding atomically."""
     db = await get_db(request)
 
+    ip = _get_client_ip(request)
+    _rate_check(f"register:ip:{ip}", _RATE_LIMIT_REGISTER)
+
+    # Validate required fields
+    missing: list[str] = []
+    for field in ("email", "password", "password_confirmation",
+                  "partner_one_first_name", "partner_two_first_name"):
+        if not getattr(body, field, None):
+            missing.append(field)
+    if missing:
+        raise HTTPException(
+            400,
+            {"message": "Missing required fields", "missing_fields": missing},
+        )
+
     if body.password != body.password_confirmation:
         raise HTTPException(400, "Password confirmation does not match")
+
+    # Password strength check
+    pw_errors = _validate_password_strength(body.password)
+    if pw_errors:
+        raise HTTPException(400, {"message": "Password too weak", "errors": pw_errors})
 
     email = body.email.strip().lower()
     existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first()
@@ -131,8 +225,8 @@ async def register_couple(body: RegisterBody, request: Request):
     partner_one = f"{body.partner_one_first_name.strip()} {body.partner_one_last_name.strip()}".strip()
     partner_two = f"{body.partner_two_first_name.strip()} {body.partner_two_last_name.strip()}".strip()
 
-    # Parse wedding year for slug
-    year = 2026
+    # Derive wedding year for the slug; fall back to current year when absent
+    year = datetime.now(timezone.utc).year
     if body.wedding_date:
         try:
             year = int(body.wedding_date.split("-")[0])
@@ -144,34 +238,47 @@ async def register_couple(body: RegisterBody, request: Request):
     password_hash = _hash_password(body.password)
     couple_name = f"{partner_one} & {partner_two}"
 
-    # Generate unique slug before batch
+    # Generate unique slug before writing
     base_slug = _generate_slug(partner_one, partner_two, year)
     slug = await _ensure_unique_slug(db, base_slug)
 
+    # Write user (email_verified defaults to 0 via schema)
     await db.prepare(
         "INSERT INTO users (id, email, password_hash, name, role, is_active, "
         "current_wedding_id, created_at, updated_at) "
         "VALUES (?, ?, ?, ?, 'admin', 1, ?, datetime('now'), datetime('now'))"
     ).bind(user_id, email, password_hash, couple_name, wedding_id).run()
 
+    # Write wedding
     await db.prepare(
         "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
         "wedding_date, location, plan, is_active, created_at, updated_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
     ).bind(wedding_id, slug, user_id, partner_one, partner_two, body.wedding_date, body.location).run()
 
-    token = create_token(user_id, wedding_id, "admin")
+    # Create email verification token (64-byte hex = 128 chars)
+    verification_token = secrets.token_hex(64)
+    expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
 
-    # 5. Send welcome email (non-blocking)
+    await db.prepare(
+        "INSERT INTO email_verifications (id, user_id, token, expires_at, created_at) "
+        "VALUES (?, ?, ?, ?, datetime('now'))"
+    ).bind(str(uuid.uuid4()), user_id, verification_token, expires_at).run()
+
+    # Send welcome + verification email (non-blocking)
     try:
-        from services.email_service import send_welcome_email
+        from services.email_service import send_welcome_email, send_verification_email
         await send_welcome_email(email, couple_name, slug)
+        await send_verification_email(email, couple_name, verification_token)
     except Exception:
         pass
 
+    token = create_token(user_id, wedding_id, "admin")
+
     return {
-        "message": "Couple registered successfully",
+        "message": "Couple registered successfully. Please check your email to verify your account.",
         "access_token": token,
+        "email_verification_required": True,
         "user": {
             "id": user_id,
             "email": email,
@@ -188,6 +295,48 @@ async def register_couple(body: RegisterBody, request: Request):
             "plan": "free",
         },
     }
+
+
+@router.post("/verify-email")
+async def verify_email(body: VerifyEmailBody, request: Request):
+    """Consume a verification token and mark the user's email as verified."""
+    if not body.token:
+        raise HTTPException(400, "Verification token is required")
+
+    db = await get_db(request)
+
+    row = await db.prepare(
+        "SELECT * FROM email_verifications WHERE token = ? AND used_at IS NULL"
+    ).bind(body.token).first()
+
+    if not row:
+        raise HTTPException(400, "Invalid or already-used verification token")
+
+    row = dict(row)
+    now_utc = datetime.now(timezone.utc)
+
+    # Check expiry
+    try:
+        expires = datetime.fromisoformat(row["expires_at"]).replace(tzinfo=timezone.utc)
+        if now_utc > expires:
+            raise HTTPException(400, "Verification token has expired. Please request a new one.")
+    except (KeyError, ValueError):
+        raise HTTPException(400, "Invalid verification token")
+
+    user_id = row["user_id"]
+
+    # Mark user as verified
+    await db.prepare(
+        "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
+        "updated_at = datetime('now') WHERE id = ?"
+    ).bind(user_id).run()
+
+    # Mark token as used
+    await db.prepare(
+        "UPDATE email_verifications SET used_at = datetime('now') WHERE id = ?"
+    ).bind(row["id"]).run()
+
+    return {"message": "Email verified successfully. You can now log in."}
 
 
 @router.post("/register", status_code=201)
@@ -258,6 +407,9 @@ async def update_profile(
         ).bind(body.name, user_id).run()
 
     if body.password:
+        pw_errors = _validate_password_strength(body.password)
+        if pw_errors:
+            raise HTTPException(400, {"message": "Password too weak", "errors": pw_errors})
         await db.prepare(
             "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?"
         ).bind(_hash_password(body.password), user_id).run()

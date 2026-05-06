@@ -18,21 +18,31 @@ import {
 function QuickRegisterForm() {
   const navigate = useNavigate()
   const { registerCouple } = useAuth()
-  const [step, setStep] = useState(1)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  // Single state object — values persist when switching between steps.
   const [form, setForm] = useState({
     partner_one_first_name: '',
     partner_two_first_name: '',
     email: '',
     password: '',
   })
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [done, setDone] = useState(false)
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (step === 1) { setStep(2); return }
+    if (step === 1) {
+      if (!form.partner_one_first_name.trim() || !form.partner_two_first_name.trim()) {
+        setError('Please enter both partner names.')
+        return
+      }
+      setError('')
+      setStep(2)
+      return
+    }
     setError('')
     setLoading(true)
     try {
@@ -46,7 +56,11 @@ function QuickRegisterForm() {
         partner_two_last_name: '',
       })
       if (result.success) {
-        navigate('/onboarding', { replace: true })
+        if (result.data?.email_verification_required) {
+          setDone(true)
+        } else {
+          navigate('/onboarding', { replace: true })
+        }
       } else {
         setError(result.error || 'Something went wrong. Please try again.')
       }
@@ -55,8 +69,21 @@ function QuickRegisterForm() {
     }
   }
 
+  if (done) {
+    return (
+      <div className="text-center py-2 space-y-2">
+        <p className="text-2xl">📬</p>
+        <p className="text-sm font-semibold text-gray-700">Check your inbox!</p>
+        <p className="text-xs text-gray-500">
+          We sent a verification link to <strong>{form.email}</strong>.
+          Click it to activate your account.
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
+    <form onSubmit={handleSubmit} className="space-y-3" noValidate>
       {error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
           {error}
@@ -67,7 +94,6 @@ function QuickRegisterForm() {
         <>
           <div className="grid grid-cols-2 gap-2">
             <input
-              required
               type="text"
               placeholder="Partner 1 first name"
               value={form.partner_one_first_name}
@@ -75,7 +101,6 @@ function QuickRegisterForm() {
               className="px-3 py-2.5 rounded-xl border border-rose-200 focus:outline-none focus:ring-2 focus:ring-rose-300 text-sm bg-white"
             />
             <input
-              required
               type="text"
               placeholder="Partner 2 first name"
               value={form.partner_two_first_name}

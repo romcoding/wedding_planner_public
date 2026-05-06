@@ -69,11 +69,19 @@ export function AuthProvider({ children }) {
       sessionStorage.setItem('user', JSON.stringify(user))
       setUser(user)
 
-      return { success: true, wedding: response.data.wedding }
+      return {
+        success: true,
+        data: response.data,
+        wedding: response.data.wedding,
+      }
     } catch (error) {
+      const detail = error.response?.data?.detail
+      // FastAPI wraps structured errors as the detail field
+      const errorData = typeof detail === 'object' ? detail : null
       return {
         success: false,
-        error: error.response?.data?.error || error.response?.data?.detail || 'Registration failed',
+        error: errorData?.message || (typeof detail === 'string' ? detail : null) || 'Registration failed',
+        errorData,
       }
     }
   }
