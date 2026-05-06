@@ -3,9 +3,12 @@ import jwt
 from datetime import datetime, timedelta, timezone
 from fastapi import Request, HTTPException
 
-SECRET = os.environ.get("JWT_SECRET_KEY", "dev-secret-change-in-production")
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_DAYS = 7
+
+
+def _get_secret() -> str:
+    return os.environ.get("JWT_SECRET_KEY", "dev-secret-change-in-production")
 
 
 def create_token(user_id: str, wedding_id: str | None = None, role: str = "admin") -> str:
@@ -15,11 +18,11 @@ def create_token(user_id: str, wedding_id: str | None = None, role: str = "admin
         "role": role,
         "exp": datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS),
     }
-    return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
+    return jwt.encode(payload, _get_secret(), algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
-    return jwt.decode(token, SECRET, algorithms=[ALGORITHM])
+    return jwt.decode(token, _get_secret(), algorithms=[ALGORITHM])
 
 
 def create_guest_token(guest_id: str, wedding_id: str | None = None) -> str:
@@ -29,7 +32,7 @@ def create_guest_token(guest_id: str, wedding_id: str | None = None) -> str:
         "role": "guest",
         "exp": datetime.now(timezone.utc) + timedelta(days=TOKEN_EXPIRE_DAYS),
     }
-    return jwt.encode(payload, SECRET, algorithm=ALGORITHM)
+    return jwt.encode(payload, _get_secret(), algorithm=ALGORITHM)
 
 
 async def require_auth(request: Request) -> dict:

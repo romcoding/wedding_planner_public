@@ -37,6 +37,13 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request):
         from js import Response, Headers
 
+        # Mirror Worker bindings into process env so modules using os.environ
+        # can access Cloudflare secrets consistently at runtime.
+        for key in ("JWT_SECRET_KEY", "RESEND_API_KEY", "FROM_EMAIL", "FRONTEND_URL", "CORS_EXTRA_ORIGINS"):
+            value = getattr(self.env, key, None)
+            if value is not None:
+                os.environ[key] = str(value)
+
         origin = request.headers.get("origin") or ""
         cors_origin = origin if origin in _allowed_origins else ""
 

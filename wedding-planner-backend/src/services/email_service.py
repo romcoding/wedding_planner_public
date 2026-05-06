@@ -6,25 +6,27 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-RESEND_API_KEY = os.environ.get("RESEND_API_KEY", "")
-FROM_EMAIL = os.environ.get("FROM_EMAIL", "noreply@wedding-planner.app")
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-
-
 async def _send_via_resend(to: str, subject: str, html: str) -> bool:
     """Send email via Resend API using httpx."""
-    if not RESEND_API_KEY:
-        logger.info(f"[email] RESEND_API_KEY not set, skipping email to {to}")
+    resend_api_key = os.environ.get("RESEND_API_KEY", "")
+    from_email = os.environ.get("FROM_EMAIL", "noreply@wedding-planner.app")
+    if not resend_api_key:
+        logger.error(f"[email] RESEND_API_KEY not set, skipping email to {to}")
         return False
     try:
         import httpx
-        response = httpx.post(
-            "https://api.resend.com/emails",
-            headers={"Authorization": f"Bearer {RESEND_API_KEY}", "Content-Type": "application/json"},
-            json={"from": FROM_EMAIL, "to": [to], "subject": subject, "html": html},
-            timeout=10.0,
-        )
-        response.raise_for_status()
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {resend_api_key}", "Content-Type": "application/json"},
+                json={"from": from_email, "to": [to], "subject": subject, "html": html},
+            )
+        if response.status_code >= 400:
+            logger.error(
+                f"[email] Resend rejected email to {to} with status {response.status_code}: {response.text}"
+            )
+            return False
+        logger.info(f"[email] Sent email to {to} via Resend")
         return True
     except Exception as e:
         logger.error(f"Failed to send email to {to}: {e}")
@@ -33,8 +35,9 @@ async def _send_via_resend(to: str, subject: str, html: str) -> bool:
 
 async def send_welcome_email(email: str, couple_name: str, slug: str) -> bool:
     """Send welcome email to a newly registered couple."""
-    dashboard_url = f"{FRONTEND_URL}/admin/wedding"
-    portal_url = f"{FRONTEND_URL}/w/{slug}"
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    dashboard_url = f"{frontend_url}/admin/wedding"
+    portal_url = f"{frontend_url}/w/{slug}"
     subject = f"Welcome to Wedding Planner, {couple_name}!"
     html = f"""
     <!DOCTYPE html>
@@ -98,7 +101,8 @@ async def send_plan_upgrade_email(email: str, couple_name: str, new_plan: str) -
 
 async def send_verification_email(email: str, couple_name: str, token: str) -> bool:
     """Send email-verification link to a newly registered couple."""
-    verify_url = f"{FRONTEND_URL}/verify-email?token={token}"
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    verify_url = f"{frontend_url}/verify-email?token={token}"
     subject = "Verify your Wedding Planner email"
     html = f"""
     <!DOCTYPE html>
@@ -134,7 +138,8 @@ async def send_verification_email(email: str, couple_name: str, token: str) -> b
 
 async def send_password_reset_email(email: str, user_name: str, token: str) -> bool:
     """Send a password-reset link."""
-    reset_url = f"{FRONTEND_URL}/reset-password?token={token}"
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    reset_url = f"{frontend_url}/reset-password?token={token}"
     subject = "Reset your Wedding Planner password"
     html = f"""
     <!DOCTYPE html>
