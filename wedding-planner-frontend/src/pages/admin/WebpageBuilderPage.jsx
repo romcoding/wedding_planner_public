@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { MessageSquare, Save, Sparkles } from 'lucide-react'
+import { useWedding } from '../../contexts/WeddingContext'
+import PlanGate from '../../components/PlanGate'
 
 const DEFAULT_CONFIG = {
   template: 'classic',
@@ -45,8 +47,17 @@ function parseJsonSafe(raw, fallback) {
 }
 
 export default function WebpageBuilderPage() {
+  const { wedding, updateWedding, refreshWedding, planMeets } = useWedding()
   const queryClient = useQueryClient()
   const [config, setConfig] = useState(DEFAULT_CONFIG)
+  const [simpleForm, setSimpleForm] = useState({
+    partner_one_name: '',
+    partner_two_name: '',
+    wedding_date: '',
+    location: '',
+  })
+  const [simpleSaving, setSimpleSaving] = useState(false)
+  const [simpleMsg, setSimpleMsg] = useState('')
   const [chatInput, setChatInput] = useState('')
   const [chatLog, setChatLog] = useState([])
   const [lastTokenMeta, setLastTokenMeta] = useState({ consumed: 0, remaining: null })
@@ -87,6 +98,16 @@ export default function WebpageBuilderPage() {
       guestGroomCard: fromSaved.guestGroomCard || cards.find((c) => c.type === 'groom') || {},
     }))
   }, [settings])
+
+  useEffect(() => {
+    if (!wedding) return
+    setSimpleForm({
+      partner_one_name: wedding.partner_one_name || '',
+      partner_two_name: wedding.partner_two_name || '',
+      wedding_date: wedding.wedding_date ? String(wedding.wedding_date).slice(0, 16) : '',
+      location: wedding.location || '',
+    })
+  }, [wedding])
 
   const saveMutation = useMutation({
     mutationFn: (payload) => api.post('/events/guest-portal-settings', payload),
@@ -154,6 +175,24 @@ export default function WebpageBuilderPage() {
     })
   }
 
+  const saveSimplePage = async () => {
+    setSimpleSaving(true)
+    setSimpleMsg('')
+    const result = await updateWedding({
+      partner_one_name: simpleForm.partner_one_name,
+      partner_two_name: simpleForm.partner_two_name,
+      wedding_date: simpleForm.wedding_date ? new Date(simpleForm.wedding_date).toISOString() : null,
+      location: simpleForm.location,
+    })
+    if (result.success) {
+      await refreshWedding()
+      setSimpleMsg('Saved. Your public wedding page is updated.')
+    } else {
+      setSimpleMsg(result.error || 'Failed to save.')
+    }
+    setSimpleSaving(false)
+  }
+
   const renderPreviewSection = (section) => {
     switch (section) {
       case 'hero':
@@ -188,7 +227,50 @@ export default function WebpageBuilderPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+      {wedding?.plan === 'free' && (
+        <div className="bg-white border rounded-xl p-5 space-y-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Free Plan: Simple Wedding Page</h2>
+            <p className="text-sm text-gray-700 mt-1">
+              Keep it simple: names, date, and location. This powers your public page at <strong>/w/{wedding?.slug}</strong>.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="text-sm text-gray-700">
+              Partner one name
+              <input className="mt-1 w-full border rounded-lg p-2" value={simpleForm.partner_one_name} onChange={(e) => setSimpleForm((p) => ({ ...p, partner_one_name: e.target.value }))} />
+            </label>
+            <label className="text-sm text-gray-700">
+              Partner two name
+              <input className="mt-1 w-full border rounded-lg p-2" value={simpleForm.partner_two_name} onChange={(e) => setSimpleForm((p) => ({ ...p, partner_two_name: e.target.value }))} />
+            </label>
+            <label className="text-sm text-gray-700">
+              Wedding date
+              <input type="datetime-local" className="mt-1 w-full border rounded-lg p-2" value={simpleForm.wedding_date} onChange={(e) => setSimpleForm((p) => ({ ...p, wedding_date: e.target.value }))} />
+            </label>
+            <label className="text-sm text-gray-700">
+              Location
+              <input className="mt-1 w-full border rounded-lg p-2" value={simpleForm.location} onChange={(e) => setSimpleForm((p) => ({ ...p, location: e.target.value }))} />
+            </label>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button onClick={saveSimplePage} disabled={simpleSaving} className="inline-flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg disabled:opacity-60">
+              <Save className="h-4 w-4" />
+              {simpleSaving ? 'Saving...' : 'Save simple page'}
+            </button>
+            {simpleMsg && <span className="text-sm text-gray-700">{simpleMsg}</span>}
+          </div>
+
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Advanced customization (hero images, section order, AI website editing) is available on Starter and Premium plans.
+          </div>
+        </div>
+      )}
+
+      <PlanGate plan="starter" fallback={wedding?.plan === 'free' ? null : undefined}>
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
         <div className="xl:col-span-4 space-y-4">
           <div className="bg-white border rounded-xl p-4">
             <h2 className="font-semibold mb-3">Sections</h2>
@@ -249,7 +331,8 @@ export default function WebpageBuilderPage() {
             ))}
           </div>
         </div>
-      </div>
+        </div>
+      </PlanGate>
     </div>
   )
 }
