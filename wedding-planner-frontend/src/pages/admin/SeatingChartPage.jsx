@@ -15,13 +15,17 @@ import {
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Users, X, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import { HelpCircle, PlusCircle, Trash, Edit, Users, X, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
+import TutorialModal from '../../components/TutorialModal'
+import { useTutorial } from '../../components/useTutorial'
+import seatingChartTutorial from '../../assets/tutorials/seating-chart.json'
 
 const ROOM_WIDTH = 2000
 const ROOM_HEIGHT = 1500
 
 const SeatingChartPage = () => {
   const queryClient = useQueryClient()
+  const tutorial = useTutorial(seatingChartTutorial)
   const [showTableForm, setShowTableForm] = useState(false)
   const [editingTable, setEditingTable] = useState(null)
   const [selectedTable, setSelectedTable] = useState(null)
@@ -437,12 +441,26 @@ const SeatingChartPage = () => {
 
   return (
     <div className="p-6">
+      <TutorialModal
+        isOpen={tutorial.isOpen}
+        onClose={tutorial.close}
+        tutorial={seatingChartTutorial}
+      />
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Seating Chart</h1>
           <p className="text-gray-700 mt-1">Drag tables to arrange them, drag guests to assign seats</p>
         </div>
         <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={tutorial.open}
+            aria-label="Show seating chart tutorial"
+            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 px-3 py-2 rounded-lg hover:bg-gray-50 font-medium"
+          >
+            <HelpCircle className="w-4 h-4" aria-hidden="true" />
+            Help
+          </button>
           <button
             onClick={() => autoAssign.mutate()}
             className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 font-medium"

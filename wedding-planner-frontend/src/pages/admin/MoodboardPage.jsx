@@ -2,8 +2,12 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { useToast } from '../../components/ui/Toast'
+import TutorialModal from '../../components/TutorialModal'
+import { useTutorial } from '../../components/useTutorial'
+import moodboardTutorial from '../../assets/tutorials/moodboard.json'
 import {
   Hand,
+  HelpCircle,
   MousePointer2,
   ImagePlus,
   Square,
@@ -243,6 +247,7 @@ function IconButton({ title, onClick, active, children, disabled, className = ''
 export default function MoodboardPage() {
   const toast = useToast()
   const queryClient = useQueryClient()
+  const tutorial = useTutorial(moodboardTutorial)
 
   const stageRef = useRef(null)
   const containerRef = useRef(null)
@@ -1202,6 +1207,11 @@ export default function MoodboardPage() {
 
   return (
     <div className="w-full">
+      <TutorialModal
+        isOpen={tutorial.isOpen}
+        onClose={tutorial.close}
+        tutorial={moodboardTutorial}
+      />
       <div className="flex items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <h1 className="text-3xl font-bold text-gray-900">Moodboard</h1>
@@ -1213,6 +1223,16 @@ export default function MoodboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={tutorial.open}
+            aria-label="Show moodboard tutorial"
+            title="Show tutorial"
+            className="inline-flex items-center gap-1 px-3 h-10 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm font-medium"
+          >
+            <HelpCircle className="w-4 h-4" aria-hidden="true" />
+            Help
+          </button>
           <select
             value={boardId || ''}
             onChange={(e) => {

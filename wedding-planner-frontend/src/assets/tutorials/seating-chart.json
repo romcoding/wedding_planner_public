@@ -1,0 +1,28 @@
+{
+  "id": "seating-chart",
+  "title": "Plan your seating chart",
+  "subtitle": "Place tables in the room and assign guests to seats with drag-and-drop.",
+  "storageKey": "hasSeenSeatingChartTour",
+  "steps": [
+    {
+      "title": "Add tables to the room",
+      "body": "Click \"Add Table\" to create a table — choose its name, capacity, and shape (round or rectangular). New tables appear in the room area; drag them anywhere to lay out your floor plan.",
+      "tip": "Use Zoom In/Out and Reset View to navigate large rooms comfortably."
+    },
+    {
+      "title": "Assign guests to seats",
+      "body": "Unassigned guests appear in the side panel. Drag a guest onto any open seat at a table. To unassign, drag the guest back to the panel.",
+      "tip": "Tab and arrow keys also work — drag-and-drop is fully keyboard accessible."
+    },
+    {
+      "title": "Try Auto-assign",
+      "body": "Short on time? Click Auto-assign and we'll seat your confirmed guests automatically based on table capacity. You can still tweak placements manually afterward.",
+      "tip": "Auto-assign respects existing seat assignments — it only fills empty seats."
+    },
+    {
+      "title": "Export your plan",
+      "body": "When you're happy with the layout, click Export CSV to download a guest-by-table list you can share with your venue or print as a seating list.",
+      "tip": "Re-export any time — the CSV always reflects your latest assignments."
+    }
+  ]
+}

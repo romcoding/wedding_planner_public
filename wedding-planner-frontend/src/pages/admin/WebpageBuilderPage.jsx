@@ -1,9 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { MessageSquare, Save, Sparkles } from 'lucide-react'
+import { HelpCircle, MessageSquare, Save, Sparkles } from 'lucide-react'
 import { useWedding } from '../../contexts/WeddingContext'
 import PlanGate from '../../components/PlanGate'
+import TutorialModal from '../../components/TutorialModal'
+import { useTutorial } from '../../components/useTutorial'
+import webpageBuilderTutorial from '../../assets/tutorials/webpage-builder.json'
 
 const DEFAULT_CONFIG = {
   template: 'classic',
@@ -49,6 +52,7 @@ function parseJsonSafe(raw, fallback) {
 export default function WebpageBuilderPage() {
   const { wedding, updateWedding, refreshWedding, planMeets } = useWedding()
   const queryClient = useQueryClient()
+  const tutorial = useTutorial(webpageBuilderTutorial)
   const [config, setConfig] = useState(DEFAULT_CONFIG)
   const [simpleForm, setSimpleForm] = useState({
     partner_one_name: '',
@@ -222,10 +226,27 @@ export default function WebpageBuilderPage() {
           <p className="text-gray-600">Drag/reorder sections and edit content. Changes auto-save.</p>
           <p className="text-sm text-purple-700 mt-1">Use Clawed Bot to set up and edit the guest website with natural-language commands.</p>
         </div>
-        <button className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg" onClick={() => saveMutation.mutate(savePayload)}>
-          <Save className="h-4 w-4" /> Save now
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={tutorial.open}
+            aria-label="Show webpage builder tutorial"
+            className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+          >
+            <HelpCircle className="h-4 w-4" aria-hidden="true" />
+            Help
+          </button>
+          <button className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg" onClick={() => saveMutation.mutate(savePayload)}>
+            <Save className="h-4 w-4" /> Save now
+          </button>
+        </div>
       </div>
+
+      <TutorialModal
+        isOpen={tutorial.isOpen}
+        onClose={tutorial.close}
+        tutorial={webpageBuilderTutorial}
+      />
 
       {wedding?.plan === 'free' && (
         <div className="bg-white border rounded-xl p-5 space-y-4">
