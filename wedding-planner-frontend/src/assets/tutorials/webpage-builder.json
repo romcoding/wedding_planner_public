@@ -1,0 +1,28 @@
+{
+  "id": "webpage-builder",
+  "title": "Build your wedding website",
+  "subtitle": "Customize the public page your guests will see at /w/your-slug.",
+  "storageKey": "hasSeenWebpageBuilderTour",
+  "steps": [
+    {
+      "title": "Start with the basics",
+      "body": "Enter your names, wedding date, and location. These power the simple page on every plan and are reused across the site as defaults.",
+      "tip": "On the Free plan you get a clean simple page — upgrade to unlock hero images, sections, and AI editing."
+    },
+    {
+      "title": "Reorder your sections",
+      "body": "The Sections panel on the left lists every block on your page (Hero, About, Timeline, Agenda, RSVP, Contact, etc.). Use the up/down buttons to reorder — the live preview updates instantly.",
+      "tip": "Hide a section by removing its content; empty sections won't show on the public page."
+    },
+    {
+      "title": "Edit content inline",
+      "body": "Open the Inline Content panel to write your About text, set the dress code, and add a hero image URL. Changes auto-save after a brief pause.",
+      "tip": "Use a high-resolution photo for the hero — it's the first thing guests see."
+    },
+    {
+      "title": "Let Clawed Bot help",
+      "body": "On Starter and Premium plans, ask Clawed Bot in plain language: \"create a modern page with timeline first\" or \"change the theme to navy and gold.\" The bot rewrites your config for you.",
+      "tip": "Each command uses a small number of AI tokens — check the counter under the chat box."
+    }
+  ]
+}

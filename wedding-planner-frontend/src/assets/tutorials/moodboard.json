@@ -1,0 +1,28 @@
+{
+  "id": "moodboard",
+  "title": "Welcome to your Moodboard",
+  "subtitle": "Collect inspiration, colors, and references for your wedding in one place.",
+  "storageKey": "hasSeenMoodboardTour",
+  "steps": [
+    {
+      "title": "Pick a tool from the toolbar",
+      "body": "Use the toolbar at the top to switch between Select, Pan, Image, Shape, and Text tools. The Select tool lets you move and resize items; the Pan tool lets you drag the whole board.",
+      "tip": "Press Space to temporarily switch to the Pan tool while you work."
+    },
+    {
+      "title": "Add images and references",
+      "body": "Click the Image tool to upload from your device, or paste an image directly onto the board with Ctrl/Cmd+V. Drop files anywhere on the canvas to add them quickly.",
+      "tip": "You can also paste a URL — the moodboard will fetch a preview for you."
+    },
+    {
+      "title": "Build your color palette",
+      "body": "Click on any image to sample its colors, or open the palette panel to add custom hex values. Drag swatches onto the board to create color blocks alongside your photos.",
+      "tip": "Try a starter template (Rustic, Modern, Classic) for instant inspiration."
+    },
+    {
+      "title": "Organize and share",
+      "body": "Group related items together, label sections with the Text tool, and use multiple boards to compare directions. Everything saves automatically as you work.",
+      "tip": "Use Undo (Ctrl/Cmd+Z) and Redo (Ctrl/Cmd+Y) freely — your changes are reversible."
+    }
+  ]
+}
