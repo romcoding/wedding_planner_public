@@ -19,6 +19,34 @@ DEFAULTS = {
 }
 
 
+def _row_to_dict(row) -> dict | None:
+    """Normalize Cloudflare D1 rows across dict/JsProxy representations."""
+    if row is None:
+        return None
+    if isinstance(row, dict):
+        return row
+    to_py = getattr(row, "to_py", None)
+    if callable(to_py):
+        converted = to_py()
+        if isinstance(converted, dict):
+            return converted
+    try:
+        return dict(row)
+    except Exception as exc:
+        raise HTTPException(500, f"Unexpected DB row format: {type(row).__name__}") from exc
+
+
+def _row_count(row, key: str = "c") -> int:
+    """Read an integer aggregate (e.g. SELECT COUNT(*) AS c) from a D1 row."""
+    data = _row_to_dict(row)
+    if not data:
+        return 0
+    try:
+        return int(data.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
 class QuickSetupBody(BaseModel):
     couple_names: str | None = None
     wedding_date: str | None = None
@@ -76,16 +104,19 @@ async def onboarding_status(
     db = await get_db(request)
     user_id = payload["sub"]
 
-    user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
+    user = _row_to_dict(
+        await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
+    )
     if not user:
         raise HTTPException(404, "User not found")
-    user = dict(user)
 
     wedding = None
     if user.get("current_wedding_id"):
-        wedding = await db.prepare(
-            "SELECT * FROM weddings WHERE id = ?"
-        ).bind(user["current_wedding_id"]).first()
+        wedding = _row_to_dict(
+            await db.prepare(
+                "SELECT * FROM weddings WHERE id = ?"
+            ).bind(user["current_wedding_id"]).first()
+        )
 
     has_wedding = wedding is not None
     has_guests = False
@@ -93,13 +124,13 @@ async def onboarding_status(
         g = await db.prepare(
             "SELECT COUNT(*) as c FROM guests WHERE wedding_id = ?"
         ).bind(wedding["id"]).first()
-        has_guests = (g["c"] if g else 0) > 0
+        has_guests = _row_count(g) > 0
 
     return {
         "has_account": True,
         "has_wedding": has_wedding,
         "has_guests": has_guests,
-        "wedding": dict(wedding) if wedding else None,
+        "wedding": wedding,
         "steps_complete": sum([has_wedding, has_guests]),
         "total_steps": 2,
     }
@@ -159,7 +190,9 @@ async def quick_setup(
     # Upsert per-wedding simple public content.
     message = f"{planner_brand} created this space so each guest has a smooth, premium wedding journey. {style_note}"
     faq = f"Hashtag: {wedding_hashtag}"
-    existing_content = await db.prepare("SELECT id FROM wedding_content WHERE wedding_id = ?").bind(wedding["id"]).first()
+    existing_content = _row_to_dict(
+        await db.prepare("SELECT id FROM wedding_content WHERE wedding_id = ?").bind(wedding["id"]).first()
+    )
     if existing_content:
         await db.prepare(
             "UPDATE wedding_content SET couple_names = ?, wedding_date = ?, venue = ?, message = ?, faq = ?, updated_at = datetime('now') WHERE wedding_id = ?"
@@ -173,8 +206,9 @@ async def quick_setup(
         created_content = 1
         updated_content = 0
 
-    existing_events_row = await db.prepare("SELECT COUNT(*) as c FROM events WHERE wedding_id = ?").bind(wedding["id"]).first()
-    existing_events = (existing_events_row["c"] if existing_events_row else 0) or 0
+    existing_events = _row_count(
+        await db.prepare("SELECT COUNT(*) as c FROM events WHERE wedding_id = ?").bind(wedding["id"]).first()
+    )
     created_events = 0
     if existing_events == 0 or body.force_seed_events:
         for name, description, start_time, location in _build_event_template(wedding_date, wedding_location):
@@ -184,8 +218,9 @@ async def quick_setup(
             ).bind(str(uuid.uuid4()), wedding["id"], payload["sub"], name, description, location, start_time.isoformat()).run()
             created_events += 1
 
-    existing_tasks_row = await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE wedding_id = ?").bind(wedding["id"]).first()
-    existing_tasks = (existing_tasks_row["c"] if existing_tasks_row else 0) or 0
+    existing_tasks = _row_count(
+        await db.prepare("SELECT COUNT(*) as c FROM tasks WHERE wedding_id = ?").bind(wedding["id"]).first()
+    )
     created_tasks = 0
     if existing_tasks == 0 or body.force_seed_tasks:
         for title, category, priority, days_before in _build_task_template():

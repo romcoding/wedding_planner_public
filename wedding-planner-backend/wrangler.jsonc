@@ -9,5 +9,8 @@
       "database_name": "wedding-planner-db",
       "database_id": "e123df31-5265-49af-b674-f6ffc9554b16"
     }
-  ]
+  ],
+  "observability": {
+    "enabled": true
+  }
 }
