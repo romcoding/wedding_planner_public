@@ -1,8 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { CheckCircle, XCircle, Clock, Search, Filter, PlusCircle, Copy, QrCode, Mail, Link as LinkIcon } from 'lucide-react'
-import { useState } from 'react'
+import { CheckCircle, XCircle, Clock, Search, Filter, PlusCircle, Copy, QrCode, Mail, Link as LinkIcon, Download, Upload, Users } from 'lucide-react'
+import { useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
+import EmptyState from '../../components/ui/EmptyState'
+import { formatLocaleDate } from '../../utils/locale'
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const PHONE_PATTERN = /^[+\d][\d\s().-]{5,}$/
+
+function validateGuestForm({ email, phone }) {
+  const errors = {}
+  if (!email || !EMAIL_PATTERN.test(email.trim())) {
+    errors.email = 'Enter a valid email address (e.g. anna@example.com).'
+  }
+  if (phone && !PHONE_PATTERN.test(phone.trim())) {
+    errors.phone = 'Enter a valid phone number — digits, spaces, +, ( ) or - only.'
+  }
+  return errors
+}
 
 export default function GuestsPage() {
   const [searchTerm, setSearchTerm] = useState('')
@@ -25,6 +41,9 @@ export default function GuestsPage() {
     rsvp_status: 'pending',
     language: 'en',
   })
+  const [fieldErrors, setFieldErrors] = useState({})
+  const [importStatus, setImportStatus] = useState(null) // { created, errors[] }
+  const fileInputRef = useRef(null)
 
   const { data: guests, isLoading } = useQuery({
     queryKey: ['guests'],
@@ -95,6 +114,12 @@ export default function GuestsPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    const errors = validateGuestForm(formData)
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors)
+      return
+    }
+    setFieldErrors({})
     const trimmedNames = inviteeNames.map((n) => (n || '').trim()).filter(Boolean)
     const primaryName = trimmedNames[0] || ''
     const parts = primaryName.split(/\s+/).filter(Boolean)
@@ -108,6 +133,46 @@ export default function GuestsPage() {
       last_name: formData.last_name?.trim() || derivedLast,
       invitee_names: trimmedNames.length ? trimmedNames : undefined,
     })
+  }
+
+  const handleFieldBlur = () => {
+    setFieldErrors(validateGuestForm(formData))
+  }
+
+  const handleExportCsv = async () => {
+    try {
+      const response = await api.get('/guests/export', { responseType: 'blob' })
+      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'guests.csv'
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || 'Failed to export guests'
+      alert(msg)
+    }
+  }
+
+  const handleImportCsv = async (event) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+    setImportStatus(null)
+    try {
+      const text = await file.text()
+      const response = await api.post('/guests/import', text, {
+        headers: { 'Content-Type': 'text/csv' },
+      })
+      setImportStatus(response.data)
+      queryClient.invalidateQueries(['guests'])
+    } catch (err) {
+      const msg = err?.response?.data?.error || err?.message || 'Failed to import CSV'
+      alert(msg)
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
   }
 
   if (isLoading) {
@@ -161,10 +226,34 @@ export default function GuestsPage() {
           <h1 className="text-3xl font-bold text-gray-900">Guest Management</h1>
           <p className="text-gray-600 mt-1">Create guests and manage RSVPs</p>
         </div>
-        <div className="flex gap-4 items-center">
+        <div className="flex gap-3 items-center flex-wrap">
           <div className="text-sm text-gray-500">
             Total: {guests?.length || 0} guests
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv,text/csv"
+            onChange={handleImportCsv}
+            className="hidden"
+            aria-label="Upload guest list CSV"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50"
+            aria-label="Import guests from a CSV file"
+          >
+            <Upload className="w-4 h-4" aria-hidden="true" />
+            Import CSV
+          </button>
+          <button
+            onClick={handleExportCsv}
+            className="flex items-center gap-2 bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-lg hover:bg-gray-50"
+            aria-label="Export guests to CSV"
+          >
+            <Download className="w-4 h-4" aria-hidden="true" />
+            Export CSV
+          </button>
           <button
             onClick={() => {
               setInviteType('individual')
@@ -179,11 +268,12 @@ export default function GuestsPage() {
                 rsvp_status: 'pending',
                 language: 'en',
               })
+              setFieldErrors({})
               setShowForm(true)
             }}
             className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
           >
-            <PlusCircle className="w-5 h-5" />
+            <PlusCircle className="w-5 h-5" aria-hidden="true" />
             Add Guest
           </button>
         </div>
@@ -229,9 +319,24 @@ export default function GuestsPage() {
                   type="email"
                   required
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    setFormData({ ...formData, email: e.target.value })
+                    if (fieldErrors.email) {
+                      setFieldErrors({ ...fieldErrors, email: undefined })
+                    }
+                  }}
+                  onBlur={handleFieldBlur}
+                  aria-invalid={!!fieldErrors.email}
+                  aria-describedby={fieldErrors.email ? 'guest-email-error' : undefined}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    fieldErrors.email ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {fieldErrors.email && (
+                  <p id="guest-email-error" className="text-xs text-red-600 mt-1" role="alert">
+                    {fieldErrors.email}
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -240,9 +345,24 @@ export default function GuestsPage() {
                 <input
                   type="tel"
                   value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onChange={(e) => {
+                    setFormData({ ...formData, phone: e.target.value })
+                    if (fieldErrors.phone) {
+                      setFieldErrors({ ...fieldErrors, phone: undefined })
+                    }
+                  }}
+                  onBlur={handleFieldBlur}
+                  aria-invalid={!!fieldErrors.phone}
+                  aria-describedby={fieldErrors.phone ? 'guest-phone-error' : undefined}
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    fieldErrors.phone ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
+                {fieldErrors.phone && (
+                  <p id="guest-phone-error" className="text-xs text-red-600 mt-1" role="alert">
+                    {fieldErrors.phone}
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -470,24 +590,56 @@ export default function GuestsPage() {
         </div>
       )}
 
+      {importStatus && (
+        <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" role="status">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">
+                Imported {importStatus.created} guest{importStatus.created === 1 ? '' : 's'} from CSV.
+              </p>
+              {importStatus.errors?.length > 0 && (
+                <ul className="mt-2 space-y-1 list-disc pl-5">
+                  {importStatus.errors.slice(0, 5).map((err) => (
+                    <li key={err.row}>Row {err.row}: {err.error}</li>
+                  ))}
+                  {importStatus.errors.length > 5 && (
+                    <li>… and {importStatus.errors.length - 5} more rows skipped.</li>
+                  )}
+                </ul>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setImportStatus(null)}
+              className="text-blue-700 hover:text-blue-900 text-xs font-medium"
+              aria-label="Dismiss CSV import status"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
             <input
               type="text"
               placeholder="Search by name or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search guests by name or email"
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
           <div className="relative">
-            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" aria-hidden="true" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
+              aria-label="Filter guests by RSVP status"
               className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
             >
               <option value="all">All Status</option>
@@ -499,7 +651,35 @@ export default function GuestsPage() {
         </div>
       </div>
 
+      {(!guests || guests.length === 0) ? (
+        <EmptyState
+          icon={Users}
+          title="No guests on the list yet"
+          description="Add guests one at a time, or import a CSV with first_name, last_name and email columns. Each guest receives a unique RSVP link and QR code."
+          actions={[
+            {
+              label: 'Add Guest',
+              icon: PlusCircle,
+              onClick: () => {
+                setInviteType('individual')
+                setGroupSize(3)
+                setInviteeNames([''])
+                setFieldErrors({})
+                setShowForm(true)
+              },
+            },
+            {
+              label: 'Import CSV',
+              icon: Upload,
+              onClick: () => fileInputRef.current?.click(),
+              variant: 'secondary',
+            },
+          ]}
+        />
+      ) : null}
+
       {/* Guests Table */}
+      {guests && guests.length > 0 && (
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
@@ -550,7 +730,7 @@ export default function GuestsPage() {
                         {guest.first_name} {guest.last_name}
                       </div>
                       <div className="text-xs text-gray-500">
-                        Registered: {new Date(guest.registered_at).toLocaleDateString()}
+                        Registered: {formatLocaleDate(guest.registered_at)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -687,6 +867,7 @@ export default function GuestsPage() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Guest Details Modal */}
       {viewGuest && (
