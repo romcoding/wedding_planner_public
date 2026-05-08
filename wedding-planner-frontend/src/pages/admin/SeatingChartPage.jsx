@@ -463,7 +463,16 @@ const SeatingChartPage = () => {
           </button>
           <button
             onClick={() => autoAssign.mutate()}
-            className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 font-medium"
+            disabled={(tables?.length || 0) === 0 || (unassignedGuests?.length || 0) === 0 || autoAssign.isPending}
+            title={
+              (tables?.length || 0) === 0
+                ? 'Add at least one table before auto-assigning.'
+                : (unassignedGuests?.length || 0) === 0
+                  ? 'No unassigned guests to seat.'
+                  : 'Distribute unassigned guests across available seats.'
+            }
+            className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 font-medium disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
+            aria-label="Auto-assign unassigned guests to available seats"
           >
             Auto-assign
           </button>
@@ -475,17 +484,19 @@ const SeatingChartPage = () => {
           </button>
           <button
             onClick={() => setZoom(Math.min(2, zoom + 0.1))}
-            className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"
-            title="Zoom In"
+            className="flex items-center gap-2 bg-gray-200 text-gray-900 p-2 rounded-lg hover:bg-gray-300 font-medium"
+            aria-label="Zoom in"
+            title="Zoom in"
           >
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-5 h-5" aria-hidden="true" />
           </button>
           <button
             onClick={() => setZoom(Math.max(0.5, zoom - 0.1))}
-            className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"
-            title="Zoom Out"
+            className="flex items-center gap-2 bg-gray-200 text-gray-900 p-2 rounded-lg hover:bg-gray-300 font-medium"
+            aria-label="Zoom out"
+            title="Zoom out"
           >
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-5 h-5" aria-hidden="true" />
           </button>
           <button
             onClick={() => {
@@ -493,9 +504,11 @@ const SeatingChartPage = () => {
               setPan({ x: 0, y: 0 })
             }}
             className="flex items-center gap-2 bg-gray-200 text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-300 font-medium"
-            title="Reset View"
+            aria-label="Reset zoom and recentre the canvas"
+            title="Reset zoom"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-4 h-4" aria-hidden="true" />
+            Reset zoom
           </button>
           <button
             onClick={() => {
@@ -557,12 +570,16 @@ const SeatingChartPage = () => {
                     <select
                       value={formData.shape}
                       onChange={(e) => setFormData({ ...formData, shape: e.target.value })}
+                      aria-describedby="seat-shape-help"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                     >
-                      <option value="round">Round</option>
-                      <option value="rectangular">Rectangular</option>
-                      <option value="square">Square</option>
+                      <option value="round" title="Best for intimate conversation; seats arranged evenly around the edge.">Round — intimate, conversational</option>
+                      <option value="rectangular" title="Long banquet style; great for large families or head tables.">Rectangular — banquet / head table</option>
+                      <option value="square" title="Compact and modern; equal sides, fits 4–8 guests.">Square — compact, modern</option>
                     </select>
+                    <p id="seat-shape-help" className="text-xs text-gray-500 mt-1">
+                      Round seats are placed around the edge; rectangular and square tables seat guests along all sides.
+                    </p>
                   </div>
                 </div>
                 <div className="flex justify-end gap-2">
@@ -927,12 +944,13 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
             <button
               {...listeners}
               {...attributes}
-              className="drag-handle p-1 text-gray-500 hover:bg-gray-100 rounded cursor-move"
-              title="Move table"
+              className="drag-handle p-2 text-gray-500 hover:bg-gray-100 rounded cursor-move"
+              title="Drag to reposition table"
+              aria-label={`Drag to reposition ${table.name}`}
               onClick={(e) => e.stopPropagation()}
               onMouseDown={(e) => e.stopPropagation()}
             >
-              <Move className="w-4 h-4" />
+              <Move className="w-5 h-5" aria-hidden="true" />
             </button>
             <button
               onClick={(e) => {
@@ -940,10 +958,11 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
                 onEdit(table)
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded"
+              aria-label={`Edit table ${table.name}`}
               title="Edit table"
             >
-              <Edit className="w-4 h-4" />
+              <Edit className="w-5 h-5" aria-hidden="true" />
             </button>
             <button
               onClick={(e) => {
@@ -953,10 +972,11 @@ function DraggableTable({ table, onEdit, onDelete, onSelect, isSelected, isDragg
                 }
               }}
               onMouseDown={(e) => e.stopPropagation()}
-              className="p-1 text-red-600 hover:bg-red-50 rounded"
+              className="p-2 text-red-600 hover:bg-red-50 rounded"
+              aria-label={`Delete table ${table.name}`}
               title="Delete table"
             >
-              <Trash className="w-4 h-4" />
+              <Trash className="w-5 h-5" aria-hidden="true" />
             </button>
           </div>
 

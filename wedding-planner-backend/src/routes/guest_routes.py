@@ -1,7 +1,10 @@
 import uuid
 import secrets
 import json
+import csv
+import io
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel
 from auth import require_admin_auth, create_guest_token
 from middleware import get_db, get_wedding
@@ -239,6 +242,179 @@ async def authenticate_guest_token(token: str, request: Request):
     ).bind(guest["id"]).run()
     access_token = create_guest_token(guest["id"], guest.get("wedding_id"))
     return {"access_token": access_token, "guest": _guest_dict(guest)}
+
+
+CSV_EXPORT_COLUMNS = [
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "rsvp_status",
+    "overnight_stay",
+    "number_of_guests",
+    "invitee_names",
+    "dietary_restrictions",
+    "allergies",
+    "special_requests",
+    "music_wish",
+    "address",
+    "notes",
+    "language",
+]
+
+
+def _csv_truthy(value: str | None) -> bool:
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "ja", "oui"}
+
+
+def _split_names(value: str | None) -> list[str]:
+    if not value:
+        return []
+    parts: list[str] = []
+    for chunk in str(value).replace("|", ";").split(";"):
+        name = chunk.strip()
+        if name:
+            parts.append(name)
+    return parts
+
+
+@router.get("/export")
+async def export_guests_csv(
+    wedding: dict = Depends(get_wedding),
+    request: Request = None,
+):
+    """Download all guests as CSV. Boolean and JSON fields are normalised so
+    the file round-trips through the import endpoint."""
+    db = await get_db(request)
+    result = await db.prepare(
+        "SELECT * FROM guests WHERE wedding_id = ? ORDER BY last_name, first_name"
+    ).bind(wedding["id"]).all()
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=CSV_EXPORT_COLUMNS)
+    writer.writeheader()
+    for row in result.results or []:
+        guest = dict(row)
+        names = json.loads(guest["invitee_names"]) if guest.get("invitee_names") else []
+        writer.writerow({
+            "first_name": guest.get("first_name") or "",
+            "last_name": guest.get("last_name") or "",
+            "email": guest.get("email") or "",
+            "phone": guest.get("phone") or "",
+            "rsvp_status": guest.get("rsvp_status") or "pending",
+            "overnight_stay": "true" if guest.get("overnight_stay") else "false",
+            "number_of_guests": guest.get("number_of_guests") or 1,
+            "invitee_names": "; ".join(names),
+            "dietary_restrictions": guest.get("dietary_restrictions") or "",
+            "allergies": guest.get("allergies") or "",
+            "special_requests": guest.get("special_requests") or "",
+            "music_wish": guest.get("music_wish") or "",
+            "address": guest.get("address") or "",
+            "notes": guest.get("notes") or "",
+            "language": guest.get("language") or "en",
+        })
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": 'attachment; filename="guests.csv"',
+        },
+    )
+
+
+@router.post("/import")
+async def import_guests_csv(
+    request: Request,
+    wedding: dict = Depends(get_wedding),
+):
+    """Bulk-create guests from a CSV upload. Accepts the headers produced by
+    the export endpoint. Returns per-row results so the UI can flag bad rows
+    without aborting the whole import."""
+    body = await request.body()
+    if not body:
+        raise HTTPException(400, "CSV body is required")
+    try:
+        text = body.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(400, "CSV must be UTF-8 encoded")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(400, "CSV has no header row")
+
+    required = {"first_name", "last_name", "email"}
+    missing = required - {h.strip() for h in reader.fieldnames}
+    if missing:
+        raise HTTPException(
+            400,
+            f"CSV is missing required columns: {', '.join(sorted(missing))}",
+        )
+
+    db = await get_db(request)
+    import os
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+
+    created = 0
+    errors: list[dict] = []
+
+    for index, row in enumerate(reader, start=2):  # row 1 is header
+        first_name = (row.get("first_name") or "").strip()
+        last_name = (row.get("last_name") or "").strip()
+        email = (row.get("email") or "").strip()
+        if not first_name or not last_name or not email:
+            errors.append({
+                "row": index,
+                "error": "first_name, last_name and email are required",
+            })
+            continue
+
+        try:
+            number_of_guests = int(row.get("number_of_guests") or 1)
+        except (TypeError, ValueError):
+            number_of_guests = 1
+        names = _split_names(row.get("invitee_names"))
+
+        guest_id = str(uuid.uuid4())
+        token = secrets.token_urlsafe(32)
+        try:
+            await db.prepare(
+                "INSERT INTO guests (id, wedding_id, first_name, last_name, email, phone, "
+                "unique_token, rsvp_status, overnight_stay, number_of_guests, invitee_names, "
+                "dietary_restrictions, allergies, special_requests, music_wish, address, notes, "
+                "language, registered_at, updated_at) VALUES "
+                "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
+            ).bind(
+                guest_id,
+                wedding["id"],
+                first_name,
+                last_name,
+                email,
+                (row.get("phone") or "").strip() or None,
+                token,
+                (row.get("rsvp_status") or "pending").strip() or "pending",
+                1 if _csv_truthy(row.get("overnight_stay")) else 0,
+                number_of_guests,
+                json.dumps(names) if names else None,
+                (row.get("dietary_restrictions") or "").strip() or None,
+                (row.get("allergies") or "").strip() or None,
+                (row.get("special_requests") or "").strip() or None,
+                (row.get("music_wish") or "").strip() or None,
+                (row.get("address") or "").strip() or None,
+                (row.get("notes") or "").strip() or None,
+                (row.get("language") or "en").strip() or "en",
+            ).run()
+            created += 1
+        except Exception as exc:  # pragma: no cover - DB-specific error surface
+            errors.append({"row": index, "error": str(exc)})
+
+    return {
+        "created": created,
+        "errors": errors,
+        "frontend_url": frontend_url,
+    }
 
 
 @router.get("/{guest_id}")

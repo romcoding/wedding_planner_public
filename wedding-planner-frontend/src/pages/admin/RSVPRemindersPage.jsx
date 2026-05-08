@@ -2,7 +2,10 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { useToast } from '../../components/ui/Toast'
-import { PlusCircle, Trash, Edit, Mail, X, Clock, Send, CheckCircle, AlertCircle } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Mail, X, Clock, Send, CheckCircle, AlertCircle, Eye } from 'lucide-react'
+import EmptyState from '../../components/ui/EmptyState'
+import DateInput from '../../components/ui/DateInput'
+import { formatLocaleDateTime } from '../../utils/locale'
 
 const RSVPRemindersPage = () => {
   const queryClient = useQueryClient()
@@ -10,15 +13,18 @@ const RSVPRemindersPage = () => {
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [scheduleMode, setScheduleMode] = useState('relative') // relative | absolute
   const [formData, setFormData] = useState({
     name: '',
     days_before_event: 14,
+    scheduled_at: '',
     subject: '',
     message: '',
     target_status: 'pending',
     only_unassigned: false,
     is_active: true,
   })
+  const [showPreview, setShowPreview] = useState(false)
 
   const { data: reminders, isLoading } = useQuery({
     queryKey: ['rsvp-reminders'],
@@ -78,12 +84,15 @@ const RSVPRemindersPage = () => {
     setFormData({
       name: '',
       days_before_event: 14,
+      scheduled_at: '',
       subject: '',
       message: '',
       target_status: 'pending',
       only_unassigned: false,
       is_active: true,
     })
+    setScheduleMode('relative')
+    setShowPreview(false)
     setEditingId(null)
   }
 
@@ -92,26 +101,34 @@ const RSVPRemindersPage = () => {
     setFormData({
       name: reminder.name,
       days_before_event: reminder.days_before_event,
+      scheduled_at: reminder.scheduled_at
+        ? String(reminder.scheduled_at).replace(' ', 'T').slice(0, 16)
+        : '',
       subject: reminder.subject,
       message: reminder.message,
       target_status: reminder.target_status,
       only_unassigned: reminder.only_unassigned,
       is_active: reminder.is_active,
     })
+    setScheduleMode(reminder.scheduled_at ? 'absolute' : 'relative')
     setShowForm(true)
   }
 
   const handleSubmit = (e) => {
     e.preventDefault()
     setFieldErrors({})
-    
+
     // Validate required fields
     const errors = {}
     if (!formData.name || !formData.name.trim()) {
       errors.name = 'Reminder name is required'
     }
-    if (!formData.days_before_event || formData.days_before_event < 1) {
-      errors.days_before_event = 'Days before event must be at least 1'
+    if (scheduleMode === 'relative') {
+      if (!formData.days_before_event || formData.days_before_event < 1) {
+        errors.days_before_event = 'Days before event must be at least 1'
+      }
+    } else if (!formData.scheduled_at) {
+      errors.scheduled_at = 'Pick the date and time the reminder should be sent'
     }
     if (!formData.subject || !formData.subject.trim()) {
       errors.subject = 'Subject is required'
@@ -119,25 +136,35 @@ const RSVPRemindersPage = () => {
     if (!formData.message || !formData.message.trim()) {
       errors.message = 'Message is required'
     }
-    
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       return
     }
-    
+
     // Ensure boolean values are properly set
     const payload = {
       ...formData,
       only_unassigned: formData.only_unassigned || false,
       is_active: formData.is_active !== undefined ? formData.is_active : true,
-      days_before_event: parseInt(formData.days_before_event, 10),
+      days_before_event:
+        scheduleMode === 'relative' ? parseInt(formData.days_before_event, 10) : null,
+      scheduled_at: scheduleMode === 'absolute' ? formData.scheduled_at : null,
     }
-    
+
     if (editingId) {
       updateReminder.mutate({ id: editingId, data: payload })
     } else {
       createReminder.mutate(payload)
     }
+  }
+
+  // Live preview helper: replace personalization tokens with sample values.
+  const renderPreview = (text) => {
+    if (!text) return ''
+    return String(text)
+      .replace(/\{guest_name\}/g, 'Anna Müller')
+      .replace(/\{rsvp_link\}/g, 'https://wedding.example/rsvp/abc123')
   }
 
   const handleChange = (e) => {
@@ -213,24 +240,65 @@ const RSVPRemindersPage = () => {
                     <p className="text-red-600 text-sm mt-1">{fieldErrors.name}</p>
                   )}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Days Before Event *</label>
-                  <input
-                    type="number"
-                    name="days_before_event"
-                    value={formData.days_before_event}
-                    onChange={handleChange}
-                    min="1"
-                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
-                      fieldErrors.days_before_event ? 'border-red-500' : 'border-gray-300'
-                    }`}
-                    required
-                  />
-                  {fieldErrors.days_before_event && (
-                    <p className="text-red-600 text-sm mt-1">{fieldErrors.days_before_event}</p>
+                <fieldset className="border border-gray-200 rounded-lg p-4">
+                  <legend className="text-sm font-medium text-gray-700 px-1">When to send</legend>
+                  <div className="flex flex-wrap gap-4 mb-3">
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="schedule_mode"
+                        value="relative"
+                        checked={scheduleMode === 'relative'}
+                        onChange={() => setScheduleMode('relative')}
+                      />
+                      Days before event
+                    </label>
+                    <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                      <input
+                        type="radio"
+                        name="schedule_mode"
+                        value="absolute"
+                        checked={scheduleMode === 'absolute'}
+                        onChange={() => setScheduleMode('absolute')}
+                      />
+                      Specific date & time
+                    </label>
+                  </div>
+                  {scheduleMode === 'relative' ? (
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">Days Before Event *</label>
+                      <input
+                        type="number"
+                        name="days_before_event"
+                        value={formData.days_before_event}
+                        onChange={handleChange}
+                        min="1"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                          fieldErrors.days_before_event ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        required
+                      />
+                      {fieldErrors.days_before_event && (
+                        <p className="text-red-600 text-sm mt-1">{fieldErrors.days_before_event}</p>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">Reminder will be sent this many days before the main event.</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="block text-sm font-medium mb-1 text-gray-700">Send at *</label>
+                      <DateInput
+                        withTime
+                        value={formData.scheduled_at}
+                        onChange={(value) => setFormData((prev) => ({ ...prev, scheduled_at: value }))}
+                        ariaLabel="Specific reminder send date and time"
+                        helperText="Reminder will be sent at this exact date and time (24-hour format)."
+                      />
+                      {fieldErrors.scheduled_at && (
+                        <p className="text-red-600 text-sm mt-1">{fieldErrors.scheduled_at}</p>
+                      )}
+                    </div>
                   )}
-                  <p className="text-xs text-gray-500 mt-1">Reminder will be sent this many days before the main event</p>
-                </div>
+                </fieldset>
                 <div>
                   <label className="block text-sm font-medium mb-1 text-gray-700">Email Subject *</label>
                   <input
@@ -250,7 +318,18 @@ const RSVPRemindersPage = () => {
                   <p className="text-xs text-gray-500 mt-1">Use {'{guest_name}'} to personalize</p>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-1 text-gray-700">Email Message *</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-700">Email Message *</label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreview((prev) => !prev)}
+                      aria-pressed={showPreview}
+                      className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800"
+                    >
+                      <Eye className="w-4 h-4" aria-hidden="true" />
+                      {showPreview ? 'Hide preview' : 'Show preview'}
+                    </button>
+                  </div>
                   <textarea
                     name="message"
                     value={formData.message}
@@ -268,6 +347,24 @@ const RSVPRemindersPage = () => {
                   <p className="text-xs text-gray-500 mt-1">
                     Use {'{guest_name}'} for name and {'{rsvp_link}'} for RSVP link
                   </p>
+                  {showPreview && (
+                    <div
+                      className="mt-3 border border-blue-200 bg-blue-50 rounded-lg p-4"
+                      role="region"
+                      aria-label="Email preview"
+                    >
+                      <p className="text-xs uppercase tracking-wide text-blue-700 font-semibold mb-1">Preview</p>
+                      <p className="text-sm font-semibold text-gray-900 mb-2">
+                        Subject: {renderPreview(formData.subject) || '—'}
+                      </p>
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans">
+                        {renderPreview(formData.message) || 'Your message preview will appear here.'}
+                      </pre>
+                      <p className="text-xs text-blue-700 mt-2">
+                        Tokens are replaced with sample values. Each guest will see their own name and RSVP link.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -349,7 +446,7 @@ const RSVPRemindersPage = () => {
                     )}
                     {reminder.next_send_at && new Date(reminder.next_send_at) > new Date() && (
                       <span className="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">
-                        Scheduled: {new Date(reminder.next_send_at).toLocaleDateString()}
+                        Scheduled: {formatLocaleDateTime(reminder.next_send_at)}
                       </span>
                     )}
                   </div>
@@ -367,7 +464,7 @@ const RSVPRemindersPage = () => {
                     </div>
                     {reminder.last_sent_at && (
                       <div>
-                        <span className="font-medium">Last Sent:</span> {new Date(reminder.last_sent_at).toLocaleString()}
+                        <span className="font-medium">Last Sent:</span> {formatLocaleDateTime(reminder.last_sent_at)}
                       </div>
                     )}
                   </div>
@@ -412,9 +509,21 @@ const RSVPRemindersPage = () => {
             </div>
           ))
         ) : (
-          <div className="text-center py-12 text-gray-500 bg-white rounded-lg">
-            No reminders yet. Click "Add Reminder" to create your first automatic reminder.
-          </div>
+          <EmptyState
+            icon={Mail}
+            title="No reminders configured"
+            description="Send a friendly nudge to guests who haven't replied yet. Schedule reminders relative to your wedding date or pin them to a specific date and time."
+            actions={[
+              {
+                label: 'Add Reminder',
+                icon: PlusCircle,
+                onClick: () => {
+                  resetForm()
+                  setShowForm(true)
+                },
+              },
+            ]}
+          />
         )}
       </div>
 
@@ -441,7 +550,7 @@ const RSVPRemindersPage = () => {
                     <td className="px-4 py-2">{item.reminder_name}</td>
                     <td className="px-4 py-2">{item.guest_name}</td>
                     <td className="px-4 py-2">{item.guest_email}</td>
-                    <td className="px-4 py-2">{new Date(item.sent_at).toLocaleString()}</td>
+                    <td className="px-4 py-2">{formatLocaleDateTime(item.sent_at)}</td>
                   </tr>
                 ))}
               </tbody>

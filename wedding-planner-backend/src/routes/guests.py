@@ -1,12 +1,49 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, Response
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import db, Guest, User, Invitation, GuestPhoto, SeatAssignment, Message, PageView, Visit, ReminderSent
 from datetime import datetime
+import csv
+import io
 import json
 import logging
 from utils.rbac import require_roles
 
 guests_bp = Blueprint('guests', __name__)
+
+CSV_EXPORT_COLUMNS = [
+    "first_name",
+    "last_name",
+    "email",
+    "phone",
+    "rsvp_status",
+    "overnight_stay",
+    "number_of_guests",
+    "invitee_names",
+    "dietary_restrictions",
+    "allergies",
+    "special_requests",
+    "music_wish",
+    "address",
+    "notes",
+    "language",
+]
+
+
+def _csv_truthy(value):
+    if value is None:
+        return False
+    return str(value).strip().lower() in {"1", "true", "yes", "y", "ja", "oui"}
+
+
+def _split_invitee_names(value):
+    if not value:
+        return []
+    parts = []
+    for chunk in str(value).replace("|", ";").split(";"):
+        name = chunk.strip()
+        if name:
+            parts.append(name)
+    return parts
 logger = logging.getLogger(__name__)
 
 @guests_bp.route('/update-rsvp', methods=['PUT'])
@@ -226,6 +263,130 @@ def authenticate_with_token(token):
         'access_token': access_token,
         'guest': guest.to_dict(include_sensitive=False)
     }), 200
+
+@guests_bp.route('/export', methods=['GET'])
+@jwt_required()
+def export_guests_csv():
+    """Stream the full guest list as CSV. Booleans and JSON columns are
+    normalised so the file round-trips through /import."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=CSV_EXPORT_COLUMNS)
+    writer.writeheader()
+
+    for guest in Guest.query.order_by(Guest.last_name, Guest.first_name).all():
+        invitee_names = guest.get_invitee_names() if hasattr(guest, 'get_invitee_names') else []
+        writer.writerow({
+            "first_name": guest.first_name or "",
+            "last_name": guest.last_name or "",
+            "email": guest.email or "",
+            "phone": guest.phone or "",
+            "rsvp_status": guest.rsvp_status or "pending",
+            "overnight_stay": "true" if guest.overnight_stay else "false",
+            "number_of_guests": guest.number_of_guests or 1,
+            "invitee_names": "; ".join(invitee_names or []),
+            "dietary_restrictions": guest.dietary_restrictions or "",
+            "allergies": guest.allergies or "",
+            "special_requests": guest.special_requests or "",
+            "music_wish": guest.music_wish or "",
+            "address": guest.address or "",
+            "notes": guest.notes or "",
+            "language": getattr(guest, 'language', None) or "en",
+        })
+
+    return Response(
+        buffer.getvalue(),
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': 'attachment; filename="guests.csv"'},
+    )
+
+
+@guests_bp.route('/import', methods=['POST'])
+@jwt_required()
+def import_guests_csv():
+    """Bulk-create guests from a CSV upload. Returns per-row errors so the
+    UI can show which rows were skipped without aborting the import."""
+    user, err = require_roles(['admin', 'planner'])
+    if err:
+        return err
+
+    raw = request.get_data(cache=False)
+    if not raw:
+        return jsonify({'error': 'CSV body is required'}), 400
+    try:
+        text = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+        return jsonify({'error': 'CSV must be UTF-8 encoded'}), 400
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        return jsonify({'error': 'CSV has no header row'}), 400
+
+    required = {'first_name', 'last_name', 'email'}
+    missing = required - {h.strip() for h in reader.fieldnames}
+    if missing:
+        return jsonify({
+            'error': f"CSV is missing required columns: {', '.join(sorted(missing))}",
+        }), 400
+
+    created = 0
+    errors = []
+
+    for index, row in enumerate(reader, start=2):  # row 1 is header
+        first_name = (row.get('first_name') or '').strip()
+        last_name = (row.get('last_name') or '').strip()
+        email = (row.get('email') or '').strip()
+        if not first_name or not last_name or not email:
+            errors.append({'row': index, 'error': 'first_name, last_name and email are required'})
+            continue
+
+        try:
+            number_of_guests = int(row.get('number_of_guests') or 1)
+        except (TypeError, ValueError):
+            number_of_guests = 1
+
+        invitee_names = _split_invitee_names(row.get('invitee_names'))
+        invitee_json = json.dumps(invitee_names) if invitee_names else None
+
+        # Skip duplicates by email — keep import idempotent.
+        if Guest.query.filter_by(email=email).first():
+            errors.append({'row': index, 'error': f'Guest with email {email} already exists'})
+            continue
+
+        try:
+            unique_token = Guest.generate_unique_token()
+            while Guest.query.filter_by(unique_token=unique_token).first():
+                unique_token = Guest.generate_unique_token()
+            guest = Guest(
+                first_name=first_name,
+                last_name=last_name,
+                email=email,
+                phone=(row.get('phone') or '').strip() or None,
+                unique_token=unique_token,
+                rsvp_status=(row.get('rsvp_status') or 'pending').strip() or 'pending',
+                overnight_stay=_csv_truthy(row.get('overnight_stay')),
+                number_of_guests=number_of_guests,
+                invitee_names=invitee_json,
+                dietary_restrictions=(row.get('dietary_restrictions') or '').strip() or None,
+                allergies=(row.get('allergies') or '').strip() or None,
+                special_requests=(row.get('special_requests') or '').strip() or None,
+                music_wish=(row.get('music_wish') or '').strip() or None,
+                address=(row.get('address') or '').strip() or None,
+                notes=(row.get('notes') or '').strip() or None,
+                language=(row.get('language') or 'en').strip() or 'en',
+            )
+            db.session.add(guest)
+            db.session.commit()
+            created += 1
+        except Exception as exc:  # pragma: no cover - DB-specific surface
+            db.session.rollback()
+            errors.append({'row': index, 'error': str(exc)})
+
+    return jsonify({'created': created, 'errors': errors}), 200
+
 
 @guests_bp.route('/<int:guest_id>', methods=['GET'])
 @jwt_required()

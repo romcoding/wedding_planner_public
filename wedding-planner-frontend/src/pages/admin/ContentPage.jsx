@@ -1,9 +1,12 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X, Eye } from 'lucide-react'
+import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X, Eye, FileText } from 'lucide-react'
 import QuillEditor from '../../components/ui/QuillEditor'
 import DOMPurify from 'dompurify'
+import EmptyState from '../../components/ui/EmptyState'
+import DateInput from '../../components/ui/DateInput'
+import { formatLocaleDateTime } from '../../utils/locale'
 
 const ContentPage = () => {
   const queryClient = useQueryClient()
@@ -26,6 +29,7 @@ const ContentPage = () => {
     scheduled_publish_at: '',
     scheduled_unpublish_at: '',
   })
+  const [keyError, setKeyError] = useState('')
 
   const { data: contents, isLoading } = useQuery({
     queryKey: ['content', 'admin'],
@@ -83,8 +87,35 @@ const ContentPage = () => {
     setAutoTranslate(false)
   }
 
+  const validateKey = (key, ignoreId = null) => {
+    if (!key || !key.trim()) return 'Key is required.'
+    if (!/^[a-z0-9_]+$/.test(key)) {
+      return 'Use lowercase letters, numbers and underscores only (e.g. rsvp_introduction).'
+    }
+    const conflict = (contents || []).find(
+      (c) => c.key === key && c.id !== ignoreId,
+    )
+    if (conflict) {
+      return `A content entry with key "${key}" already exists. Choose a unique key.`
+    }
+    return ''
+  }
+
+  const handleKeyBlur = (event) => {
+    const error = validateKey(event.target.value, editingId)
+    setKeyError(error)
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
+    if (!editingId) {
+      const error = validateKey(formData.key, null)
+      if (error) {
+        setKeyError(error)
+        return
+      }
+    }
+    setKeyError('')
     const payload = {
       ...formData,
       order: parseInt(formData.order, 10),
@@ -93,7 +124,7 @@ const ContentPage = () => {
       scheduled_publish_at: formData.scheduled_publish_at || null,
       scheduled_unpublish_at: formData.scheduled_unpublish_at || null,
     }
-    
+
     if (editingId) {
       updateContent.mutate({ id: editingId, data: payload })
     } else {
@@ -193,13 +224,30 @@ const ContentPage = () => {
                     <input
                       type="text"
                       value={formData.key}
-                      onChange={(e) => setFormData({ ...formData, key: e.target.value })}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        setFormData({ ...formData, key: value })
+                        if (keyError) setKeyError('')
+                      }}
+                      onBlur={handleKeyBlur}
                       placeholder="e.g., rsvp_introduction, welcome_message"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      aria-invalid={!!keyError}
+                      aria-describedby="content-key-help content-key-error"
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
+                        keyError ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       required
                       disabled={!!editingId}
                     />
-                    <p className="text-xs text-gray-500 mt-1">Unique identifier (cannot be changed)</p>
+                    {keyError ? (
+                      <p id="content-key-error" className="text-xs text-red-600 mt-1" role="alert">
+                        {keyError}
+                      </p>
+                    ) : (
+                      <p id="content-key-help" className="text-xs text-gray-500 mt-1">
+                        Unique identifier (lowercase letters, numbers, underscores). Cannot be changed once saved.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Order</label>
@@ -345,23 +393,23 @@ const ContentPage = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium mb-1 text-gray-700">Schedule Publish</label>
-                      <input
-                        type="datetime-local"
+                      <DateInput
+                        withTime
                         value={formData.scheduled_publish_at}
-                        onChange={(e) => setFormData({ ...formData, scheduled_publish_at: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        onChange={(value) => setFormData({ ...formData, scheduled_publish_at: value })}
+                        ariaLabel="Schedule content publish date and time"
+                        helperText="Content will be published at this time (24-hour format)."
                       />
-                      <p className="text-xs text-gray-500 mt-1">Content will be published at this time</p>
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1 text-gray-700">Schedule Unpublish</label>
-                      <input
-                        type="datetime-local"
+                      <DateInput
+                        withTime
                         value={formData.scheduled_unpublish_at}
-                        onChange={(e) => setFormData({ ...formData, scheduled_unpublish_at: e.target.value })}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                        onChange={(value) => setFormData({ ...formData, scheduled_unpublish_at: value })}
+                        ariaLabel="Schedule content unpublish date and time"
+                        helperText="Content will be unpublished at this time (24-hour format)."
                       />
-                      <p className="text-xs text-gray-500 mt-1">Content will be unpublished at this time</p>
                     </div>
                   </div>
                 </div>
@@ -421,6 +469,22 @@ const ContentPage = () => {
         <div className="text-center py-12">
           <p className="text-gray-600">Loading content...</p>
         </div>
+      ) : (contents?.length || 0) === 0 ? (
+        <EmptyState
+          icon={FileText}
+          title="No content blocks yet"
+          description="Manage every piece of multilingual text shown on your wedding website (welcome, RSVP intro, FAQ, etc.). Use Quick Setup to seed defaults or add a single block now."
+          actions={[
+            {
+              label: 'Add Content',
+              icon: PlusCircle,
+              onClick: () => {
+                resetForm()
+                setShowForm(true)
+              },
+            },
+          ]}
+        />
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
@@ -438,14 +502,7 @@ const ContentPage = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {contents?.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="px-6 py-12 text-center text-gray-500">
-                      No content yet. Add your first content item!
-                    </td>
-                  </tr>
-                ) : (
-                  contents?.map((item) => (
+                {contents?.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{item.key}</div>
@@ -463,9 +520,9 @@ const ContentPage = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {item.scheduled_publish_at ? (
                           <div>
-                            <div className="text-xs">Publish: {new Date(item.scheduled_publish_at).toLocaleString()}</div>
+                            <div className="text-xs">Publish: {formatLocaleDateTime(item.scheduled_publish_at)}</div>
                             {item.scheduled_unpublish_at && (
-                              <div className="text-xs">Unpublish: {new Date(item.scheduled_unpublish_at).toLocaleString()}</div>
+                              <div className="text-xs">Unpublish: {formatLocaleDateTime(item.scheduled_unpublish_at)}</div>
                             )}
                           </div>
                         ) : (
@@ -491,17 +548,19 @@ const ContentPage = () => {
                         <div className="flex items-center gap-2">
                           <button
                             onClick={() => setPreviewContent(item)}
-                            className="text-green-600 hover:text-green-800 flex items-center gap-1"
+                            className="text-green-600 hover:text-green-800 flex items-center gap-1 p-2 rounded hover:bg-green-50"
+                            aria-label={`Preview content for ${item.key}`}
                             title="Preview content"
                           >
-                            <Eye className="h-4 w-4" />
+                            <Eye className="h-5 w-5" aria-hidden="true" />
                             Preview
                           </button>
                           <button
                             onClick={() => handleEdit(item)}
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 p-2 rounded hover:bg-blue-50"
+                            aria-label={`Edit content for ${item.key}`}
                           >
-                            <Edit className="h-4 w-4" />
+                            <Edit className="h-5 w-5" aria-hidden="true" />
                             Edit
                           </button>
                           <button
@@ -510,15 +569,15 @@ const ContentPage = () => {
                                 deleteContent.mutate(item.id)
                               }
                             }}
-                            className="text-red-600 hover:text-red-800"
+                            className="text-red-600 hover:text-red-800 p-2 rounded hover:bg-red-50"
+                            aria-label={`Delete content for ${item.key}`}
                           >
-                            <Trash className="h-4 w-4" />
+                            <Trash className="h-5 w-5" aria-hidden="true" />
                           </button>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
+                  ))}
               </tbody>
             </table>
           </div>

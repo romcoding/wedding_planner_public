@@ -1,9 +1,12 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, AlertTriangle, Upload, FileText, X } from 'lucide-react'
+import { PlusCircle, Trash, Edit, AlertTriangle, FileText, X, Wallet } from 'lucide-react'
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { useToast } from '../../components/ui/Toast'
+import EmptyState from '../../components/ui/EmptyState'
+import DateInput from '../../components/ui/DateInput'
+import { formatLocaleDate } from '../../utils/locale'
 
 const CATEGORIES = [
   'Venue',
@@ -21,6 +24,7 @@ const CATEGORIES = [
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D', '#FFC658', '#FF7C7C', '#8DD1E1', '#D084D0', '#FFB347']
 const BASE_CURRENCY = 'CHF'
+const SUPPORTED_CURRENCIES = ['CHF', 'EUR', 'USD', 'GBP', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK']
 
 function formatMoney(amount, currency = BASE_CURRENCY) {
   const n = Number(amount || 0)
@@ -370,12 +374,12 @@ const CostsPage = () => {
                       <select
                         value={formData.currency}
                         onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                        aria-label="Currency"
                         className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
                       >
-                        <option value="CHF">CHF</option>
-                        <option value="EUR">EUR</option>
-                        <option value="USD">USD</option>
-                        <option value="GBP">GBP</option>
+                        {SUPPORTED_CURRENCIES.map((code) => (
+                          <option key={code} value={code}>{code}</option>
+                        ))}
                       </select>
                       <input
                         type="number"
@@ -428,18 +432,12 @@ const CostsPage = () => {
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Payment Date</label>
-                    <input
-                      type="date"
+                    <DateInput
                       value={formData.payment_date}
-                      onChange={(e) => {
-                        // Prevent event from bubbling and preserve other form fields
-                        e.stopPropagation()
-                        setFormData(prev => ({ ...prev, payment_date: e.target.value }))
-                      }}
-                      onFocus={(e) => e.stopPropagation()}
-                      className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                      onChange={(value) => setFormData(prev => ({ ...prev, payment_date: value }))}
+                      ariaLabel="Payment date"
+                      helperText="Date when payment was/will be made."
                     />
-                    <p className="text-xs text-gray-500 mt-1">Date when payment was/will be made</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium mb-1 text-gray-700">Recurring Cost</label>
@@ -547,6 +545,22 @@ const CostsPage = () => {
         <div className="text-center py-12">
           <p className="text-gray-600">Loading costs...</p>
         </div>
+      ) : (costs?.length || 0) === 0 ? (
+        <EmptyState
+          icon={Wallet}
+          title="No costs tracked yet"
+          description="Capture vendor estimates, deposits and payments here. Each entry can use its own currency (CHF, EUR, USD, GBP and more) and link to a receipt URL."
+          actions={[
+            {
+              label: 'Add Cost',
+              icon: PlusCircle,
+              onClick: () => {
+                resetForm()
+                setShowForm(true)
+              },
+            },
+          ]}
+        />
       ) : (
         <div className="bg-white rounded-lg shadow overflow-hidden">
           <div className="overflow-x-auto">
@@ -557,87 +571,87 @@ const CostsPage = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payment Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Receipt</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {costs?.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-12 text-center text-gray-500">
-                      No costs yet. Add your first cost item!
+                {costs?.map((cost) => (
+                  <tr key={cost.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{cost.name}</div>
+                      {cost.description && (
+                        <div className="text-xs text-gray-500 mt-1">{cost.description}</div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                      {formatMoney(cost.amount, cost.currency || BASE_CURRENCY)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {cost.category || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <select
+                        value={cost.status}
+                        onChange={(e) => handleUpdate(cost.id, 'status', e.target.value)}
+                        aria-label={`Status for ${cost.name}`}
+                        className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      >
+                        <option value="planned">Planned</option>
+                        <option value="pending">Pending</option>
+                        <option value="paid">Paid</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {cost.payment_date ? formatLocaleDate(cost.payment_date) : '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {cost.vendor_name || cost.vendor || '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {cost.receipt_url ? (
+                        <a
+                          href={cost.receipt_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                          aria-label={`Open receipt for ${cost.name} in a new tab`}
+                        >
+                          <FileText className="h-4 w-4" aria-hidden="true" />
+                          View
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEdit(cost)}
+                          className="p-2 text-blue-600 hover:text-blue-800 rounded hover:bg-blue-50"
+                          aria-label={`Edit cost ${cost.name}`}
+                          title="Edit cost"
+                        >
+                          <Edit className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (window.confirm('Are you sure you want to delete this cost?')) {
+                              deleteCost.mutate(cost.id)
+                            }
+                          }}
+                          className="p-2 text-red-600 hover:text-red-800 rounded hover:bg-red-50"
+                          aria-label={`Delete cost ${cost.name}`}
+                          title="Delete cost"
+                        >
+                          <Trash className="h-5 w-5" aria-hidden="true" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
-                ) : (
-                  costs?.map((cost) => (
-                    <tr key={cost.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">{cost.name}</div>
-                        {cost.description && (
-                          <div className="text-xs text-gray-500 mt-1">{cost.description}</div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {formatMoney(cost.amount, cost.currency || BASE_CURRENCY)}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {cost.category || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <select
-                          value={cost.status}
-                          onChange={(e) => handleUpdate(cost.id, 'status', e.target.value)}
-                          className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        >
-                          <option value="planned">Planned</option>
-                          <option value="pending">Pending</option>
-                          <option value="paid">Paid</option>
-                        </select>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {cost.vendor_name || cost.vendor || '-'}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {cost.receipt_url ? (
-                          <a
-                            href={cost.receipt_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                          >
-                            <FileText className="h-4 w-4" />
-                            View
-                          </a>
-                        ) : (
-                          <span className="text-gray-400">-</span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleEdit(cost)}
-                            className="text-blue-600 hover:text-blue-800"
-                            title="Edit cost"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (window.confirm('Are you sure you want to delete this cost?')) {
-                                deleteCost.mutate(cost.id)
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                            title="Delete cost"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
           </div>
