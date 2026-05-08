@@ -36,7 +36,15 @@ export default function QuickSetupPage() {
       const response = await api.post('/onboarding/quick-setup', payload)
       setResult(response.data)
     } catch (err) {
-      setError(err.response?.data?.error || 'Quick setup failed. Please try again.')
+      const data = err.response?.data
+      const detail = data?.detail
+      const message =
+        data?.error ||
+        (detail && typeof detail === 'object' && detail.error) ||
+        (typeof detail === 'string' ? detail : null) ||
+        err.message ||
+        'Quick setup failed. Please try again.'
+      setError(message)
     } finally {
       setLoading(false)
     }
