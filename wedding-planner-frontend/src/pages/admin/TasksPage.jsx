@@ -1,8 +1,11 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { PlusCircle, Trash, Edit, FileText, X, GripVertical } from 'lucide-react'
+import { PlusCircle, Trash, Edit, FileText, X, GripVertical, ListChecks } from 'lucide-react'
 import taskTemplates from '../../data/taskTemplates.json'
+import EmptyState from '../../components/ui/EmptyState'
+import DateInput from '../../components/ui/DateInput'
+import { formatLocaleDate } from '../../utils/locale'
 import {
   DndContext,
   closestCenter,
@@ -105,7 +108,7 @@ function TaskCard({ task, onEdit, onDelete }) {
 
       {task.due_date && (
         <div className="text-xs text-gray-600 mb-2">
-          Due: {new Date(task.due_date).toLocaleDateString()}
+          Due: {formatLocaleDate(task.due_date)}
         </div>
       )}
 
@@ -131,10 +134,11 @@ function TaskCard({ task, onEdit, onDelete }) {
             onEdit(task)
           }}
           onPointerDownCapture={(e) => e.stopPropagation()}
-          className="text-blue-600 hover:text-blue-800 p-1 cursor-pointer"
+          className="text-blue-600 hover:text-blue-800 p-2 cursor-pointer rounded hover:bg-blue-50"
+          aria-label={`Edit task ${task.title}`}
           title="Edit task"
         >
-          <Edit className="h-4 w-4" />
+          <Edit className="h-5 w-5" aria-hidden="true" />
         </button>
         <button
           type="button"
@@ -145,10 +149,11 @@ function TaskCard({ task, onEdit, onDelete }) {
             }
           }}
           onPointerDownCapture={(e) => e.stopPropagation()}
-          className="text-red-600 hover:text-red-800 p-1 cursor-pointer"
+          className="text-red-600 hover:text-red-800 p-2 cursor-pointer rounded hover:bg-red-50"
+          aria-label={`Delete task ${task.title}`}
           title="Delete task"
         >
-          <Trash className="h-4 w-4" />
+          <Trash className="h-5 w-5" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -579,15 +584,10 @@ const TasksPage = () => {
             </div>
             <div>
               <label className="block text-sm font-medium mb-1 text-gray-700">Due Date</label>
-              <input
-                type="date"
+              <DateInput
                 value={formData.due_date}
-                onChange={(e) => {
-                  e.stopPropagation()
-                  setFormData(prev => ({ ...prev, due_date: e.target.value }))
-                }}
-                onBlur={(e) => e.stopPropagation()}
-                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                onChange={(value) => setFormData(prev => ({ ...prev, due_date: value }))}
+                ariaLabel="Task due date"
               />
             </div>
             <div>
@@ -709,13 +709,11 @@ const TasksPage = () => {
               <label className="block text-sm font-medium mb-1 text-gray-700">
                 Reminder Date & Time
               </label>
-              <input
-                type="datetime-local"
+              <DateInput
+                withTime
                 value={formData.reminder_date}
-                onChange={(e) =>
-                  setFormData({ ...formData, reminder_date: e.target.value })
-                }
-                className="w-full px-3 py-2 border-2 border-gray-400 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                onChange={(value) => setFormData({ ...formData, reminder_date: value })}
+                ariaLabel="Task reminder date and time"
               />
             </div>
           </div>
@@ -756,6 +754,28 @@ const TasksPage = () => {
         <div className="text-center py-12">
           <p className="text-gray-600">Loading tasks...</p>
         </div>
+      ) : (tasks?.length || 0) === 0 ? (
+        <EmptyState
+          icon={ListChecks}
+          title="No tasks yet"
+          description="Build your planning checklist from scratch or import a curated template (12 tasks anchored to your wedding date)."
+          actions={[
+            {
+              label: 'Add Task',
+              icon: PlusCircle,
+              onClick: () => {
+                resetForm()
+                setShowForm(true)
+              },
+            },
+            {
+              label: 'Use Sample Template',
+              icon: FileText,
+              onClick: () => setShowTemplates(true),
+              variant: 'secondary',
+            },
+          ]}
+        />
       ) : (
         <DndContext
           sensors={sensors}

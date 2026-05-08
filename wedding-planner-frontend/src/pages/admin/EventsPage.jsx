@@ -5,6 +5,9 @@ import moment from 'moment'
 import 'react-big-calendar/lib/css/react-big-calendar.css'
 import api from '../../lib/api'
 import { PlusCircle, Trash, Edit, Calendar as CalendarIcon, MapPin, X, List, Grid, Camera } from 'lucide-react'
+import EmptyState from '../../components/ui/EmptyState'
+import DateInput from '../../components/ui/DateInput'
+import { formatLocaleDate, formatLocaleDateTime } from '../../utils/locale'
 
 // Set moment locale
 moment.locale('en')
@@ -402,35 +405,31 @@ const EventsPage = () => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Start Time *
                     </label>
-                    <input
-                      type="datetime-local"
-                      name="start_time"
+                    <DateInput
+                      withTime
                       value={formData.start_time}
-                      onChange={handleChange}
+                      onChange={(value) => handleChange({ target: { name: 'start_time', value } })}
                       step="900"
                       required
-                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900 ${
-                        fieldErrors.start_time ? 'border-red-500' : 'border-gray-300'
-                      }`}
+                      ariaLabel="Event start date and time"
+                      helperText="Time uses 24-hour format and will be rounded to the nearest 15 minutes."
                     />
                     {fieldErrors.start_time && (
                       <p className="text-red-600 text-sm mt-1">{fieldErrors.start_time}</p>
                     )}
-                    <p className="text-xs text-gray-500 mt-1">Time will be rounded to nearest 15 minutes</p>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       End Time
                     </label>
-                    <input
-                      type="datetime-local"
-                      name="end_time"
+                    <DateInput
+                      withTime
                       value={formData.end_time}
-                      onChange={handleChange}
+                      onChange={(value) => handleChange({ target: { name: 'end_time', value } })}
                       step="900"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                      ariaLabel="Event end date and time"
+                      helperText="Optional. 24-hour format, rounded to the nearest 15 minutes."
                     />
-                    <p className="text-xs text-gray-500 mt-1">Optional - time will be rounded to nearest 15 minutes</p>
                   </div>
                 </div>
 
@@ -438,12 +437,10 @@ const EventsPage = () => {
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     End Date (for multi-day events)
                   </label>
-                  <input
-                    type="date"
-                    name="end_date"
+                  <DateInput
                     value={formData.end_date}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
+                    onChange={(value) => handleChange({ target: { name: 'end_date', value } })}
+                    ariaLabel="Event end date"
                   />
                 </div>
 
@@ -594,16 +591,16 @@ const EventsPage = () => {
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
-                        <CalendarIcon className="w-4 h-4" />
+                        <CalendarIcon className="w-4 h-4" aria-hidden="true" />
                         <span>
-                          {new Date(event.start_time).toLocaleString()}
-                          {event.end_time && ` - ${new Date(event.end_time).toLocaleTimeString()}`}
+                          {formatLocaleDateTime(event.start_time)}
+                          {event.end_time && ` – ${formatLocaleDateTime(event.end_time, { year: undefined, month: undefined, day: undefined })}`}
                         </span>
                       </div>
                       {event.end_date && (
                         <div className="flex items-center gap-2">
-                          <CalendarIcon className="w-4 h-4" />
-                          <span>Ends: {new Date(event.end_date).toLocaleDateString()}</span>
+                          <CalendarIcon className="w-4 h-4" aria-hidden="true" />
+                          <span>Ends: {formatLocaleDate(event.end_date)}</span>
                         </div>
                       )}
                       {event.location && (
@@ -651,9 +648,21 @@ const EventsPage = () => {
               )
             })
           ) : (
-            <div className="text-center py-12 text-gray-500 bg-white rounded-lg">
-              No events yet. Click "Add Event" to create your wedding timeline.
-            </div>
+            <EmptyState
+              icon={CalendarIcon}
+              title="No timeline events yet"
+              description="Build the day-of schedule (ceremony, aperitif, dinner, party, brunch). Guests see this on the public website and the Wedding Pass."
+              actions={[
+                {
+                  label: 'Add Event',
+                  icon: PlusCircle,
+                  onClick: () => {
+                    resetForm()
+                    setShowForm(true)
+                  },
+                },
+              ]}
+            />
           )}
         </div>
       )}

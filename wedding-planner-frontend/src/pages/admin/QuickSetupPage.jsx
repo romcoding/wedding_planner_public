@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import api from '../../lib/api'
-import { Sparkles, Wand2 } from 'lucide-react'
+import { Sparkles, Wand2, Calendar, Globe2, ListChecks } from 'lucide-react'
+import DateInput from '../../components/ui/DateInput'
 
 const initialForm = {
   couple_names: '',
@@ -10,6 +11,27 @@ const initialForm = {
   wedding_hashtag: '',
   style_note: '',
 }
+
+const ESSENTIALS = [
+  {
+    icon: Globe2,
+    title: 'Public wedding website sections',
+    description:
+      'Hero, Our Story, Travel & Accommodation, FAQ and contact pages — pre-filled in English, German and French so you can publish immediately.',
+  },
+  {
+    icon: Calendar,
+    title: 'Timeline events',
+    description:
+      'Ceremony, aperitif, dinner and party blocks anchored to your wedding date so guests see a full agenda from day one.',
+  },
+  {
+    icon: ListChecks,
+    title: 'Kickoff planning tasks',
+    description:
+      'Twelve foundational tasks (venue contract, guest list, dress fitting, vendor booking and more) with sensible due dates relative to the big day.',
+  },
+]
 
 export default function QuickSetupPage() {
   const [form, setForm] = useState(initialForm)
@@ -54,7 +76,7 @@ export default function QuickSetupPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-          <Sparkles className="w-8 h-8 text-amber-500" />
+          <Sparkles className="w-8 h-8 text-amber-500" aria-hidden="true" />
           Wedding Website Quick Setup
         </h1>
         <p className="text-gray-600 mt-2">
@@ -62,16 +84,50 @@ export default function QuickSetupPage() {
         </p>
       </div>
 
+      <section
+        className="bg-amber-50 border border-amber-200 rounded-xl p-5"
+        aria-labelledby="quick-setup-summary"
+      >
+        <h2 id="quick-setup-summary" className="text-base font-semibold text-amber-900 mb-3">
+          What “Generate all essentials” creates for you
+        </h2>
+        <ul className="grid gap-3 md:grid-cols-3">
+          {ESSENTIALS.map(({ icon: Icon, title, description }) => (
+            <li key={title} className="flex items-start gap-3">
+              <span className="mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-full bg-amber-100 text-amber-700">
+                <Icon className="w-4 h-4" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-amber-900">{title}</p>
+                <p className="text-xs text-amber-800">{description}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-amber-800">
+          Already added some content? Existing entries are kept and only missing pieces are filled in — nothing is overwritten.
+        </p>
+      </section>
+
       <form onSubmit={onSubmit} className="bg-white rounded-xl shadow p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
         <label className="space-y-1 md:col-span-2">
           <span className="text-sm text-gray-600">Couple names</span>
           <input name="couple_names" value={form.couple_names} onChange={onChange} className="w-full border rounded-lg px-3 py-2" placeholder="e.g. Emma & Noah" />
         </label>
 
-        <label className="space-y-1">
-          <span className="text-sm text-gray-600">Wedding date</span>
-          <input type="datetime-local" name="wedding_date" value={form.wedding_date} onChange={onChange} className="w-full border rounded-lg px-3 py-2" />
-        </label>
+        <div className="space-y-1">
+          <label htmlFor="quick-setup-wedding-date" className="text-sm text-gray-600 block">
+            Wedding date
+          </label>
+          <DateInput
+            id="quick-setup-wedding-date"
+            withTime
+            value={form.wedding_date}
+            onChange={(value) => setForm((prev) => ({ ...prev, wedding_date: value }))}
+            ariaLabel="Wedding date and time"
+            helperText="Shown to guests on the website and used to anchor the timeline."
+          />
+        </div>
 
         <label className="space-y-1">
           <span className="text-sm text-gray-600">Wedding location</span>
@@ -93,14 +149,21 @@ export default function QuickSetupPage() {
           <textarea name="style_note" value={form.style_note} onChange={onChange} rows={3} className="w-full border rounded-lg px-3 py-2" placeholder="Describe the wedding mood and personality." />
         </label>
 
-        <div className="md:col-span-2 pt-2">
-          <button disabled={loading} className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-lg disabled:opacity-60">
-            <Wand2 className="w-4 h-4" />
+        <div className="md:col-span-2 pt-2 flex flex-wrap items-center gap-3">
+          <button
+            disabled={loading}
+            aria-label="Generate website, timeline events and kickoff tasks"
+            className="inline-flex items-center gap-2 bg-gray-900 text-white px-5 py-2.5 rounded-lg disabled:opacity-60"
+          >
+            <Wand2 className="w-4 h-4" aria-hidden="true" />
             {loading ? 'Generating setup...' : 'Generate all essentials'}
           </button>
+          <span className="text-xs text-gray-500">
+            Creates the website sections, timeline events and tasks listed above.
+          </span>
         </div>
 
-        {error && <div className="md:col-span-2 text-red-600 text-sm">{error}</div>}
+        {error && <div className="md:col-span-2 text-red-600 text-sm" role="alert">{error}</div>}
       </form>
 
       {result && (
