@@ -6,7 +6,6 @@ dependencies = [
     "fastapi",
     "pyjwt",
     "passlib",
-    "resend",
     "httpx"
 ]
 

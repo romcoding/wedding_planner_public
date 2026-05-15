@@ -6,10 +6,39 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
+def _from_address() -> str:
+    """Resolve the sender address.
+
+    Priority:
+      1. `FROM_EMAIL` secret (if set, used verbatim)
+      2. `noreply@{RESEND_SENDER_DOMAIN}` if a sender domain is configured
+      3. Resend's default sandbox sender
+    """
+    explicit = os.environ.get("FROM_EMAIL", "").strip()
+    if explicit:
+        return explicit if "<" in explicit else f"AI Wedding OS <{explicit}>"
+    domain = os.environ.get("RESEND_SENDER_DOMAIN", "").strip()
+    if domain:
+        return f"AI Wedding OS <noreply@{domain}>"
+    return "AI Wedding OS <onboarding@resend.dev>"
+
+
+def _unsubscribe_footer() -> str:
+    """Plain, compliant footer used on every transactional email."""
+    return (
+        '<p style="color: #999; font-size: 12px; text-align: center; margin-top: 32px; '
+        'line-height: 1.6;">'
+        "You're receiving this because you have an active AI Wedding OS workspace. "
+        "If this wasn't you, you can safely ignore the email."
+        "</p>"
+    )
+
+
 async def _send_via_resend(to: str, subject: str, html: str) -> bool:
     """Send email via Resend API using httpx."""
     resend_api_key = os.environ.get("RESEND_API_KEY", "")
-    from_email = os.environ.get("FROM_EMAIL", "noreply@wedding-planner.app")
+    from_email = _from_address()
     if not resend_api_key:
         logger.error(f"[email] RESEND_API_KEY not set, skipping email to {to}")
         return False
@@ -171,6 +200,192 @@ async def send_password_reset_email(email: str, user_name: str, token: str) -> b
     </html>
     """
     return await _send_via_resend(email, subject, html)
+
+
+async def send_rsvp_notification_email(
+    admin_email: str,
+    guest_name: str,
+    rsvp_status: str,
+    wedding_date: str | None = None,
+) -> bool:
+    """Notify the couple/admin that a guest just responded to their invitation."""
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    guest_list_url = f"{frontend_url}/admin/guests"
+
+    status_label = (rsvp_status or "").strip().lower()
+    if status_label in ("accepted", "confirmed", "coming", "yes"):
+        emoji = "✅"
+        verb = "is coming"
+    elif status_label in ("declined", "no", "cant_make_it"):
+        emoji = "❌"
+        verb = "can't make it"
+    else:
+        emoji = "📨"
+        verb = "responded"
+
+    safe_name = guest_name or "A guest"
+    date_line = (
+        f'<p style="color: #888; font-size: 14px; text-align: center; margin: 8px 0 24px;">'
+        f"Your wedding date: <strong>{wedding_date}</strong></p>"
+        if wedding_date else ""
+    )
+
+    subject = f"{safe_name} just responded to your wedding invitation!"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background:#FAFAF8;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 40px;">{emoji}</div>
+        <h1 style="color: #2D4A3E; font-size: 24px; margin: 8px 0 0;">New RSVP</h1>
+      </div>
+      <p style="color: #1A1A1A; font-size: 16px; line-height: 1.6; text-align: center;">
+        <strong>{safe_name}</strong> {verb}.
+      </p>
+      {date_line}
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{guest_list_url}"
+           style="background: #C4956A; color: white; padding: 12px 28px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
+          View guest list
+        </a>
+      </div>
+      {_unsubscribe_footer()}
+    </body>
+    </html>
+    """
+    return await _send_via_resend(admin_email, subject, html)
+
+
+async def send_upgrade_confirmation_email(email: str, couple_names: str, plan_type: str) -> bool:
+    """Confirm a successful upgrade to a paid plan."""
+    plan_display = "Premium" if plan_type in ("premium", "lifetime") else plan_type.title()
+    perks = [
+        "Unlimited guests, tasks, and RSVPs",
+        "Full AI planning assistant",
+        "Beautiful guest portal & custom slug",
+        "Detailed budget tracking and exports",
+    ]
+    perks_html = "".join(
+        f'<li style="margin: 6px 0;">{p}</li>' for p in perks
+    )
+
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    dashboard_url = f"{frontend_url}/admin/billing"
+    subject = "You're now on Premium! 🎉"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background:#FAFAF8;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 44px;">🎉</div>
+        <h1 style="color: #2D4A3E; font-size: 28px; margin: 8px 0 4px;">Welcome to {plan_display}</h1>
+        <p style="color: #666; font-size: 16px; margin: 0;">Hi {couple_names or "there"}, your upgrade is live.</p>
+      </div>
+      <div style="background:#F5EFE8; border-radius: 12px; padding: 20px 24px; margin: 16px 0 28px;">
+        <p style="margin: 0 0 8px; font-weight: 600; color: #1A1A1A;">What's now unlocked:</p>
+        <ul style="margin: 0; padding-left: 20px; color: #333; line-height: 1.8;">{perks_html}</ul>
+      </div>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="{dashboard_url}"
+           style="background: #C4956A; color: white; padding: 14px 32px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block;">
+          Open billing
+        </a>
+      </div>
+      <p style="color: #888; font-size: 13px; text-align: center;">
+        A receipt is available in your Stripe customer portal.
+      </p>
+      {_unsubscribe_footer()}
+    </body>
+    </html>
+    """
+    return await _send_via_resend(email, subject, html)
+
+
+# Backwards-compatible alias used by older callers.
+send_plan_upgrade_email = send_upgrade_confirmation_email
+
+
+async def send_subscription_cancelled_email(email: str, user_name: str) -> bool:
+    """Notify the couple that their paid plan was cancelled and they're back on Free."""
+    frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
+    billing_url = f"{frontend_url}/admin/billing"
+    subject = "Your subscription was cancelled"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background:#FAFAF8;">
+      <h1 style="color: #2D4A3E; font-size: 24px; margin: 0 0 16px;">Subscription cancelled</h1>
+      <p style="color: #1A1A1A; font-size: 16px; line-height: 1.6;">
+        Hi {user_name or "there"}, your AI Wedding OS subscription has been cancelled and
+        your workspace has been moved back to the <strong>Free</strong> plan.
+      </p>
+      <p style="color: #333; font-size: 15px; line-height: 1.6;">
+        All of your data is safe — guests, tasks, budget items, and content are all still
+        here. Free-tier limits will apply going forward.
+      </p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="{billing_url}"
+           style="background: #2D4A3E; color: white; padding: 12px 26px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
+          Manage billing
+        </a>
+      </div>
+      {_unsubscribe_footer()}
+    </body>
+    </html>
+    """
+    return await _send_via_resend(email, subject, html)
+
+
+async def send_guest_confirmation_email(
+    guest_email: str,
+    guest_name: str,
+    couple_names: str,
+    wedding_date: str | None,
+    portal_url: str,
+) -> bool:
+    """Send a guest a beautiful RSVP confirmation."""
+    safe_couple = couple_names or "the couple"
+    safe_name = guest_name or "Guest"
+    date_block = (
+        f'<p style="color:#2D4A3E; text-align:center; font-size: 18px; margin: 8px 0 24px;">'
+        f"📅 <strong>{wedding_date}</strong></p>"
+        if wedding_date else ""
+    )
+
+    subject = f"Your RSVP is confirmed — {safe_couple}'s wedding"
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <body style="font-family: 'DM Sans', -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background:#FAFAF8;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="font-size: 40px;">💌</div>
+        <h1 style="font-family: 'Playfair Display', Georgia, serif; color: #2D4A3E; font-size: 32px; margin: 8px 0 4px;">
+          Your RSVP is confirmed
+        </h1>
+        <p style="color: #C4956A; font-size: 16px; margin: 0;">Thank you, {safe_name}!</p>
+      </div>
+      <p style="color: #1A1A1A; font-size: 16px; line-height: 1.7; text-align: center;">
+        We've let <strong>{safe_couple}</strong> know you're in. They'll be in touch with details closer to the day.
+      </p>
+      {date_block}
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="{portal_url}"
+           style="background: #C4956A; color: white; padding: 14px 32px; border-radius: 8px;
+                  text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
+          View wedding portal
+        </a>
+      </div>
+      <p style="color: #888; font-size: 13px; text-align: center;">
+        Need to change your response? Open the portal above any time.
+      </p>
+      {_unsubscribe_footer()}
+    </body>
+    </html>
+    """
+    return await _send_via_resend(guest_email, subject, html)
 
 
 async def send_invitation_email(
