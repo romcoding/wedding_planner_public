@@ -132,22 +132,36 @@ async def _ensure_unique_slug(db, base_slug: str) -> str:
         slug = f"{base_slug}-{counter}"
         counter += 1
 
-_ITERATIONS = 1000  # Low count fits within Cloudflare Workers CPU limits
-
-
 def _hash_password(password: str) -> str:
-    salt = os.urandom(32)
-    key = hashlib.pbkdf2_hmac("sha256", password.encode(), salt, _ITERATIONS)
-    return "pbkdf2:sha256:{}${}${}".format(
-        _ITERATIONS,
-        base64.b64encode(salt).decode(),
-        base64.b64encode(key).decode(),
-    )
+    """Hash a password with passlib's pbkdf2_sha256.
+
+    `passlib` is imported lazily because it calls `os.urandom(1)` at module
+    import time, which Cloudflare's Python Workers runtime blocks when no
+    request is in flight (cold start). Importing inside the function defers
+    that entropy call to the first hash/verify operation, which always
+    happens inside a request context where entropy is allowed.
+    """
+    from passlib.hash import pbkdf2_sha256
+    return pbkdf2_sha256.hash(password)
 
 
 def _check_password(password: str, hashed: str) -> bool:
+    """Verify a password against a stored hash.
+
+    Accepts both the current passlib `$pbkdf2-sha256$...` format and the
+    legacy `pbkdf2:sha256:<iters>$<salt_b64>$<key_b64>` format produced
+    before the passlib migration, so existing users keep working without a
+    forced reset. See `_hash_password` for why passlib is imported lazily.
+    """
+    if not hashed:
+        return False
+    if hashed.startswith("$pbkdf2-sha256$"):
+        try:
+            from passlib.hash import pbkdf2_sha256
+            return pbkdf2_sha256.verify(password, hashed)
+        except Exception:
+            return False
     try:
-        # Format: "pbkdf2:sha256:<iterations>$<salt_b64>$<key_b64>"
         prefix, salt_b64, key_b64 = hashed.split("$")
         iterations = int(prefix.rsplit(":", 1)[-1])
         salt = base64.b64decode(salt_b64)
@@ -272,19 +286,21 @@ async def register_couple(body: RegisterBody, request: Request):
     base_slug = _generate_slug(partner_one, partner_two, year)
     slug = await _ensure_unique_slug(db, base_slug)
 
-    # Write user (email_verified defaults to 0 via schema)
-    await db.prepare(
-        "INSERT INTO users (id, email, password_hash, name, role, is_active, "
-        "current_wedding_id, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, 'admin', 1, ?, datetime('now'), datetime('now'))"
-    ).bind(user_id, email, password_hash, couple_name, wedding_id).run()
-
-    # Write wedding
-    await db.prepare(
-        "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
-        "wedding_date, location, plan, is_active, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
-    ).bind(wedding_id, slug, user_id, partner_one, partner_two, body.wedding_date, body.location).run()
+    # Write user + wedding atomically as a single D1 batch so either both rows
+    # land or neither does (avoids the "orphan user without wedding" failure
+    # mode where the second insert fails after the first commits).
+    await db.batch([
+        db.prepare(
+            "INSERT INTO users (id, email, password_hash, name, role, is_active, "
+            "current_wedding_id, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, 'admin', 1, ?, datetime('now'), datetime('now'))"
+        ).bind(user_id, email, password_hash, couple_name, wedding_id),
+        db.prepare(
+            "INSERT INTO weddings (id, slug, owner_id, partner_one_name, partner_two_name, "
+            "wedding_date, location, plan, is_active, created_at, updated_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, 'free', 1, datetime('now'), datetime('now'))"
+        ).bind(wedding_id, slug, user_id, partner_one, partner_two, body.wedding_date, body.location),
+    ])
 
     # Create email verification token (64-byte hex = 128 chars)
     verification_token = secrets.token_hex(64)
