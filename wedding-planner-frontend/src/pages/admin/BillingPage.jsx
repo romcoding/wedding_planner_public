@@ -8,14 +8,14 @@ const PLANS = [
   {
     id: 'free',
     name: 'Free',
-    price: 0,
+    price: '€0',
     period: 'forever',
     icon: Heart,
     color: 'text-gray-600',
     bg: 'bg-gray-50 border-gray-200',
     features: [
       'Up to 30 guests',
-      'Up to 10 tasks',
+      'Up to 20 tasks',
       'Basic budget tracking',
       'Guest portal',
       'RSVP management',
@@ -23,45 +23,40 @@ const PLANS = [
     missing: ['AI features', 'Custom URL slug', 'Unlimited guests'],
   },
   {
-    id: 'starter',
-    name: 'Starter',
-    price: 9,
-    period: 'month',
-    icon: Zap,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50 border-blue-300',
-    highlight: true,
-    features: [
-      'Up to 150 guests',
-      'Unlimited tasks',
-      'Full budget tracking',
-      'AI Timeline Builder',
-      'AI Vendor Suggestions',
-      'AI Website Copy',
-      'AI Seating (3 uses/day)',
-      'Custom URL slug',
-      'Guest portal',
-    ],
-    missing: ['Unlimited AI uses', 'Custom branding'],
-  },
-  {
     id: 'premium',
-    name: 'Premium',
-    price: 29,
+    name: 'Premium · Monthly',
+    price: '€19',
     period: 'month',
     icon: Crown,
     color: 'text-amber-600',
     bg: 'bg-amber-50 border-amber-300',
+    highlight: true,
     features: [
-      'Unlimited guests',
-      'Unlimited tasks',
-      'Full budget tracking',
-      'Unlimited AI features',
-      'Custom URL slug',
-      'Guest portal + custom branding',
+      'Unlimited guests, tasks, RSVPs',
+      'Full AI planning assistant',
+      'Custom slug + branded portal',
+      'Exports & advanced budget',
       'Priority support',
     ],
     missing: [],
+    blurb: 'Most flexible — cancel anytime.',
+  },
+  {
+    id: 'lifetime',
+    name: 'Premium · Lifetime',
+    price: '€149',
+    period: 'one-time',
+    icon: Zap,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-50 border-emerald-300',
+    features: [
+      'Everything in Premium · Monthly',
+      'No recurring fees — ever',
+      'Wedding-day priority support',
+      'Lifetime feature updates',
+    ],
+    missing: [],
+    blurb: 'Best value if your wedding is more than 8 months away.',
   },
 ]
 
@@ -76,9 +71,10 @@ export default function BillingPage() {
   // Handle redirect back from Stripe
   useEffect(() => {
     const status = searchParams.get('status')
+    const upgraded = searchParams.get('upgraded')
     const upgrade = searchParams.get('upgrade')
-    if (status === 'success') {
-      setSuccessMessage('Payment successful! Your plan has been upgraded.')
+    if (status === 'success' || upgraded === 'true') {
+      setSuccessMessage("Payment successful — you're now on Premium!")
       refreshWedding()
     }
     if (upgrade && wedding && wedding.plan === 'free') {
@@ -199,10 +195,13 @@ export default function BillingPage() {
                 <span className="font-semibold text-gray-900">{plan.name}</span>
               </div>
 
-              <div className="mb-4">
-                <span className="text-3xl font-bold text-gray-900">${plan.price}</span>
-                <span className="text-sm text-gray-500">/{plan.period}</span>
+              <div className="mb-2">
+                <span className="text-3xl font-bold text-gray-900">{plan.price}</span>
+                <span className="text-sm text-gray-500"> {plan.period === 'one-time' ? plan.period : `/ ${plan.period}`}</span>
               </div>
+              {plan.blurb && (
+                <p className="text-xs text-gray-500 mb-3 italic">{plan.blurb}</p>
+              )}
 
               <ul className="space-y-2 flex-1 mb-5">
                 {plan.features.map((f) => (

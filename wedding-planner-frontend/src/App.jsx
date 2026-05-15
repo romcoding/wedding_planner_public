@@ -41,6 +41,7 @@ import GuestRegister from './pages/guest/Register'
 import GuestEntry from './pages/guest/GuestEntry'
 import WeddingPortal from './pages/guest/WeddingPortal'
 import PublicLandingPage from './pages/PublicLandingPage'
+import DemoPage from './pages/Demo'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 
@@ -147,6 +148,9 @@ function AppRoutes() {
 
       {/* ── Public Landing ── */}
       <Route path="/" element={<PublicLandingPage />} />
+
+      {/* ── Public Demo (read-only sample dashboard) ── */}
+      <Route path="/demo" element={<DemoPage />} />
 
       {/* ── Email verification & password reset (public, no auth required) ── */}
       <Route path="/verify-email" element={<VerifyEmailPage />} />
