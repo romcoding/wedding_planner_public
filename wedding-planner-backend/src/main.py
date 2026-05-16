@@ -33,6 +33,7 @@ from routes.onboarding_routes import router as onboarding_router
 from routes.subscription_routes import router as subscription_router
 from routes.image_routes import router as image_router
 from routes.demo_routes import router as demo_router
+from routes.stripe_routes import router as stripe_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -40,7 +41,13 @@ class Default(WorkerEntrypoint):
 
         # Mirror Worker bindings into process env so modules using os.environ
         # can access Cloudflare secrets consistently at runtime.
-        for key in ("JWT_SECRET_KEY", "RESEND_API_KEY", "FROM_EMAIL", "FRONTEND_URL", "CORS_EXTRA_ORIGINS"):
+        for key in (
+            "JWT_SECRET_KEY", "RESEND_API_KEY", "FROM_EMAIL", "FRONTEND_URL", "CORS_EXTRA_ORIGINS",
+            "RESEND_SENDER_DOMAIN",
+            "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
+            "STRIPE_STARTER_PRICE_ID", "STRIPE_PREMIUM_PRICE_ID",
+            "STRIPE_MONTHLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID",
+        ):
             value = getattr(self.env, key, None)
             if value is not None:
                 os.environ[key] = str(value)
@@ -139,3 +146,4 @@ app.include_router(onboarding_router, prefix="/api/onboarding")
 app.include_router(subscription_router, prefix="/api/subscriptions")
 app.include_router(image_router)  # Has own /api/images prefix in routes
 app.include_router(demo_router, prefix="/api/demo")
+app.include_router(stripe_router, prefix="/api/stripe")
