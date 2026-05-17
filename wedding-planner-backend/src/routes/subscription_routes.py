@@ -13,9 +13,10 @@ async def subscription_status(
 ):
     db = await get_db(request)
     user_id = payload["sub"]
-    sub = await db.prepare(
+    sub_raw = await db.prepare(
         "SELECT * FROM user_subscriptions WHERE user_id = ?"
     ).bind(user_id).first()
+    sub = dict(sub_raw) if sub_raw else None
     if not sub:
         return {
             "user_id": user_id,
@@ -24,7 +25,7 @@ async def subscription_status(
             "total_purchased": 0,
             "total_consumed": 0,
         }
-    return dict(sub)
+    return sub
 
 
 @router.get("/token-usage")

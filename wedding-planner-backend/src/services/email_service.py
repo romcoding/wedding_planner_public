@@ -17,11 +17,11 @@ def _from_address() -> str:
     """
     explicit = os.environ.get("FROM_EMAIL", "").strip()
     if explicit:
-        return explicit if "<" in explicit else f"AI Wedding OS <{explicit}>"
+        return explicit if "<" in explicit else f"Wedding OS <{explicit}>"
     domain = os.environ.get("RESEND_SENDER_DOMAIN", "").strip()
     if domain:
-        return f"AI Wedding OS <noreply@{domain}>"
-    return "AI Wedding OS <onboarding@resend.dev>"
+        return f"Wedding OS <noreply@{domain}>"
+    return "Wedding OS <onboarding@resend.dev>"
 
 
 def _unsubscribe_footer() -> str:
@@ -29,7 +29,7 @@ def _unsubscribe_footer() -> str:
     return (
         '<p style="color: #999; font-size: 12px; text-align: center; margin-top: 32px; '
         'line-height: 1.6;">'
-        "You're receiving this because you have an active AI Wedding OS workspace. "
+        "You're receiving this because you have an active Wedding OS workspace. "
         "If this wasn't you, you can safely ignore the email."
         "</p>"
     )
@@ -96,7 +96,7 @@ async def send_welcome_email(email: str, couple_name: str, slug: str) -> bool:
         </a>
       </div>
       <p style="color: #999; font-size: 14px; text-align: center; margin-top: 32px;">
-        Wedding Planner — AI Wedding OS
+        Wedding Planner
       </p>
     </body>
     </html>
@@ -120,7 +120,7 @@ async def send_plan_upgrade_email(email: str, couple_name: str, new_plan: str) -
         Enjoy your new features!
       </p>
       <p style="color: #999; font-size: 14px; text-align: center; margin-top: 32px;">
-        Wedding Planner — AI Wedding OS
+        Wedding Planner
       </p>
     </body>
     </html>
@@ -262,7 +262,7 @@ async def send_upgrade_confirmation_email(email: str, couple_names: str, plan_ty
     plan_display = "Premium" if plan_type in ("premium", "lifetime") else plan_type.title()
     perks = [
         "Unlimited guests, tasks, and RSVPs",
-        "Full AI planning assistant",
+        "Full planning assistant with Wedi",
         "Beautiful guest portal & custom slug",
         "Detailed budget tracking and exports",
     ]
@@ -318,7 +318,7 @@ async def send_subscription_cancelled_email(email: str, user_name: str) -> bool:
     <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background:#FAFAF8;">
       <h1 style="color: #2D4A3E; font-size: 24px; margin: 0 0 16px;">Subscription cancelled</h1>
       <p style="color: #1A1A1A; font-size: 16px; line-height: 1.6;">
-        Hi {user_name or "there"}, your AI Wedding OS subscription has been cancelled and
+        Hi {user_name or "there"}, your Wedding OS subscription has been cancelled and
         your workspace has been moved back to the <strong>Free</strong> plan.
       </p>
       <p style="color: #333; font-size: 15px; line-height: 1.6;">
