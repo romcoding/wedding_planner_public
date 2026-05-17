@@ -144,8 +144,8 @@ async def _seen_event(db, event_id: str) -> bool:
     if not event_id:
         return False
     try:
-        row = await db.prepare("SELECT id FROM stripe_events WHERE id = ?").bind(event_id).first()
-        return row is not None
+        row_raw = await db.prepare("SELECT id FROM stripe_events WHERE id = ?").bind(event_id).first()
+        return row_raw is not None
     except Exception:
         return False
 
@@ -202,9 +202,10 @@ async def create_checkout_session(
     db = await get_db(request)
     wedding_id = wedding["id"]
 
-    user = await db.prepare("SELECT email, name FROM users WHERE id = ?").bind(wedding["owner_id"]).first()
-    email = user["email"] if user else ""
-    name = user["name"] if user else (wedding.get("partner_one_name") or "")
+    user_raw = await db.prepare("SELECT email, name FROM users WHERE id = ?").bind(wedding["owner_id"]).first()
+    user = dict(user_raw) if user_raw else None
+    email = user.get("email") if user else ""
+    name = user.get("name") if user else (wedding.get("partner_one_name") or "")
 
     # Create or reuse Stripe customer
     customer_id = wedding.get("stripe_customer_id")
@@ -331,14 +332,15 @@ async def _handle_checkout_completed(db, session: dict) -> None:
 
     # Fire-and-forget welcome-to-premium email
     try:
-        wed_row = await db.prepare(
+        wed_row_raw = await db.prepare(
             "SELECT w.partner_one_name, w.partner_two_name, u.email "
             "FROM weddings w JOIN users u ON u.id = w.owner_id WHERE w.id = ?"
         ).bind(wedding_id).first()
+        wed_row = dict(wed_row_raw) if wed_row_raw else None
         if wed_row:
             from services.email_service import send_upgrade_confirmation_email
             couple = " & ".join(filter(None, [wed_row.get("partner_one_name"), wed_row.get("partner_two_name")])) or "there"
-            await send_upgrade_confirmation_email(wed_row["email"], couple, plan)
+            await send_upgrade_confirmation_email(wed_row.get("email"), couple, plan)
     except Exception as exc:
         logger.warning(f"[stripe] failed to send upgrade email for {wedding_id}: {exc}")
 
@@ -347,11 +349,12 @@ async def _handle_subscription_updated(db, subscription: dict) -> None:
     """Sync plan when subscription state changes."""
     wedding_id = (subscription.get("metadata") or {}).get("wedding_id")
     if not wedding_id:
-        row = await db.prepare(
+        row_raw = await db.prepare(
             "SELECT id FROM weddings WHERE stripe_subscription_id = ?"
         ).bind(subscription.get("id")).first()
+        row = dict(row_raw) if row_raw else None
         if row:
-            wedding_id = row["id"]
+            wedding_id = row.get("id")
     if not wedding_id:
         return
 
@@ -369,24 +372,26 @@ async def _handle_subscription_updated(db, subscription: dict) -> None:
 
 async def _handle_subscription_deleted(db, subscription: dict) -> None:
     """Downgrade to free when subscription is cancelled."""
-    row = await db.prepare(
+    row_raw = await db.prepare(
         "SELECT id, owner_id FROM weddings WHERE stripe_subscription_id = ?"
     ).bind(subscription.get("id")).first()
+    row = dict(row_raw) if row_raw else None
     if not row:
         return
 
     await db.prepare(
         "UPDATE weddings SET plan = 'free', stripe_subscription_id = NULL, "
         "is_active = 1, updated_at = datetime('now') WHERE id = ?"
-    ).bind(row["id"]).run()
+    ).bind(row.get("id")).run()
 
     try:
-        owner = await db.prepare(
+        owner_raw = await db.prepare(
             "SELECT email, name FROM users WHERE id = ?"
-        ).bind(row["owner_id"]).first()
+        ).bind(row.get("owner_id")).first()
+        owner = dict(owner_raw) if owner_raw else None
         if owner:
             from services.email_service import send_subscription_cancelled_email
-            await send_subscription_cancelled_email(owner["email"], owner.get("name") or "there")
+            await send_subscription_cancelled_email(owner.get("email"), owner.get("name") or "there")
     except Exception as exc:
         logger.warning(f"[stripe] failed to send cancellation email: {exc}")
 
@@ -419,4 +424,5 @@ async def billing_status(wedding: dict = Depends(get_wedding)):
         "stripe_subscription_id": wedding.get("stripe_subscription_id"),
         "plan_expires_at": wedding.get("plan_expires_at"),
         "limits": PLAN_LIMITS.get(plan, {}),
+        "is_admin_override": bool(wedding.get("is_admin_override", False)),
     }

@@ -109,7 +109,8 @@ async def update_rsvp(body: UpdateRsvpBody, request: Request):
     guest_id = sub[6:]
 
     db = await get_db(request)
-    guest = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
+    guest_raw = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
+    guest = dict(guest_raw) if guest_raw else None
     if not guest:
         raise HTTPException(404, "Guest not found")
 
@@ -147,8 +148,9 @@ async def update_rsvp(body: UpdateRsvpBody, request: Request):
         f"UPDATE guests SET {', '.join(updates)} WHERE id = ?"
     ).bind(*binds).run()
 
-    updated = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
-    return {"message": "RSVP updated successfully", "guest": _guest_dict(dict(updated))}
+    updated_raw = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
+    updated = dict(updated_raw) if updated_raw else {}
+    return {"message": "RSVP updated successfully", "guest": _guest_dict(updated)}
 
 
 @router.post("", status_code=201)
@@ -209,9 +211,9 @@ async def get_guests(
     sql += " ORDER BY registered_at DESC"
     result = await db.prepare(sql).bind(*binds).all()
     guests = []
-    for g in (result.results or []):
-        gd = _guest_dict(dict(g), include_token=True)
-        gd["rsvp_link"] = f"{frontend_url}/rsvp/{g['unique_token']}"
+    for g in [dict(r) for r in (result.results or [])]:
+        gd = _guest_dict(g, include_token=True)
+        gd["rsvp_link"] = f"{frontend_url}/rsvp/{g.get('unique_token')}"
         guests.append(gd)
     return guests
 
@@ -220,27 +222,28 @@ async def get_guests(
 async def get_guest_by_token(token: str, request: Request):
     """Public endpoint for RSVP link."""
     db = await get_db(request)
-    guest = await db.prepare("SELECT * FROM guests WHERE unique_token = ?").bind(token).first()
-    if not guest:
+    guest_raw = await db.prepare("SELECT * FROM guests WHERE unique_token = ?").bind(token).first()
+    if not guest_raw:
         raise HTTPException(404, "Invalid RSVP link")
+    guest = dict(guest_raw)
     await db.prepare(
         "UPDATE guests SET last_accessed = datetime('now') WHERE id = ?"
-    ).bind(guest["id"]).run()
-    return _guest_dict(dict(guest))
+    ).bind(guest.get("id")).run()
+    return _guest_dict(guest)
 
 
 @router.post("/token/{token}/auth")
 async def authenticate_guest_token(token: str, request: Request):
     """Public: authenticate guest via RSVP token, return JWT."""
     db = await get_db(request)
-    guest = await db.prepare("SELECT * FROM guests WHERE unique_token = ?").bind(token).first()
-    if not guest:
+    guest_raw = await db.prepare("SELECT * FROM guests WHERE unique_token = ?").bind(token).first()
+    if not guest_raw:
         raise HTTPException(404, "Invalid RSVP link")
-    guest = dict(guest)
+    guest = dict(guest_raw)
     await db.prepare(
         "UPDATE guests SET last_accessed = datetime('now') WHERE id = ?"
-    ).bind(guest["id"]).run()
-    access_token = create_guest_token(guest["id"], guest.get("wedding_id"))
+    ).bind(guest.get("id")).run()
+    access_token = create_guest_token(guest.get("id"), guest.get("wedding_id"))
     return {"access_token": access_token, "guest": _guest_dict(guest)}
 
 
@@ -426,13 +429,14 @@ async def get_guest(
     db = await get_db(request)
     import os
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
-    guest = await db.prepare(
+    guest_raw = await db.prepare(
         "SELECT * FROM guests WHERE id = ? AND wedding_id = ?"
     ).bind(guest_id, wedding["id"]).first()
-    if not guest:
+    if not guest_raw:
         raise HTTPException(404, "Guest not found")
-    gd = _guest_dict(dict(guest), include_token=True)
-    gd["rsvp_link"] = f"{frontend_url}/rsvp/{guest['unique_token']}"
+    guest = dict(guest_raw)
+    gd = _guest_dict(guest, include_token=True)
+    gd["rsvp_link"] = f"{frontend_url}/rsvp/{guest.get('unique_token')}"
     return gd
 
 
@@ -444,9 +448,10 @@ async def update_guest(
     request: Request = None,
 ):
     db = await get_db(request)
-    guest = await db.prepare(
+    guest_raw = await db.prepare(
         "SELECT * FROM guests WHERE id = ? AND wedding_id = ?"
     ).bind(guest_id, wedding["id"]).first()
+    guest = dict(guest_raw) if guest_raw else None
     if not guest:
         raise HTTPException(404, "Guest not found")
 
@@ -487,8 +492,9 @@ async def update_guest(
             f"UPDATE guests SET {', '.join(updates)} WHERE id = ?"
         ).bind(*binds).run()
 
-    updated = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
-    return _guest_dict(dict(updated))
+    updated_raw = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
+    updated = dict(updated_raw) if updated_raw else {}
+    return _guest_dict(updated)
 
 
 @router.delete("/{guest_id}")

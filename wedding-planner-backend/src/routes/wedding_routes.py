@@ -73,14 +73,15 @@ async def create_wedding(
     db = await get_db(request)
     user_id = payload["sub"]
 
-    existing = await db.prepare(
+    existing_raw = await db.prepare(
         "SELECT id FROM weddings WHERE owner_id = ?"
     ).bind(user_id).first()
+    existing = dict(existing_raw) if existing_raw else None
     if existing:
-        w = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(existing["id"]).first()
+        w_raw = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(existing.get("id")).first()
         raise HTTPException(409, {
             "error": "You already have a wedding. Use PUT /api/weddings/current to update it.",
-            "wedding": _wedding_dict(dict(w)),
+            "wedding": _wedding_dict(dict(w_raw)),
         })
 
     year = 2026

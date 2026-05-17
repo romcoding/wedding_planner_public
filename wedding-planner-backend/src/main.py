@@ -47,6 +47,7 @@ class Default(WorkerEntrypoint):
             "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET",
             "STRIPE_STARTER_PRICE_ID", "STRIPE_PREMIUM_PRICE_ID",
             "STRIPE_MONTHLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID",
+            "ADMIN_EMAILS",
         ):
             value = getattr(self.env, key, None)
             if value is not None:

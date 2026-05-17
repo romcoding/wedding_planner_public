@@ -145,7 +145,7 @@ async def cost_analytics(
     result = await db.prepare(
         "SELECT * FROM costs WHERE wedding_id = ?"
     ).bind(wedding["id"]).all()
-    costs = result.results or []
+    costs = [dict(r) for r in (result.results or [])]
 
     category_totals: dict = {}
     status_totals = {"planned": 0.0, "pending": 0.0, "paid": 0.0}

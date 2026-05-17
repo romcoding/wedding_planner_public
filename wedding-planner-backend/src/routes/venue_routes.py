@@ -83,22 +83,23 @@ async def venue_chat(
     ).bind(chat_id, venue_id, wedding["id"], body.role, body.content).run()
 
     # Get venue info for context
-    venue = await db.prepare("SELECT * FROM venues WHERE id = ?").bind(venue_id).first()
-    venue_name = dict(venue)["name"] if venue else "this venue"
+    venue_raw = await db.prepare("SELECT * FROM venues WHERE id = ?").bind(venue_id).first()
+    venue = dict(venue_raw) if venue_raw else None
+    venue_name = venue.get("name") if venue else "this venue"
 
     # Get recent chat history
     history_r = await db.prepare(
         "SELECT role, content FROM venue_chat_history WHERE venue_id = ? AND wedding_id = ? "
         "ORDER BY created_at ASC LIMIT 20"
     ).bind(venue_id, wedding["id"]).all()
-    history = [{"role": r["role"], "content": r["content"]} for r in (history_r.results or [])]
+    history = [{"role": r.get("role"), "content": r.get("content")} for r in [dict(x) for x in (history_r.results or [])]]
 
     # Get venue document snippets for context
     docs_r = await db.prepare(
         "SELECT content_text FROM venue_documents WHERE venue_id = ? LIMIT 3"
     ).bind(venue_id).all()
     doc_context = "\n\n".join(
-        d["content_text"] for d in (docs_r.results or []) if d.get("content_text")
+        d.get("content_text") for d in [dict(x) for x in (docs_r.results or [])] if d.get("content_text")
     )
 
     try:

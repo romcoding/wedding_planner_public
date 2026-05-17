@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useWedding } from '../contexts/WeddingContext'
 import AIPanel from '../components/AIPanel'
+import { ASSISTANT_NAME } from '../lib/brand'
+import { hasFeature, FEATURE_MIN_PLAN, PLAN_ORDER, PLAN_NAMES } from '../lib/planFeatures'
 import {
   Users,
   CheckSquare,
@@ -27,6 +29,7 @@ import {
   ExternalLink,
   Zap,
   Crown,
+  Lock,
 } from 'lucide-react'
 
 const PLAN_BADGE = {
@@ -57,33 +60,35 @@ export default function AdminLayout() {
 
   const navItems = isPlanner
     ? [
-        { path: '/admin/guests', icon: Users, label: 'Guest Management' },
-        { path: '/admin/setup', icon: Wand2, label: 'Quick Setup' },
-        { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
-        { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
-        { path: '/admin/events', icon: Calendar, label: 'Timeline' },
-        { path: '/admin/venues', icon: MapPin, label: 'Venues' },
-        { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
-        { path: '/admin/webpage', icon: ImageIcon, label: 'Guest Website Builder' },
-        { path: '/admin/billing', icon: CreditCard, label: 'Billing' },
+        { path: '/admin/guests', icon: Users, label: 'Guest Management', featureKey: 'guests' },
+        { path: '/admin/setup', icon: Wand2, label: 'Quick Setup', featureKey: 'dashboard' },
+        { path: '/admin/moodboard', icon: Palette, label: 'Moodboard', featureKey: 'moodboard' },
+        { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart', featureKey: 'seating' },
+        { path: '/admin/events', icon: Calendar, label: 'Timeline', featureKey: 'events' },
+        { path: '/admin/venues', icon: MapPin, label: 'Venues', featureKey: 'venue' },
+        { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks', featureKey: 'tasks' },
+        { path: '/admin/webpage', icon: ImageIcon, label: 'Guest Website Builder', featureKey: 'content_basic' },
+        { path: '/admin/billing', icon: CreditCard, label: 'Billing', featureKey: 'dashboard' },
       ]
     : [
-        { path: '/admin/wedding', icon: Heart, label: 'Wedding Management' },
-        { path: '/admin/setup', icon: Wand2, label: 'Quick Setup' },
-        { path: '/admin/guests', icon: Users, label: 'Guest Management' },
-        { path: '/admin/moodboard', icon: Palette, label: 'Moodboard' },
-        { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart' },
-        { path: '/admin/rsvp-reminders', icon: Bell, label: 'RSVP Reminders' },
-        { path: '/admin/invitations', icon: Mail, label: 'Invitations' },
-        { path: '/admin/events', icon: Calendar, label: 'Timeline' },
-        { path: '/admin/venues', icon: MapPin, label: 'Venues' },
-        { path: '/admin/webpage', icon: ImageIcon, label: 'Webpage Builder' },
-        { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks' },
-        { path: '/admin/costs', icon: DollarSign, label: 'Costs' },
-        { path: '/admin/content', icon: FileText, label: 'Content' },
-        { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
-        { path: '/admin/users', icon: Shield, label: 'User Management' },
-        { path: '/admin/billing', icon: CreditCard, label: 'Billing' },
+        { path: '/admin/wedding', icon: Heart, label: 'Wedding Management', featureKey: 'dashboard' },
+        { path: '/admin/setup', icon: Wand2, label: 'Quick Setup', featureKey: 'dashboard' },
+        { path: '/admin/guests', icon: Users, label: 'Guest Management', featureKey: 'guests' },
+        { path: '/admin/moodboard', icon: Palette, label: 'Moodboard', featureKey: 'moodboard' },
+        { path: '/admin/seating', icon: Grid3x3, label: 'Seating Chart', featureKey: 'seating' },
+        { path: '/admin/rsvp-reminders', icon: Bell, label: 'RSVP Reminders', featureKey: 'rsvp_reminders' },
+        { path: '/admin/invitations', icon: Mail, label: 'Invitations', featureKey: 'invitations' },
+        { path: '/admin/events', icon: Calendar, label: 'Timeline', featureKey: 'events' },
+        { path: '/admin/venues', icon: MapPin, label: 'Venues', featureKey: 'venue' },
+        { path: '/admin/webpage', icon: ImageIcon, label: 'Webpage Builder', featureKey: 'content_basic' },
+        { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks', featureKey: 'tasks' },
+        { path: '/admin/costs', icon: DollarSign, label: 'Costs', featureKey: 'budget_basic' },
+        { path: '/admin/content', icon: FileText, label: 'Content', featureKey: 'content_basic' },
+        { path: '/admin/analytics', icon: BarChart3, label: 'Analytics', featureKey: 'analytics_basic' },
+        { path: '/admin/users', icon: Shield, label: 'User Management', featureKey: 'dashboard' },
+        { path: '/admin/billing', icon: CreditCard, label: 'Billing', featureKey: 'dashboard' },
+        { path: '/admin/messages', icon: Mail, label: 'Messages', featureKey: 'messages' },
+        { path: '/admin/gift-registry', icon: Heart, label: 'Gift Registry', featureKey: 'gift_registry' },
       ]
 
   return (
@@ -146,7 +151,7 @@ export default function AdminLayout() {
               className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-rose-500 to-amber-500 text-white text-sm font-medium hover:from-rose-600 hover:to-amber-600 transition-all shadow-sm"
             >
               <Sparkles className="w-4 h-4" />
-              AI Wedding Assistant
+              Ask {ASSISTANT_NAME}
               {wedding?.plan === 'free' && (
                 <span className="ml-auto text-xs bg-white/20 px-1.5 py-0.5 rounded-full">Upgrade</span>
               )}
@@ -157,19 +162,25 @@ export default function AdminLayout() {
             {navItems.map((item) => {
               const Icon = item.icon
               const isActive = location.pathname === item.path
+              const locked = item.featureKey && !hasFeature(wedding?.plan || 'free', item.featureKey)
+              const lockedTitle = locked
+                ? `Available on ${PLAN_NAMES[FEATURE_MIN_PLAN[item.featureKey]]} plan`
+                : undefined
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
+                  title={lockedTitle}
                   className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors ${
                     isActive
                       ? 'bg-rose-50 text-rose-700 font-medium'
                       : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  }`}
+                  } ${locked ? 'opacity-60' : ''}`}
                 >
                   <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate text-sm">{item.label}</span>
+                  <span className="truncate text-sm flex-1">{item.label}</span>
+                  {locked && <Lock className="w-3 h-3 flex-shrink-0 text-gray-400" />}
                 </Link>
               )
             })}
@@ -179,6 +190,9 @@ export default function AdminLayout() {
             <div className="mb-3 px-3">
               <p className="text-sm font-medium text-gray-800 truncate">{user?.name}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+              {wedding?.is_admin_override && (
+                <p className="text-xs text-gray-400 mt-1">[ADMIN]</p>
+              )}
             </div>
             <button
               onClick={logout}

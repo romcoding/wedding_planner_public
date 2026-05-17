@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { ASSISTANT_NAME } from '../lib/brand'
 import {
   Heart,
   Sparkles,
@@ -165,7 +166,7 @@ function DashboardMockup() {
         <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-        <span className="ml-2 text-[10px]" style={{ color: PALETTE.secondary }}>AI Wedding OS · Dashboard</span>
+        <span className="ml-2 text-[10px]" style={{ color: PALETTE.secondary }}>Wedding OS · Dashboard</span>
       </div>
       <div className="grid grid-cols-3 gap-3 p-5">
         {[
@@ -209,7 +210,7 @@ function AIPanelMockup() {
         >
           <Bot className="w-4 h-4" />
         </div>
-        <span className="font-semibold" style={{ color: PALETTE.fg }}>AI Planning Assistant</span>
+        <span className="font-semibold" style={{ color: PALETTE.fg }}>Ask {ASSISTANT_NAME}</span>
       </div>
       <div className="space-y-3">
         <div className="rounded-xl px-4 py-3 text-[14px]" style={{ background: PALETTE.soft, color: PALETTE.fg }}>
@@ -402,7 +403,7 @@ export default function PublicLandingPage() {
       <nav className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between relative z-10">
         <Link to="/" className="flex items-center gap-2 font-semibold" style={{ color: PALETTE.secondary }}>
           <Heart className="w-5 h-5" style={{ color: PALETTE.primary, fill: PALETTE.primary }} />
-          <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '20px' }}>AI Wedding OS</span>
+          <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '20px' }}>Wedding OS</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4 text-sm">
           <Link to="/demo" className="hidden sm:inline-block hover:underline" style={{ color: PALETTE.secondary }}>
@@ -430,7 +431,7 @@ export default function PublicLandingPage() {
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
               style={{ background: PALETTE.soft, color: PALETTE.secondary }}
             >
-              <Sparkles className="w-3 h-3" /> AI-powered wedding planning
+              <Sparkles className="w-3 h-3" /> Smart wedding planning
             </span>
             <h1
               className="mt-5 text-4xl sm:text-5xl lg:text-6xl"
@@ -450,7 +451,7 @@ export default function PublicLandingPage() {
               className="mt-5 text-[18px] leading-relaxed max-w-xl"
               style={{ color: '#4a4a4a' }}
             >
-              AI-powered planning for the most important day of your life. Guest management,
+              Smart planning for the most important day of your life. Guest management,
               budget tracking, RSVPs — all in one beautiful place.
             </p>
             <HeroCTAs />
@@ -501,7 +502,7 @@ export default function PublicLandingPage() {
           <PainCard
             icon={<ListChecks className="w-5 h-5" />}
             title="Task overload"
-            desc="Your personal planning checklist, powered by AI. Never miss a detail."
+            desc="Your personal planning checklist, powered by Wedi. Never miss a detail."
             delay={240}
           />
         </div>
@@ -527,9 +528,9 @@ export default function PublicLandingPage() {
           />
           <FeatureRow
             flip
-            badge="🤖 AI Planning Assistant"
+            badge={`✦ Planning with ${ASSISTANT_NAME}`}
             title="A planner that's been to a thousand weddings."
-            description="Generate timelines, suggest vendors, write your website copy, and draft seating plans — all grounded in your real wedding data."
+            description={`Ask ${ASSISTANT_NAME} to generate timelines, suggest vendors, write your website copy, and draft seating plans — all grounded in your real wedding data.`}
             bullets={[
               'Day-of timeline tuned to your venue and guest count',
               'Vendor and seating suggestions',
@@ -544,7 +545,7 @@ export default function PublicLandingPage() {
             description="Each wedding gets a polished public portal — story, schedule, travel info, RSVP, and registry. Mobile-first by default."
             bullets={[
               'Custom slug (yourname-and-partner-2026)',
-              'AI-assisted content builder',
+              `Smart content builder with ${ASSISTANT_NAME}`,
               'Translations to English / German / French',
               'Mobile-first, accessible, and fast',
             ]}
@@ -593,7 +594,7 @@ export default function PublicLandingPage() {
             ctaTo="/auth?tab=register"
             perks={[
               'Unlimited guests, tasks, RSVPs',
-              'Full AI planning assistant',
+              `Full ${ASSISTANT_NAME} planning assistant`,
               'Custom slug + branded portal',
               'Exports & advanced budget',
               'Priority support',
@@ -619,7 +620,7 @@ export default function PublicLandingPage() {
             date="Married, June 2025"
           />
           <Testimonial
-            quote="The AI suggestions felt thoughtful, not generic. Our planner now uses it too."
+            quote="Wedi's suggestions felt thoughtful, not generic. Our planner now uses it too."
             name="Sophie & Luca"
             date="Married, September 2025"
           />
@@ -658,7 +659,7 @@ export default function PublicLandingPage() {
           <div>
             <div className="flex items-center gap-2 font-semibold" style={{ color: PALETTE.secondary }}>
               <Heart className="w-4 h-4" style={{ color: PALETTE.primary, fill: PALETTE.primary }} />
-              <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '18px' }}>AI Wedding OS</span>
+              <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '18px' }}>Wedding OS</span>
             </div>
             <p className="mt-2" style={{ color: '#7a7264' }}>
               Planning, beautifully organised.
