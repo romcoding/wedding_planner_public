@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { ASSISTANT_NAME } from '../lib/brand'
 import {
   Heart,
   Sparkles,
@@ -165,7 +166,7 @@ function DashboardMockup() {
         <span className="w-2.5 h-2.5 rounded-full bg-rose-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
         <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-        <span className="ml-2 text-[10px]" style={{ color: PALETTE.secondary }}>AI Wedding OS · Dashboard</span>
+        <span className="ml-2 text-[10px]" style={{ color: PALETTE.secondary }}>Wedding OS · Dashboard</span>
       </div>
       <div className="grid grid-cols-3 gap-3 p-5">
         {[
@@ -402,7 +403,7 @@ export default function PublicLandingPage() {
       <nav className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between relative z-10">
         <Link to="/" className="flex items-center gap-2 font-semibold" style={{ color: PALETTE.secondary }}>
           <Heart className="w-5 h-5" style={{ color: PALETTE.primary, fill: PALETTE.primary }} />
-          <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '20px' }}>AI Wedding OS</span>
+          <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '20px' }}>Wedding OS</span>
         </Link>
         <div className="flex items-center gap-2 sm:gap-4 text-sm">
           <Link to="/demo" className="hidden sm:inline-block hover:underline" style={{ color: PALETTE.secondary }}>
@@ -430,7 +431,7 @@ export default function PublicLandingPage() {
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
               style={{ background: PALETTE.soft, color: PALETTE.secondary }}
             >
-              <Sparkles className="w-3 h-3" /> AI-powered wedding planning
+              <Sparkles className="w-3 h-3" /> Smart wedding planning
             </span>
             <h1
               className="mt-5 text-4xl sm:text-5xl lg:text-6xl"
@@ -658,7 +659,7 @@ export default function PublicLandingPage() {
           <div>
             <div className="flex items-center gap-2 font-semibold" style={{ color: PALETTE.secondary }}>
               <Heart className="w-4 h-4" style={{ color: PALETTE.primary, fill: PALETTE.primary }} />
-              <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '18px' }}>AI Wedding OS</span>
+              <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: '18px' }}>Wedding OS</span>
             </div>
             <p className="mt-2" style={{ color: '#7a7264' }}>
               Planning, beautifully organised.

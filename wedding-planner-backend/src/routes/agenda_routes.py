@@ -22,7 +22,8 @@ async def list_agenda(wedding: dict = Depends(get_wedding), request: Request = N
     result = await db.prepare(
         "SELECT * FROM agenda_items WHERE wedding_id = ? ORDER BY start_time ASC, \"order\" ASC"
     ).bind(wedding["id"]).all()
-    return [dict(a) for a in (result.results or [])]
+    rows = [dict(a) for a in (result.results or [])]
+    return rows
 
 
 @router.post("", status_code=201)
@@ -47,8 +48,8 @@ async def create_agenda_item(
         body.end_time, body.location, body.responsible_person, body.order or 0,
     ).run()
 
-    item = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
-    return dict(item)
+    item_raw = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
+    return dict(item_raw)
 
 
 @router.put("/{item_id}")
@@ -59,9 +60,10 @@ async def update_agenda_item(
     request: Request = None,
 ):
     db = await get_db(request)
-    item = await db.prepare(
+    item_raw = await db.prepare(
         "SELECT id FROM agenda_items WHERE id = ? AND wedding_id = ?"
     ).bind(item_id, wedding["id"]).first()
+    item = dict(item_raw) if item_raw else None
     if not item:
         raise HTTPException(404, "Agenda item not found")
 
@@ -80,8 +82,8 @@ async def update_agenda_item(
         binds.append(item_id)
         await db.prepare(f"UPDATE agenda_items SET {', '.join(updates)} WHERE id = ?").bind(*binds).run()
 
-    updated = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
-    return dict(updated)
+    updated_raw = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
+    return dict(updated_raw)
 
 
 @router.delete("/{item_id}")

@@ -26,11 +26,12 @@ async def _ai_gate(db, wedding: dict):
         })
 
     # Count today's usage
-    today_row = await db.prepare(
+    today_row_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? "
         "AND date(used_at) = date('now')"
     ).bind(wedding_id).first()
-    today_count = today_row["count"] if today_row else 0
+    today_row = dict(today_row_raw) if today_row_raw else None
+    today_count = today_row.get("count") if today_row else 0
 
     if limit is not None and today_count >= limit:
         raise HTTPException(429, {
@@ -52,10 +53,11 @@ async def get_ai_usage(
     request: Request = None,
 ):
     db = await get_db(request)
-    today_row = await db.prepare(
+    today_row_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? AND date(used_at) = date('now')"
     ).bind(wedding["id"]).first()
-    count = today_row["count"] if today_row else 0
+    today_row = dict(today_row_raw) if today_row_raw else None
+    count = today_row.get("count") if today_row else 0
     limit = get_plan_limit(wedding, "ai_uses_per_day")
     return {
         "count": count,

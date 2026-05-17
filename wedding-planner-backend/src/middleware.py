@@ -1,3 +1,4 @@
+import os
 from fastapi import Request, HTTPException, Depends
 from auth import require_admin_auth, decode_token
 
@@ -26,6 +27,15 @@ PLAN_LIMITS = {
         "full_budget": True,
     },
 }
+
+
+def _effective_plan(wedding: dict, user_email: str | None = None) -> str:
+    admin_emails = os.environ.get("ADMIN_EMAILS", "")
+    if user_email and admin_emails:
+        admins = {e.strip().lower() for e in admin_emails.split(",") if e.strip()}
+        if user_email.lower() in admins:
+            return "premium"
+    return wedding.get("plan", "free")
 
 
 async def get_db(request: Request):
@@ -66,33 +76,53 @@ async def get_wedding(
     """
     db = await get_db(request)
 
+    user_id = payload.get("sub")
+
     wedding_id = payload.get("wedding_id")
     if wedding_id:
-        wedding = await db.prepare(
+        wedding_raw = await db.prepare(
             "SELECT * FROM weddings WHERE id = ? AND is_active = 1"
         ).bind(wedding_id).first()
-        if wedding:
-            return dict(wedding)
+        wedding_dict = dict(wedding_raw) if wedding_raw else None
+        if wedding_dict:
+            user_row_raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
+            user_email_row = dict(user_row_raw) if user_row_raw else {}
+            orig_plan = wedding_dict.get("plan", "free")
+            wedding_dict["plan"] = _effective_plan(wedding_dict, user_email_row.get("email"))
+            wedding_dict["is_admin_override"] = wedding_dict["plan"] != orig_plan
+            return wedding_dict
 
     # Fallback: look up by owner_id
-    user_id = payload.get("sub")
-    user = await db.prepare(
+    user_raw = await db.prepare(
         "SELECT current_wedding_id FROM users WHERE id = ?"
     ).bind(user_id).first()
+    user = dict(user_raw) if user_raw else None
 
-    if user and user["current_wedding_id"]:
-        wedding = await db.prepare(
+    if user and user.get("current_wedding_id"):
+        wedding_raw = await db.prepare(
             "SELECT * FROM weddings WHERE id = ? AND is_active = 1"
-        ).bind(user["current_wedding_id"]).first()
-        if wedding:
-            return dict(wedding)
+        ).bind(user.get("current_wedding_id")).first()
+        wedding_dict = dict(wedding_raw) if wedding_raw else None
+        if wedding_dict:
+            user_row_raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
+            user_email_row = dict(user_row_raw) if user_row_raw else {}
+            orig_plan = wedding_dict.get("plan", "free")
+            wedding_dict["plan"] = _effective_plan(wedding_dict, user_email_row.get("email"))
+            wedding_dict["is_admin_override"] = wedding_dict["plan"] != orig_plan
+            return wedding_dict
 
     # Final fallback: first owned wedding
-    wedding = await db.prepare(
+    wedding_raw = await db.prepare(
         "SELECT * FROM weddings WHERE owner_id = ? AND is_active = 1 LIMIT 1"
     ).bind(user_id).first()
-    if wedding:
-        return dict(wedding)
+    wedding_dict = dict(wedding_raw) if wedding_raw else None
+    if wedding_dict:
+        user_row_raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
+        user_email_row = dict(user_row_raw) if user_row_raw else {}
+        orig_plan = wedding_dict.get("plan", "free")
+        wedding_dict["plan"] = _effective_plan(wedding_dict, user_email_row.get("email"))
+        wedding_dict["is_admin_override"] = wedding_dict["plan"] != orig_plan
+        return wedding_dict
 
     raise HTTPException(403, detail={
         "error": "No wedding found. Please complete onboarding.",

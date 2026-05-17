@@ -3,6 +3,7 @@ import { X, Sparkles, Calendar, Users, FileText, Layout, ChevronRight, Loader2, 
 import { useWedding } from '../contexts/WeddingContext'
 import UpgradeModal from './UpgradeModal'
 import api from '../lib/api'
+import { ASSISTANT_NAME, ASSISTANT_INTRO } from '../lib/brand'
 
 // ── Skeleton loader ──────────────────────────────────────────────────────────
 function Skeleton({ className = '' }) {
@@ -443,11 +444,11 @@ export default function AIPanel({ isOpen, onClose }) {
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 bg-gradient-to-br from-rose-500 to-amber-500 rounded-lg flex items-center justify-center">
-              <Sparkles className="w-4 h-4 text-white" />
+              <Sparkles className="w-4 h-4" style={{ color: '#C4956A' }} title="Wedi — your planning helper" />
             </div>
             <div>
-              <h2 className="font-semibold text-gray-900 text-sm">AI Wedding Assistant</h2>
-              <p className="text-xs text-gray-400">Powered by Claude</p>
+              <h2 className="font-semibold text-gray-900 text-sm">{ASSISTANT_NAME}</h2>
+              <p className="text-xs text-gray-400">Your planning helper</p>
             </div>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
@@ -459,7 +460,7 @@ export default function AIPanel({ isOpen, onClose }) {
         {usage && !usage.unlimited && (
           <div className="mx-4 mt-3 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             <span className="text-xs text-amber-700 font-medium">
-              AI uses today: {usage.count} / {usage.limit}
+              Uses today: {usage.count} / {usage.limit}
             </span>
             {usage.count >= usage.limit && (
               <button
@@ -478,9 +479,9 @@ export default function AIPanel({ isOpen, onClose }) {
             <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <Sparkles className="w-7 h-7 text-gray-400" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">AI features require Starter</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{ASSISTANT_NAME} requires Starter</h3>
             <p className="text-sm text-gray-500 mb-5">
-              Upgrade to unlock AI Timeline, Vendor Suggestions, Website Copy, and Smart Seating.
+              Upgrade to unlock {ASSISTANT_NAME}'s planning tools: Timeline, Vendor Suggestions, Website Copy, and Smart Seating.
             </p>
             <button
               onClick={() => setShowUpgrade(true)}
