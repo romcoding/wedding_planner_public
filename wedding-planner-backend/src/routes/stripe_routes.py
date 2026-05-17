@@ -289,23 +289,25 @@ async def _handle_checkout_completed(db, session: dict) -> None:
 
 
 async def _handle_subscription_deleted(db, subscription: dict) -> None:
-    row = await db.prepare(
+    row_raw = await db.prepare(
         "SELECT id, owner_id FROM weddings WHERE stripe_subscription_id = ?"
     ).bind(subscription.get("id")).first()
+    row = dict(row_raw) if row_raw else None
     if not row:
         return
 
     await db.prepare(
         "UPDATE weddings SET plan = 'free', stripe_subscription_id = NULL, "
         "is_active = 1, updated_at = datetime('now') WHERE id = ?"
-    ).bind(row["id"]).run()
+    ).bind(row.get("id")).run()
 
     try:
-        owner = await db.prepare(
+        owner_raw = await db.prepare(
             "SELECT email, name FROM users WHERE id = ?"
-        ).bind(row["owner_id"]).first()
+        ).bind(row.get("owner_id")).first()
+        owner = dict(owner_raw) if owner_raw else None
         if owner:
             from services.email_service import send_subscription_cancelled_email
-            await send_subscription_cancelled_email(owner["email"], owner.get("name") or "there")
+            await send_subscription_cancelled_email(owner.get("email"), owner.get("name") or "there")
     except Exception as exc:
         logger.warning(f"[stripe] failed to send cancellation email: {exc}")
