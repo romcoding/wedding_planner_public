@@ -1,398 +1,550 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MapPin, Calendar, Sparkles, Check, ArrowRight, ArrowLeft, Zap, Crown } from 'lucide-react'
+import {
+  Heart,
+  Sparkles,
+  Calendar,
+  MapPin,
+  Plus,
+  Trash2,
+  ArrowRight,
+  ArrowLeft,
+  Check,
+  Crown,
+} from 'lucide-react'
 import { useWedding } from '../../contexts/WeddingContext'
+import api from '../../lib/api'
 
-const PLANS = [
-  {
-    id: 'free',
-    name: 'Free',
-    price: '$0',
-    period: '/mo',
-    description: 'Perfect for getting started',
-    features: [
-      'Up to 30 guests',
-      'Up to 10 tasks',
-      'Basic budget tracking',
-      'Guest portal',
-    ],
-    limitations: ['No AI features', 'No custom slug'],
-    icon: Heart,
-    color: 'border-gray-200 bg-white',
-    highlight: false,
-  },
-  {
-    id: 'starter',
-    name: 'Starter',
-    price: '$9',
-    period: '/mo',
-    description: 'For most couples',
-    features: [
-      'Up to 150 guests',
-      'Unlimited tasks',
-      'Full budget tracking',
-      'AI features (3/day)',
-      'Custom URL slug',
-      'Guest portal',
-    ],
-    icon: Zap,
-    color: 'border-rose-400 bg-rose-50',
-    highlight: true,
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    price: '$29',
-    period: '/mo',
-    description: 'For large or luxury weddings',
-    features: [
-      'Unlimited guests',
-      'Unlimited tasks',
-      'Full budget tracking',
-      'Unlimited AI features',
-      'Custom URL slug',
-      'Guest portal + custom branding',
-      'Priority support',
-    ],
-    icon: Crown,
-    color: 'border-amber-400 bg-amber-50',
-    highlight: false,
-  },
-]
+const PALETTE = {
+  bg: '#FAFAF8',
+  fg: '#1A1A1A',
+  primary: '#C4956A',
+  secondary: '#2D4A3E',
+  soft: '#F5EFE8',
+}
+
+const TOTAL_STEPS = 4
+const MAX_GUESTS = 5
+const ONBOARDING_FLAG = 'onboarding_completed'
+
+const emptyGuest = () => ({ first_name: '', last_name: '', email: '', dietary_restrictions: '' })
+
+function StepDots({ step }) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-8" aria-hidden="true">
+      {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
+        const s = i + 1
+        const done = step > s
+        const active = step === s
+        return (
+          <div
+            key={s}
+            className="h-1.5 rounded-full transition-all"
+            style={{
+              width: active ? 28 : 14,
+              background: done ? PALETTE.secondary : active ? PALETTE.primary : '#E8E0D2',
+            }}
+          />
+        )
+      })}
+    </div>
+  )
+}
 
 export default function OnboardingWizard() {
   const navigate = useNavigate()
-  const { createWedding } = useWedding()
+  const { wedding, createWedding, updateWedding, refreshWedding } = useWedding()
 
   const [step, setStep] = useState(1)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
-  const [form, setForm] = useState({
-    partner_one_name: '',
-    partner_two_name: '',
-    wedding_date: '',
-    location: '',
-    plan: 'free',
+  const initialNames = (() => {
+    if (!wedding) return { partner_one_name: '', partner_two_name: '' }
+    return {
+      partner_one_name: wedding.partner_one_name || '',
+      partner_two_name: wedding.partner_two_name || '',
+    }
+  })()
+
+  const [details, setDetails] = useState({
+    ...initialNames,
+    couple_names: '',
+    wedding_date: wedding?.wedding_date?.slice(0, 10) || '',
+    venue_name: wedding?.location || '',
   })
 
-  const updateForm = (key, value) => setForm((f) => ({ ...f, [key]: value }))
+  const [guests, setGuests] = useState([emptyGuest()])
+  const [guestsAdded, setGuestsAdded] = useState(0)
+  const [guestsSkipped, setGuestsSkipped] = useState(false)
 
-  // ── Step validation ─────────────────────────────────────────────────────
+  // Hydrate the couple_names field if the wedding already has partner names.
+  useEffect(() => {
+    if (!wedding) return
+    const joined = [wedding.partner_one_name, wedding.partner_two_name].filter(Boolean).join(' & ')
+    setDetails((d) => ({
+      ...d,
+      couple_names: d.couple_names || joined,
+      wedding_date: d.wedding_date || wedding.wedding_date?.slice(0, 10) || '',
+      venue_name: d.venue_name || wedding.location || '',
+    }))
+  }, [wedding])
 
-  const step1Valid =
-    form.partner_one_name.trim().length >= 2 &&
-    form.partner_two_name.trim().length >= 2
+  const goNext = () => setStep((s) => Math.min(TOTAL_STEPS, s + 1))
+  const goBack = () => setStep((s) => Math.max(1, s - 1))
 
-  const step2Valid = !!form.plan
+  const updateDetail = (key, value) => setDetails((d) => ({ ...d, [key]: value }))
 
-  // ── Handlers ────────────────────────────────────────────────────────────
-
-  const handleNext = () => {
-    setError('')
-    if (step === 1 && !step1Valid) {
-      setError('Please enter both partner names.')
-      return
-    }
-    setStep((s) => s + 1)
+  const setGuestField = (idx, key, value) => {
+    setGuests((rows) => rows.map((row, i) => (i === idx ? { ...row, [key]: value } : row)))
+  }
+  const addGuestRow = () => {
+    if (guests.length >= MAX_GUESTS) return
+    setGuests((rows) => [...rows, emptyGuest()])
+  }
+  const removeGuestRow = (idx) => {
+    setGuests((rows) => rows.length === 1 ? [emptyGuest()] : rows.filter((_, i) => i !== idx))
   }
 
-  const handleBack = () => {
-    setError('')
-    setStep((s) => s - 1)
+  /** Parse "Anna & Thomas" / "Anna and Thomas" into two partner names. */
+  const splitCoupleNames = (raw) => {
+    const text = (raw || '').trim()
+    if (!text) return ['', '']
+    const sep = text.includes(' & ') ? ' & ' : text.toLowerCase().includes(' and ') ? ' and ' : null
+    if (!sep) return [text, '']
+    const idx = text.toLowerCase().indexOf(sep)
+    return [text.slice(0, idx).trim(), text.slice(idx + sep.length).trim()]
   }
 
-  const handleLaunch = async () => {
+  const handleSaveDetails = async () => {
     setSubmitting(true)
     setError('')
-
-    const result = await createWedding({
-      partner_one_name: form.partner_one_name.trim(),
-      partner_two_name: form.partner_two_name.trim(),
-      wedding_date: form.wedding_date || undefined,
-      location: form.location.trim() || undefined,
-    })
-
-    if (!result.success) {
-      setError(result.error)
-      setSubmitting(false)
-      return
+    const [p1, p2] = splitCoupleNames(details.couple_names)
+    const payload = {
+      partner_one_name: p1 || undefined,
+      partner_two_name: p2 || undefined,
+      wedding_date: details.wedding_date || undefined,
+      location: details.venue_name?.trim() || undefined,
     }
-
-    // If paid plan selected, redirect to billing checkout
-    if (form.plan !== 'free') {
-      navigate('/admin/billing?upgrade=' + form.plan)
-    } else {
-      navigate('/admin/wedding')
+    try {
+      let res
+      if (wedding) {
+        res = await updateWedding(payload)
+      } else {
+        // Edge case — registration creates the wedding, but if it somehow doesn't
+        // exist yet, create it now so step 3 can attach guests.
+        res = await createWedding({
+          partner_one_name: payload.partner_one_name || 'Partner 1',
+          partner_two_name: payload.partner_two_name || 'Partner 2',
+          wedding_date: payload.wedding_date,
+          location: payload.location,
+        })
+      }
+      if (!res?.success) {
+        setError(res?.error || 'Could not save your details.')
+        return
+      }
+      goNext()
+    } finally {
+      setSubmitting(false)
     }
   }
 
-  // ── Rendering ────────────────────────────────────────────────────────────
+  const handleAddGuests = async () => {
+    setSubmitting(true)
+    setError('')
+    let created = 0
+    try {
+      for (const g of guests) {
+        if (!g.first_name?.trim() || !g.email?.trim()) continue
+        try {
+          await api.post('/guests', {
+            first_name: g.first_name.trim(),
+            last_name: (g.last_name || '').trim(),
+            email: g.email.trim(),
+            dietary_restrictions: g.dietary_restrictions?.trim() || undefined,
+            rsvp_status: 'pending',
+          })
+          created += 1
+        } catch (e) {
+          // Skip individual failures but keep the loop going.
+          // eslint-disable-next-line no-console
+          console.warn('Onboarding: failed to add guest', g.email, e?.response?.data || e)
+        }
+      }
+      setGuestsAdded(created)
+      goNext()
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
-  const selectedPlan = PLANS.find((p) => p.id === form.plan) || PLANS[0]
+  const handleSkipGuests = () => {
+    setGuestsSkipped(true)
+    setGuestsAdded(0)
+    goNext()
+  }
+
+  const handleFinish = () => {
+    try {
+      localStorage.setItem(ONBOARDING_FLAG, 'true')
+    } catch {
+      // Private-mode browsers; ignore.
+    }
+    refreshWedding?.()
+    navigate('/admin/wedding', { replace: true })
+  }
+
+  const detailsValid = (details.couple_names || '').trim().length >= 2
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-white to-amber-50 flex items-center justify-center px-4 py-12">
+    <main
+      className="min-h-screen flex items-center justify-center px-4 py-12"
+      style={{
+        background: PALETTE.bg,
+        color: PALETTE.fg,
+        fontFamily: '"DM Sans", -apple-system, sans-serif',
+      }}
+    >
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap"
+      />
+
       <div className="w-full max-w-2xl">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-3">
-            <Heart className="w-7 h-7 text-rose-500 fill-rose-500" />
-            <span className="text-2xl font-bold text-gray-900">Wedding Planner</span>
-          </div>
-          <p className="text-gray-500 text-sm">Let's set up your wedding space</p>
+        {/* Brand */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          <Heart className="w-5 h-5" style={{ color: PALETTE.primary, fill: PALETTE.primary }} />
+          <span style={{ fontFamily: '"Playfair Display", Georgia, serif', fontSize: 20, color: PALETTE.secondary }}>
+            AI Wedding OS
+          </span>
         </div>
 
-        {/* Step Indicator */}
-        <div className="flex items-center justify-center gap-3 mb-8">
-          {[1, 2, 3].map((s) => (
-            <div key={s} className="flex items-center gap-3">
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-all ${
-                  step > s
-                    ? 'bg-rose-500 text-white'
-                    : step === s
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-200 text-gray-500'
-                }`}
-              >
-                {step > s ? <Check className="w-4 h-4" /> : s}
-              </div>
-              {s < 3 && (
-                <div
-                  className={`h-0.5 w-12 transition-all ${
-                    step > s ? 'bg-rose-500' : 'bg-gray-200'
-                  }`}
-                />
-              )}
-            </div>
-          ))}
-        </div>
+        <StepDots step={step} />
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
-          {/* ── Step 1: Couple Details ─────────────────────────────────── */}
+        <div
+          className="rounded-3xl shadow-xl overflow-hidden"
+          style={{ background: '#fff', border: `1px solid ${PALETTE.soft}` }}
+        >
+          {/* ───────── Step 1: Welcome ───────── */}
           {step === 1 && (
-            <div className="p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Tell us about your wedding</h2>
-              <p className="text-gray-500 text-sm mb-6">We'll personalize your experience based on these details.</p>
+            <div className="p-10 text-center">
+              <div className="text-4xl mb-3">🎉</div>
+              <h1
+                className="text-3xl sm:text-4xl"
+                style={{ fontFamily: '"Playfair Display", Georgia, serif', color: PALETTE.fg, lineHeight: 1.1 }}
+              >
+                Welcome to your wedding workspace!
+              </h1>
+              <p className="mt-4 text-[16px] leading-relaxed" style={{ color: '#4a4a4a' }}>
+                Let&apos;s set up your planning hub in 2 minutes. We&apos;ll cover the basics — your story,
+                your day, and your first guests — and then you&apos;re off.
+              </p>
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={goNext}
+                  className="inline-flex items-center gap-2 rounded-xl px-6 py-3 font-medium text-white transition-transform hover:-translate-y-0.5"
+                  style={{ background: PALETTE.primary, boxShadow: '0 14px 40px -16px rgba(196,149,106,0.65)' }}
+                >
+                  Let&apos;s go
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          )}
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Partner 1 Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Sarah"
-                      value={form.partner_one_name}
-                      onChange={(e) => updateForm('partner_one_name', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Partner 2 Name <span className="text-rose-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. John"
-                      value={form.partner_two_name}
-                      onChange={(e) => updateForm('partner_two_name', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
-                    />
-                  </div>
-                </div>
+          {/* ───────── Step 2: Your Details ───────── */}
+          {step === 2 && (
+            <div className="p-10">
+              <h2
+                className="text-2xl sm:text-3xl mb-1"
+                style={{ fontFamily: '"Playfair Display", Georgia, serif', color: PALETTE.fg }}
+              >
+                Your details
+              </h2>
+              <p className="text-sm mb-6" style={{ color: '#6a6a6a' }}>
+                We&apos;ll use these across your dashboard and your guest portal.
+              </p>
 
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <Calendar className="w-4 h-4 inline mr-1" />
-                    Wedding Date
-                  </label>
-                  <input
-                    type="date"
-                    value={form.wedding_date}
-                    onChange={(e) => updateForm('wedding_date', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    <MapPin className="w-4 h-4 inline mr-1" />
-                    Location
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: PALETTE.secondary }}>
+                    Your names
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Tuscany, Italy"
-                    value={form.location}
-                    onChange={(e) => updateForm('location', e.target.value)}
-                    className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-300"
+                    placeholder="Anna & Thomas"
+                    value={details.couple_names}
+                    onChange={(e) => updateDetail('couple_names', e.target.value)}
+                    className="w-full rounded-xl px-3.5 py-2.5 text-[15px] outline-none focus:ring-2"
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #E8E0D2',
+                      // @ts-ignore — CSS var fine in JSX
+                      ['--tw-ring-color']: PALETTE.primary,
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: PALETTE.secondary }}>
+                    <Calendar className="w-3.5 h-3.5 inline mr-1.5" />
+                    Wedding date
+                  </label>
+                  <input
+                    type="date"
+                    value={details.wedding_date}
+                    onChange={(e) => updateDetail('wedding_date', e.target.value)}
+                    className="w-full rounded-xl px-3.5 py-2.5 text-[15px] outline-none focus:ring-2"
+                    style={{ background: '#fff', border: '1px solid #E8E0D2' }}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1.5" style={{ color: PALETTE.secondary }}>
+                    <MapPin className="w-3.5 h-3.5 inline mr-1.5" />
+                    Venue name <span className="text-xs font-normal" style={{ color: '#8a8a8a' }}>(optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Lakeside Estate, Como"
+                    value={details.venue_name}
+                    onChange={(e) => updateDetail('venue_name', e.target.value)}
+                    className="w-full rounded-xl px-3.5 py-2.5 text-[15px] outline-none focus:ring-2"
+                    style={{ background: '#fff', border: '1px solid #E8E0D2' }}
                   />
                 </div>
               </div>
+
+              {error && <p className="mt-4 text-sm" style={{ color: '#9B2C2C' }}>{error}</p>}
+
+              <div className="mt-8 flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="inline-flex items-center gap-1.5 text-sm"
+                  style={{ color: PALETTE.secondary }}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                <button
+                  type="button"
+                  disabled={!detailsValid || submitting}
+                  onClick={handleSaveDetails}
+                  className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium text-white transition-colors disabled:opacity-50"
+                  style={{ background: PALETTE.primary }}
+                >
+                  {submitting ? 'Saving…' : 'Next'}
+                  {!submitting && <ArrowRight className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
           )}
 
-          {/* ── Step 2: Choose Plan ────────────────────────────────────── */}
-          {step === 2 && (
-            <div className="p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Choose your plan</h2>
-              <p className="text-gray-500 text-sm mb-6">You can change or upgrade at any time.</p>
+          {/* ───────── Step 3: Your first guests ───────── */}
+          {step === 3 && (
+            <div className="p-10">
+              <h2
+                className="text-2xl sm:text-3xl mb-1"
+                style={{ fontFamily: '"Playfair Display", Georgia, serif', color: PALETTE.fg }}
+              >
+                Your first guests
+              </h2>
+              <p className="text-sm mb-6" style={{ color: '#6a6a6a' }}>
+                Add a few guests to get started — you can always add more later.
+              </p>
 
               <div className="space-y-3">
-                {PLANS.map((plan) => {
-                  const Icon = plan.icon
-                  const isSelected = form.plan === plan.id
-                  return (
+                {guests.map((g, i) => (
+                  <div
+                    key={i}
+                    className="grid grid-cols-12 gap-2 items-center rounded-xl p-3"
+                    style={{ background: PALETTE.soft }}
+                  >
+                    <input
+                      type="text"
+                      placeholder="First name"
+                      value={g.first_name}
+                      onChange={(e) => setGuestField(i, 'first_name', e.target.value)}
+                      className="col-span-3 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+                      style={{ background: '#fff', border: '1px solid #E8E0D2' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Last"
+                      value={g.last_name}
+                      onChange={(e) => setGuestField(i, 'last_name', e.target.value)}
+                      className="col-span-2 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+                      style={{ background: '#fff', border: '1px solid #E8E0D2' }}
+                    />
+                    <input
+                      type="email"
+                      placeholder="email@example.com"
+                      value={g.email}
+                      onChange={(e) => setGuestField(i, 'email', e.target.value)}
+                      className="col-span-4 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+                      style={{ background: '#fff', border: '1px solid #E8E0D2' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Dietary"
+                      value={g.dietary_restrictions}
+                      onChange={(e) => setGuestField(i, 'dietary_restrictions', e.target.value)}
+                      className="col-span-2 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2"
+                      style={{ background: '#fff', border: '1px solid #E8E0D2' }}
+                    />
                     <button
-                      key={plan.id}
-                      onClick={() => updateForm('plan', plan.id)}
-                      className={`w-full text-left border-2 rounded-xl p-4 transition-all ${
-                        isSelected
-                          ? 'border-rose-500 bg-rose-50'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
+                      type="button"
+                      onClick={() => removeGuestRow(i)}
+                      className="col-span-1 inline-flex items-center justify-center rounded-lg h-9 text-xs hover:bg-white transition-colors"
+                      style={{ color: '#9B2C2C' }}
+                      aria-label="Remove guest"
                     >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isSelected ? 'bg-rose-500 text-white' : 'bg-gray-100 text-gray-500'}`}>
-                            <Icon className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-gray-900">{plan.name}</span>
-                              {plan.highlight && (
-                                <span className="text-xs bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full font-medium">Popular</span>
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-500">{plan.description}</p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-lg font-bold text-gray-900">{plan.price}</span>
-                          <span className="text-xs text-gray-500">{plan.period}</span>
-                        </div>
-                      </div>
-                      <div className="mt-3 flex flex-wrap gap-1">
-                        {plan.features.slice(0, 3).map((f) => (
-                          <span key={f} className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{f}</span>
-                        ))}
-                        {plan.features.length > 3 && (
-                          <span className="text-xs text-gray-400">+{plan.features.length - 3} more</span>
-                        )}
-                      </div>
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* ── Step 3: Confirm ───────────────────────────────────────── */}
-          {step === 3 && (
-            <div className="p-8">
-              <div className="text-center mb-6">
-                <div className="w-14 h-14 bg-rose-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Sparkles className="w-7 h-7 text-rose-500" />
-                </div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">Ready to launch!</h2>
-                <p className="text-gray-500 text-sm">Here's a summary of your wedding space.</p>
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-5 space-y-3 mb-6">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Couple</span>
-                  <span className="font-semibold text-gray-900">
-                    {form.partner_one_name} & {form.partner_two_name}
-                  </span>
-                </div>
-                {form.wedding_date && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Date</span>
-                    <span className="font-medium text-gray-700">
-                      {new Date(form.wedding_date).toLocaleDateString('en-US', {
-                        year: 'numeric', month: 'long', day: 'numeric',
-                      })}
-                    </span>
                   </div>
-                )}
-                {form.location && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Location</span>
-                    <span className="font-medium text-gray-700">{form.location}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-500">Plan</span>
-                  <span className="font-semibold text-gray-900 capitalize">
-                    {selectedPlan.name} — {selectedPlan.price}{selectedPlan.period}
-                  </span>
-                </div>
+                ))}
               </div>
 
-              {form.plan !== 'free' && (
-                <p className="text-xs text-center text-gray-500 mb-4">
-                  You'll be redirected to complete payment after launching your space.
-                </p>
+              {guests.length < MAX_GUESTS && (
+                <button
+                  type="button"
+                  onClick={addGuestRow}
+                  className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium"
+                  style={{ color: PALETTE.secondary }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add another
+                </button>
               )}
+
+              {error && <p className="mt-4 text-sm" style={{ color: '#9B2C2C' }}>{error}</p>}
+
+              <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={goBack}
+                  className="inline-flex items-center gap-1.5 text-sm"
+                  style={{ color: PALETTE.secondary }}
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back
+                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleSkipGuests}
+                    disabled={submitting}
+                    className="text-sm underline disabled:opacity-50"
+                    style={{ color: '#7a7264' }}
+                  >
+                    I&apos;ll add guests later
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddGuests}
+                    disabled={submitting}
+                    className="inline-flex items-center gap-2 rounded-xl px-5 py-2.5 font-medium text-white transition-colors disabled:opacity-50"
+                    style={{ background: PALETTE.primary }}
+                  >
+                    {submitting ? 'Adding…' : 'Save & continue'}
+                    {!submitting && <ArrowRight className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Footer Actions */}
-          <div className="px-8 pb-8 flex items-center justify-between">
-            {step > 1 ? (
-              <button
-                onClick={handleBack}
-                className="flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          {/* ───────── Step 4: Done ───────── */}
+          {step === 4 && (
+            <div className="p-10 text-center">
+              <div className="text-4xl mb-3">🎉</div>
+              <h2
+                className="text-3xl sm:text-4xl"
+                style={{ fontFamily: '"Playfair Display", Georgia, serif', color: PALETTE.fg, lineHeight: 1.1 }}
               >
-                <ArrowLeft className="w-4 h-4" />
-                Back
-              </button>
-            ) : (
-              <div />
-            )}
+                Your workspace is ready!
+              </h2>
+              <p className="mt-3 text-[15px]" style={{ color: '#4a4a4a' }}>
+                Here&apos;s what we just set up for you:
+              </p>
 
-            {error && (
-              <p className="text-sm text-red-500 flex-1 text-center px-4">{error}</p>
-            )}
+              <ul className="mt-6 space-y-2 text-left max-w-md mx-auto">
+                <li className="flex items-start gap-2 text-[15px]">
+                  <Check className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: PALETTE.primary }} />
+                  <span>Couple — <strong>{details.couple_names || 'You & your partner'}</strong></span>
+                </li>
+                {details.wedding_date && (
+                  <li className="flex items-start gap-2 text-[15px]">
+                    <Check className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: PALETTE.primary }} />
+                    <span>Date — <strong>{details.wedding_date}</strong></span>
+                  </li>
+                )}
+                {details.venue_name && (
+                  <li className="flex items-start gap-2 text-[15px]">
+                    <Check className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: PALETTE.primary }} />
+                    <span>Venue — <strong>{details.venue_name}</strong></span>
+                  </li>
+                )}
+                <li className="flex items-start gap-2 text-[15px]">
+                  <Check className="w-4 h-4 mt-1 flex-shrink-0" style={{ color: PALETTE.primary }} />
+                  <span>
+                    Guests — {guestsSkipped
+                      ? <em style={{ color: '#7a7264' }}>none yet (you can add them anytime)</em>
+                      : <strong>{guestsAdded} added</strong>}
+                  </span>
+                </li>
+              </ul>
 
-            {step < 3 ? (
               <button
-                onClick={handleNext}
-                disabled={step === 1 && !step1Valid}
-                className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 disabled:bg-rose-200 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
+                type="button"
+                onClick={handleFinish}
+                className="mt-8 inline-flex items-center gap-2 rounded-xl px-6 py-3 font-medium text-white transition-transform hover:-translate-y-0.5"
+                style={{ background: PALETTE.secondary, boxShadow: '0 14px 40px -16px rgba(45,74,62,0.45)' }}
               >
-                Continue
+                Go to my dashboard
                 <ArrowRight className="w-4 h-4" />
               </button>
-            ) : (
-              <button
-                onClick={handleLaunch}
-                disabled={submitting}
-                className="flex items-center gap-2 bg-rose-500 hover:bg-rose-600 disabled:opacity-60 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors"
+
+              {/* Subtle upsell */}
+              <div
+                className="mt-6 inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm"
+                style={{ background: PALETTE.soft, color: PALETTE.secondary }}
               >
-                {submitting ? 'Launching…' : 'Launch my wedding space'}
-                {!submitting && <Sparkles className="w-4 h-4" />}
-              </button>
-            )}
-          </div>
+                <Crown className="w-3.5 h-3.5" style={{ color: PALETTE.primary }} />
+                <span>
+                  Need more than 30 guests?{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        localStorage.setItem(ONBOARDING_FLAG, 'true')
+                      } catch {
+                        // ignore — private-mode browser
+                      }
+                      refreshWedding?.()
+                      navigate('/admin/billing', { replace: true })
+                    }}
+                    className="underline font-medium"
+                  >
+                    Upgrade to Premium →
+                  </button>
+                </span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Skip */}
-        {step < 3 && (
-          <p className="text-center mt-4 text-xs text-gray-400">
-            Already set up?{' '}
-            <button
-              onClick={() => navigate('/admin/wedding')}
-              className="underline hover:text-gray-600"
-            >
-              Go to dashboard
-            </button>
+        {/* Footer hint */}
+        {step < TOTAL_STEPS && (
+          <p className="text-center mt-4 text-xs" style={{ color: '#9a9182' }}>
+            <Sparkles className="w-3 h-3 inline mr-1" style={{ color: PALETTE.primary }} />
+            You can always change these later in your dashboard.
           </p>
         )}
       </div>
-    </div>
+    </main>
   )
 }
