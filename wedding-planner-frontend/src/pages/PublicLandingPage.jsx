@@ -210,7 +210,7 @@ function AIPanelMockup() {
         >
           <Bot className="w-4 h-4" />
         </div>
-        <span className="font-semibold" style={{ color: PALETTE.fg }}>AI Planning Assistant</span>
+        <span className="font-semibold" style={{ color: PALETTE.fg }}>Ask {ASSISTANT_NAME}</span>
       </div>
       <div className="space-y-3">
         <div className="rounded-xl px-4 py-3 text-[14px]" style={{ background: PALETTE.soft, color: PALETTE.fg }}>
@@ -451,7 +451,7 @@ export default function PublicLandingPage() {
               className="mt-5 text-[18px] leading-relaxed max-w-xl"
               style={{ color: '#4a4a4a' }}
             >
-              AI-powered planning for the most important day of your life. Guest management,
+              Smart planning for the most important day of your life. Guest management,
               budget tracking, RSVPs — all in one beautiful place.
             </p>
             <HeroCTAs />
@@ -502,7 +502,7 @@ export default function PublicLandingPage() {
           <PainCard
             icon={<ListChecks className="w-5 h-5" />}
             title="Task overload"
-            desc="Your personal planning checklist, powered by AI. Never miss a detail."
+            desc="Your personal planning checklist, powered by Wedi. Never miss a detail."
             delay={240}
           />
         </div>
@@ -528,9 +528,9 @@ export default function PublicLandingPage() {
           />
           <FeatureRow
             flip
-            badge="🤖 AI Planning Assistant"
+            badge={`✦ Planning with ${ASSISTANT_NAME}`}
             title="A planner that's been to a thousand weddings."
-            description="Generate timelines, suggest vendors, write your website copy, and draft seating plans — all grounded in your real wedding data."
+            description={`Ask ${ASSISTANT_NAME} to generate timelines, suggest vendors, write your website copy, and draft seating plans — all grounded in your real wedding data.`}
             bullets={[
               'Day-of timeline tuned to your venue and guest count',
               'Vendor and seating suggestions',
@@ -545,7 +545,7 @@ export default function PublicLandingPage() {
             description="Each wedding gets a polished public portal — story, schedule, travel info, RSVP, and registry. Mobile-first by default."
             bullets={[
               'Custom slug (yourname-and-partner-2026)',
-              'AI-assisted content builder',
+              `Smart content builder with ${ASSISTANT_NAME}`,
               'Translations to English / German / French',
               'Mobile-first, accessible, and fast',
             ]}
@@ -594,7 +594,7 @@ export default function PublicLandingPage() {
             ctaTo="/auth?tab=register"
             perks={[
               'Unlimited guests, tasks, RSVPs',
-              'Full AI planning assistant',
+              `Full ${ASSISTANT_NAME} planning assistant`,
               'Custom slug + branded portal',
               'Exports & advanced budget',
               'Priority support',
@@ -620,7 +620,7 @@ export default function PublicLandingPage() {
             date="Married, June 2025"
           />
           <Testimonial
-            quote="The AI suggestions felt thoughtful, not generic. Our planner now uses it too."
+            quote="Wedi's suggestions felt thoughtful, not generic. Our planner now uses it too."
             name="Sophie & Luca"
             date="Married, September 2025"
           />

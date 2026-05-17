@@ -42,9 +42,9 @@ async def analytics_overview(
 
     rsvp_counts = {"pending": 0, "confirmed": 0, "declined": 0}
     total_guests = 0
-    for row in (guests_result.results or []):
-        st = row["rsvp_status"] or "pending"
-        cnt = row["count"] or 0
+    for row in [dict(r) for r in (guests_result.results or [])]:
+        st = row.get("rsvp_status") or "pending"
+        cnt = row.get("count") or 0
         rsvp_counts[st] = cnt
         total_guests += cnt
 
@@ -52,20 +52,21 @@ async def analytics_overview(
         "SELECT status, COUNT(*) as count FROM tasks WHERE wedding_id = ? GROUP BY status"
     ).bind(wedding_id).all()
     task_counts = {}
-    for row in (tasks_result.results or []):
-        task_counts[row["status"]] = row["count"]
+    for row in [dict(r) for r in (tasks_result.results or [])]:
+        task_counts[row.get("status")] = row.get("count")
 
     costs_result = await db.prepare(
         "SELECT SUM(amount) as total, status FROM costs WHERE wedding_id = ? GROUP BY status"
     ).bind(wedding_id).all()
     cost_totals = {}
-    for row in (costs_result.results or []):
-        cost_totals[row["status"]] = float(row["total"] or 0)
+    for row in [dict(r) for r in (costs_result.results or [])]:
+        cost_totals[row.get("status")] = float(row.get("total") or 0)
 
-    ai_result = await db.prepare(
+    ai_result_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? AND used_at >= date('now', 'start of day')"
     ).bind(wedding_id).first()
-    ai_today = ai_result["count"] if ai_result else 0
+    ai_result = dict(ai_result_raw) if ai_result_raw else None
+    ai_today = ai_result.get("count") if ai_result else 0
 
     return {
         "guests": {
