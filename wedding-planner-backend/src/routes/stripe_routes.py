@@ -158,11 +158,12 @@ async def stripe_checkout(
     env = request.scope["env"]
     wedding_id = wedding["id"]
 
-    owner = await db.prepare(
+    owner_raw = await db.prepare(
         "SELECT email, name FROM users WHERE id = ?"
     ).bind(wedding["owner_id"]).first()
-    email = (owner or {}).get("email", "") if owner else ""
-    name = (owner or {}).get("name", "") if owner else (wedding.get("partner_one_name") or "")
+    owner = dict(owner_raw) if owner_raw else None
+    email = owner.get("email", "") if owner else ""
+    name = owner.get("name", "") if owner else (wedding.get("partner_one_name") or "")
 
     # Re-use or create the Stripe customer for this wedding.
     customer_id = wedding.get("stripe_customer_id")
@@ -273,15 +274,16 @@ async def _handle_checkout_completed(db, session: dict) -> None:
 
     # Welcome-to-premium email (fire-and-forget).
     try:
-        wed = await db.prepare(
+        wed_raw = await db.prepare(
             "SELECT w.partner_one_name, w.partner_two_name, u.email "
             "FROM weddings w JOIN users u ON u.id = w.owner_id WHERE w.id = ?"
         ).bind(wedding_id).first()
+        wed = dict(wed_raw) if wed_raw else None
         if wed:
             from services.email_service import send_upgrade_confirmation_email
             couple = " & ".join(filter(None, [wed.get("partner_one_name"), wed.get("partner_two_name")])) or "there"
             plan_type = "lifetime" if mode == "payment" else "premium"
-            await send_upgrade_confirmation_email(wed["email"], couple, plan_type)
+            await send_upgrade_confirmation_email(wed.get("email"), couple, plan_type)
     except Exception as exc:
         logger.warning(f"[stripe] failed to send upgrade email for {wedding_id}: {exc}")
 
