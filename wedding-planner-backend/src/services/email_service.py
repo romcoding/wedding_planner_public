@@ -2,6 +2,7 @@
 Email service using Resend (pure Python, Pyodide-compatible).
 """
 import os
+import html as _html
 import logging
 
 logger = logging.getLogger(__name__)
@@ -68,6 +69,7 @@ async def send_welcome_email(email: str, couple_name: str, slug: str) -> bool:
     dashboard_url = f"{frontend_url}/admin/wedding"
     portal_url = f"{frontend_url}/w/{slug}"
     subject = f"Welcome to Wedding Planner, {couple_name}!"
+    safe_couple = _html.escape(couple_name or "")
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -77,7 +79,7 @@ async def send_welcome_email(email: str, couple_name: str, slug: str) -> bool:
         <p style="color: #666; font-size: 18px; margin-top: 8px;">Your wedding OS is ready</p>
       </div>
       <p style="color: #333; font-size: 16px; line-height: 1.6;">
-        Congratulations, {couple_name}! Your wedding planning dashboard is set up and ready to go.
+        Congratulations, {safe_couple}! Your wedding planning dashboard is set up and ready to go.
       </p>
       <div style="background: #fdf4ff; border-radius: 12px; padding: 24px; margin: 24px 0;">
         <p style="margin: 0 0 16px; font-weight: 600; color: #333;">Get started:</p>
@@ -108,6 +110,7 @@ async def send_plan_upgrade_email(email: str, couple_name: str, new_plan: str) -
     """Send confirmation email when a couple upgrades their plan."""
     plan_display = new_plan.capitalize()
     subject = f"You're now on the {plan_display} plan!"
+    safe_couple = _html.escape(couple_name or "")
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -116,7 +119,7 @@ async def send_plan_upgrade_email(email: str, couple_name: str, new_plan: str) -
         <h1 style="color: #d63384; font-size: 28px;">Plan Upgraded! 🎉</h1>
       </div>
       <p style="color: #333; font-size: 16px; line-height: 1.6;">
-        Hi {couple_name}, your plan has been upgraded to <strong>{plan_display}</strong>.
+        Hi {safe_couple}, your plan has been upgraded to <strong>{plan_display}</strong>.
         Enjoy your new features!
       </p>
       <p style="color: #999; font-size: 14px; text-align: center; margin-top: 32px;">
@@ -133,6 +136,7 @@ async def send_verification_email(email: str, couple_name: str, token: str) -> b
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     verify_url = f"{frontend_url}/verify-email?token={token}"
     subject = "Verify your Wedding Planner email"
+    safe_couple = _html.escape(couple_name or "")
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -141,7 +145,7 @@ async def send_verification_email(email: str, couple_name: str, token: str) -> b
         <h1 style="color: #d63384; font-size: 28px; margin: 0;">💍 Confirm your email</h1>
         <p style="color: #666; font-size: 16px; margin-top: 8px;">One quick step before you start planning</p>
       </div>
-      <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi {couple_name},</p>
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi {safe_couple},</p>
       <p style="color: #555; font-size: 16px; line-height: 1.6;">
         Click the button below to verify your email address and activate your Wedding Planner account.
         The link expires in <strong>24 hours</strong>.
@@ -170,6 +174,7 @@ async def send_password_reset_email(email: str, user_name: str, token: str) -> b
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     reset_url = f"{frontend_url}/reset-password?token={token}"
     subject = "Reset your Wedding Planner password"
+    safe_name = _html.escape(user_name or "")
     html = f"""
     <!DOCTYPE html>
     <html>
@@ -178,7 +183,7 @@ async def send_password_reset_email(email: str, user_name: str, token: str) -> b
         <h1 style="color: #d63384; font-size: 28px; margin: 0;">🔐 Password reset</h1>
         <p style="color: #666; font-size: 16px; margin-top: 8px;">We got your request</p>
       </div>
-      <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi {user_name},</p>
+      <p style="color: #333; font-size: 16px; line-height: 1.6;">Hi {safe_name},</p>
       <p style="color: #555; font-size: 16px; line-height: 1.6;">
         Click the button below to choose a new password.
         This link expires in <strong>1 hour</strong>.
@@ -223,10 +228,11 @@ async def send_rsvp_notification_email(
         emoji = "📨"
         verb = "responded"
 
-    safe_name = guest_name or "A guest"
+    safe_name = _html.escape(guest_name or "A guest")
+    safe_date = _html.escape(str(wedding_date)) if wedding_date else ""
     date_line = (
         f'<p style="color: #888; font-size: 14px; text-align: center; margin: 8px 0 24px;">'
-        f"Your wedding date: <strong>{wedding_date}</strong></p>"
+        f"Your wedding date: <strong>{safe_date}</strong></p>"
         if wedding_date else ""
     )
 
@@ -280,7 +286,7 @@ async def send_upgrade_confirmation_email(email: str, couple_names: str, plan_ty
       <div style="text-align: center; margin-bottom: 24px;">
         <div style="font-size: 44px;">🎉</div>
         <h1 style="color: #2D4A3E; font-size: 28px; margin: 8px 0 4px;">Welcome to {plan_display}</h1>
-        <p style="color: #666; font-size: 16px; margin: 0;">Hi {couple_names or "there"}, your upgrade is live.</p>
+        <p style="color: #666; font-size: 16px; margin: 0;">Hi {_html.escape(couple_names) if couple_names else "there"}, your upgrade is live.</p>
       </div>
       <div style="background:#F5EFE8; border-radius: 12px; padding: 20px 24px; margin: 16px 0 28px;">
         <p style="margin: 0 0 8px; font-weight: 600; color: #1A1A1A;">What's now unlocked:</p>
@@ -318,7 +324,7 @@ async def send_subscription_cancelled_email(email: str, user_name: str) -> bool:
     <body style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px 20px; background:#FAFAF8;">
       <h1 style="color: #2D4A3E; font-size: 24px; margin: 0 0 16px;">Subscription cancelled</h1>
       <p style="color: #1A1A1A; font-size: 16px; line-height: 1.6;">
-        Hi {user_name or "there"}, your Wedding OS subscription has been cancelled and
+        Hi {_html.escape(user_name) if user_name else "there"}, your Wedding OS subscription has been cancelled and
         your workspace has been moved back to the <strong>Free</strong> plan.
       </p>
       <p style="color: #333; font-size: 15px; line-height: 1.6;">
@@ -347,11 +353,12 @@ async def send_guest_confirmation_email(
     portal_url: str,
 ) -> bool:
     """Send a guest a beautiful RSVP confirmation."""
-    safe_couple = couple_names or "the couple"
-    safe_name = guest_name or "Guest"
+    safe_couple = _html.escape(couple_names or "the couple")
+    safe_name = _html.escape(guest_name or "Guest")
+    safe_date = _html.escape(str(wedding_date)) if wedding_date else ""
     date_block = (
         f'<p style="color:#2D4A3E; text-align:center; font-size: 18px; margin: 8px 0 24px;">'
-        f"📅 <strong>{wedding_date}</strong></p>"
+        f"📅 <strong>{safe_date}</strong></p>"
         if wedding_date else ""
     )
 
