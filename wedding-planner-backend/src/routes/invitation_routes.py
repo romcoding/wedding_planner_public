@@ -86,7 +86,8 @@ async def send_invitation(
                     frontend_url=frontend_url,
                 )
             except Exception as e:
-                raise HTTPException(500, f"Failed to send email: {str(e)}")
+                print(f"[invitations] failed to send invitation email to {guest.get('email')}: {e}")
+                raise HTTPException(500, "Failed to send invitation email")
 
     await db.prepare(
         "UPDATE invitations SET status = 'sent', sent_at = datetime('now') WHERE id = ?"

@@ -95,7 +95,8 @@ async def ai_timeline(
             ceremony_type=body.ceremony_type,
         )
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result
 
 
@@ -124,7 +125,8 @@ async def ai_vendor_suggestions(
             guest_count=body.guest_count,
         )
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result
 
 
@@ -153,7 +155,8 @@ async def ai_copy_generator(
             story_notes=body.story_notes,
         )
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result
 
 
@@ -179,5 +182,6 @@ async def ai_seating(
     try:
         result = generate_seating_suggestions(guests=body.guests)
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result

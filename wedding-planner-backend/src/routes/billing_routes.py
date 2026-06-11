@@ -62,7 +62,7 @@ async def _stripe_post(path: str, form: dict) -> dict:
         except Exception:
             msg = resp.text
         logger.error(f"Stripe API {path} failed: {resp.status_code} {msg}")
-        raise HTTPException(502, f"Stripe API error: {msg}")
+        raise HTTPException(502, "Payment provider error. Please try again later.")
     return resp.json()
 
 
