@@ -30,9 +30,9 @@ for _name in ("workers", "asgi", "js"):
 if "auth" not in sys.modules:
     auth_stub = _make_stub("auth")
     auth_stub.create_token = lambda user_id, wedding_id, role: f"token:{user_id}"
-    async def _fake_require_admin_auth():
+    async def _fake_require_couple_auth():
         return {"sub": "test-user-id"}
-    auth_stub.require_admin_auth = _fake_require_admin_auth
+    auth_stub.require_couple_auth = _fake_require_couple_auth
     auth_stub.decode_token = lambda t: {}
     auth_stub.create_guest_token = lambda *a, **kw: "guest_token"
 
@@ -108,6 +108,13 @@ class FakeDB:
 
     def prepare(self, sql: str):
         return _PreparedStmt(sql, self)
+
+    async def batch(self, statements):
+        """Execute a list of prepared statements (mirrors D1 db.batch)."""
+        results = []
+        for stmt in statements:
+            results.append(await stmt.run())
+        return results
 
 
 class _PreparedStmt:
