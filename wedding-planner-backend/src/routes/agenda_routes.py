@@ -6,6 +6,8 @@ from entitlements import require_feature
 
 _gate = require_feature("agenda_basic")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -25,7 +27,7 @@ async def list_agenda(wedding: dict = Depends(_gate), request: Request = None):
     result = await db.prepare(
         "SELECT * FROM agenda_items WHERE wedding_id = ? ORDER BY start_time ASC, \"order\" ASC"
     ).bind(wedding["id"]).all()
-    rows = [dict(a) for a in (result.results or [])]
+    rows = rows_to_list(result)
     return rows
 
 
@@ -52,7 +54,7 @@ async def create_agenda_item(
     ).run()
 
     item_raw = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
-    return dict(item_raw)
+    return row_to_dict(item_raw)
 
 
 @router.put("/{item_id}")
@@ -66,7 +68,7 @@ async def update_agenda_item(
     item_raw = await db.prepare(
         "SELECT id FROM agenda_items WHERE id = ? AND wedding_id = ?"
     ).bind(item_id, wedding["id"]).first()
-    item = dict(item_raw) if item_raw else None
+    item = row_to_dict(item_raw)
     if not item:
         raise HTTPException(404, "Agenda item not found")
 
@@ -86,7 +88,7 @@ async def update_agenda_item(
         await db.prepare(f"UPDATE agenda_items SET {', '.join(updates)} WHERE id = ?").bind(*binds).run()
 
     updated_raw = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
-    return dict(updated_raw)
+    return row_to_dict(updated_raw)
 
 
 @router.delete("/{item_id}")

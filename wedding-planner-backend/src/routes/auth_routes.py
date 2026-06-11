@@ -11,6 +11,8 @@ from pydantic import BaseModel
 from auth import create_token, create_guest_token, require_couple_auth, decode_token
 from middleware import get_db
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 # ---------- Pydantic models ----------
@@ -95,21 +97,6 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _row_to_dict(row) -> dict | None:
-    """Normalize Cloudflare D1 rows across dict/JsProxy representations."""
-    if row is None:
-        return None
-    if isinstance(row, dict):
-        return row
-    to_py = getattr(row, "to_py", None)
-    if callable(to_py):
-        converted = to_py()
-        if isinstance(converted, dict):
-            return converted
-    try:
-        return dict(row)
-    except Exception as exc:
-        raise HTTPException(500, f"Unexpected DB row format: {type(row).__name__}") from exc
 
 # ---------- Helpers ----------
 
@@ -203,7 +190,7 @@ async def login(body: LoginBody, request: Request):
         "SELECT * FROM users WHERE email = ?"
     ).bind(email).first()
 
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     if not user or not _check_password(body.password, user.get("password_hash", "")):
         raise HTTPException(401, "Invalid credentials")
 
@@ -353,14 +340,14 @@ async def verify_email(body: VerifyEmailBody, request: Request):
 
     db = await get_db(request)
 
-    row = await db.prepare(
+    raw = await db.prepare(
         "SELECT * FROM email_verifications WHERE token = ? AND used_at IS NULL"
     ).bind(body.token).first()
 
-    if not row:
+    if not raw:
         raise HTTPException(400, "Invalid or already-used verification token")
 
-    row = _row_to_dict(row)
+    row = row_to_dict(raw)
     now_utc = datetime.now(timezone.utc)
 
     # Check expiry
@@ -403,7 +390,7 @@ async def resend_verification(body: ResendVerificationBody, request: Request):
     if not user:
         return {"message": "If that email exists and is unverified, a new link has been sent."}
 
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     if user.get("email_verified") == 1:
         return {"message": "Email is already verified. You can log in."}
 
@@ -444,7 +431,7 @@ async def forgot_password(body: ForgotPasswordBody, request: Request):
     if not user:
         return {"message": "If that email is registered, a reset link has been sent."}
 
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
 
     # Invalidate existing unused reset tokens for this user
     await db.prepare(
@@ -485,14 +472,14 @@ async def reset_password(body: ResetPasswordBody, request: Request):
 
     db = await get_db(request)
 
-    row = await db.prepare(
+    raw = await db.prepare(
         "SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL"
     ).bind(body.token).first()
 
-    if not row:
+    if not raw:
         raise HTTPException(400, "Invalid or already-used reset token")
 
-    row = _row_to_dict(row)
+    row = row_to_dict(raw)
     now_utc = datetime.now(timezone.utc)
     try:
         expires = datetime.fromisoformat(row["expires_at"]).replace(tzinfo=timezone.utc)
@@ -545,7 +532,7 @@ async def get_profile(payload: dict = Depends(require_couple_auth), request: Req
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(payload["sub"]).first()
     if not user:
         raise HTTPException(404, "User not found")
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     return {
         "id": user["id"],
         "email": user["email"],
@@ -591,7 +578,7 @@ async def update_profile(
         ).bind(_hash_password(body.password), user_id).run()
 
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     return {
         "id": user["id"],
         "email": user["email"],

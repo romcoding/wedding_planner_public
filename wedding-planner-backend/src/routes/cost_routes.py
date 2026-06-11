@@ -8,6 +8,8 @@ from entitlements import require_feature
 # "full budget" premium feature.
 _full_budget = require_feature("full_budget")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -44,7 +46,7 @@ async def get_costs(
         sql += " AND status = ?"; binds.append(status)
     sql += " ORDER BY created_at DESC"
     result = await db.prepare(sql).bind(*binds).all()
-    return [dict(c) for c in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -77,8 +79,11 @@ async def create_cost(
         int(body.is_recurring or False), body.recurring_frequency,
     ).run()
 
-    cost = await db.prepare("SELECT * FROM costs WHERE id = ?").bind(cost_id).first()
-    return dict(cost)
+    cost = row_to_dict(await db.prepare("SELECT * FROM costs WHERE id = ?").bind(cost_id).first())
+    if cost is None:
+        print(f"[costs] post-insert re-select missed for {cost_id}")
+        raise HTTPException(500, "Failed to create cost")
+    return cost
 
 
 @router.put("/{cost_id}")
@@ -122,7 +127,7 @@ async def update_cost(
         ).bind(*binds).run()
 
     updated = await db.prepare("SELECT * FROM costs WHERE id = ?").bind(cost_id).first()
-    return dict(updated)
+    return row_to_dict(updated)
 
 
 @router.delete("/{cost_id}")
@@ -150,7 +155,7 @@ async def cost_analytics(
     result = await db.prepare(
         "SELECT * FROM costs WHERE wedding_id = ?"
     ).bind(wedding["id"]).all()
-    costs = [dict(r) for r in (result.results or [])]
+    costs = rows_to_list(result)
 
     category_totals: dict = {}
     status_totals = {"planned": 0.0, "pending": 0.0, "paid": 0.0}

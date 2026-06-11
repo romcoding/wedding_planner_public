@@ -7,6 +7,8 @@ from entitlements import require_feature
 
 _gate = require_feature("moodboard")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -36,7 +38,7 @@ async def list_moodboards(
     result = await db.prepare(
         "SELECT * FROM moodboards WHERE user_id = ? ORDER BY created_at DESC"
     ).bind(payload["sub"]).all()
-    return [dict(m) for m in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("/moodboards", status_code=201)
@@ -53,7 +55,7 @@ async def create_moodboard(
         "VALUES (?, ?, ?, datetime('now'), datetime('now'))"
     ).bind(mid, payload["sub"], body.name).run()
     m = await db.prepare("SELECT * FROM moodboards WHERE id = ?").bind(mid).first()
-    return dict(m)
+    return row_to_dict(m)
 
 
 @router.get("/moodboards/{moodboard_id}")
@@ -69,11 +71,11 @@ async def get_moodboard(
     ).bind(moodboard_id, payload["sub"]).first()
     if not m:
         raise HTTPException(404, "Moodboard not found")
-    m = dict(m)
+    m = row_to_dict(m)
     elements_r = await db.prepare(
         "SELECT * FROM moodboard_elements WHERE moodboard_id = ? ORDER BY z_index ASC"
     ).bind(moodboard_id).all()
-    m["elements"] = [dict(e) for e in (elements_r.results or [])]
+    m["elements"] = rows_to_list(elements_r)
     return m
 
 

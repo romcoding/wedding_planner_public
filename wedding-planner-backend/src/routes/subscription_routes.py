@@ -3,6 +3,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from auth import require_couple_auth
 from middleware import get_db
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -16,7 +18,7 @@ async def subscription_status(
     sub_raw = await db.prepare(
         "SELECT * FROM user_subscriptions WHERE user_id = ?"
     ).bind(user_id).first()
-    sub = dict(sub_raw) if sub_raw else None
+    sub = row_to_dict(sub_raw)
     if not sub:
         return {
             "user_id": user_id,
@@ -37,4 +39,4 @@ async def token_usage(
     result = await db.prepare(
         "SELECT * FROM token_usage WHERE user_id = ? ORDER BY created_at DESC LIMIT 50"
     ).bind(payload["sub"]).all()
-    return [dict(u) for u in (result.results or [])]
+    return rows_to_list(result)

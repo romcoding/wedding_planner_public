@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from middleware import get_db, get_wedding
 from entitlements import get_plan, get_limit, plan_has_feature
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -32,7 +34,7 @@ async def _ai_gate(db, wedding: dict):
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? "
         "AND date(used_at) = date('now')"
     ).bind(wedding_id).first()
-    today_row = dict(today_row_raw) if today_row_raw else None
+    today_row = row_to_dict(today_row_raw)
     today_count = today_row.get("count") if today_row else 0
 
     if limit is not None and today_count >= limit:
@@ -58,7 +60,7 @@ async def get_ai_usage(
     today_row_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? AND date(used_at) = date('now')"
     ).bind(wedding["id"]).first()
-    today_row = dict(today_row_raw) if today_row_raw else None
+    today_row = row_to_dict(today_row_raw)
     count = today_row.get("count") if today_row else 0
     plan = get_plan(wedding)
     limit = get_limit(plan, "ai_uses_per_day")

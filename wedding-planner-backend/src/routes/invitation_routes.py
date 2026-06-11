@@ -7,6 +7,8 @@ from entitlements import require_feature
 
 _gate = require_feature("invitations")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -30,7 +32,7 @@ async def list_invitations(wedding: dict = Depends(_gate), request: Request = No
         "SELECT i.*, g.first_name, g.last_name, g.email as guest_email FROM invitations i "
         "LEFT JOIN guests g ON i.guest_id = g.id WHERE i.wedding_id = ? ORDER BY i.created_at DESC"
     ).bind(wedding["id"]).all()
-    return [dict(r) for r in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -54,7 +56,7 @@ async def create_invitation(
     ).bind(inv_id, wedding["id"], body.guest_id, body.template_id, token, body.scheduled_at).run()
 
     inv = await db.prepare("SELECT * FROM invitations WHERE id = ?").bind(inv_id).first()
-    return dict(inv)
+    return row_to_dict(inv)
 
 
 @router.post("/{invitation_id}/send")
@@ -69,12 +71,12 @@ async def send_invitation(
     ).bind(invitation_id, wedding["id"]).first()
     if not inv:
         raise HTTPException(404, "Invitation not found")
-    inv = dict(inv)
+    inv = row_to_dict(inv)
 
     if inv.get("guest_id"):
         guest = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(inv["guest_id"]).first()
         if guest:
-            guest = dict(guest)
+            guest = row_to_dict(guest)
             import os
             from services.email_service import send_invitation_email
             frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
@@ -114,7 +116,7 @@ async def list_templates(wedding: dict = Depends(_gate), request: Request = None
     result = await db.prepare(
         "SELECT * FROM invitation_templates WHERE wedding_id = ? ORDER BY created_at DESC"
     ).bind(wedding["id"]).all()
-    return [dict(t) for t in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("/templates", status_code=201)
@@ -130,4 +132,4 @@ async def create_template(
         "created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
     ).bind(tid, wedding["id"], body.name, body.subject, body.html_content, int(body.is_default or 0)).run()
     t = await db.prepare("SELECT * FROM invitation_templates WHERE id = ?").bind(tid).first()
-    return dict(t)
+    return row_to_dict(t)

@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from auth import require_couple_auth
 from middleware import get_db, require_platform_admin
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -40,7 +42,7 @@ async def get_content(request: Request, admin: str | None = None, lang: str | No
 
     items = []
     for c in (result.results or []):
-        c = dict(c)
+        c = row_to_dict(c)
         body_key = f"content_{lang}" if lang and f"content_{lang}" in c else "content_en"
         c["body"] = c.get(body_key) or c.get("content") or ""
         items.append(c)
@@ -53,7 +55,7 @@ async def get_content_by_key(key: str, request: Request, lang: str | None = "en"
     content = await db.prepare("SELECT * FROM content WHERE key = ?").bind(key).first()
     if not content:
         raise HTTPException(404, "Content not found")
-    content = dict(content)
+    content = row_to_dict(content)
     if not content.get("is_public"):
         await require_couple_auth(request)
     body_key = f"content_{lang}" if lang else "content_en"
@@ -93,7 +95,7 @@ async def create_content(
     ).run()
 
     content = await db.prepare("SELECT * FROM content WHERE id = ?").bind(content_id).first()
-    return dict(content)
+    return row_to_dict(content)
 
 
 @router.put("/{content_id}")
@@ -142,7 +144,7 @@ async def update_content(
         ).bind(*binds).run()
 
     updated = await db.prepare("SELECT * FROM content WHERE id = ?").bind(content_id).first()
-    return dict(updated)
+    return row_to_dict(updated)
 
 
 @router.delete("/{content_id}")

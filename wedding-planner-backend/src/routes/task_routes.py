@@ -3,6 +3,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -39,7 +41,7 @@ async def get_tasks(
         sql += " AND category = ?"; binds.append(category)
     sql += " ORDER BY due_date ASC, priority DESC"
     result = await db.prepare(sql).bind(*binds).all()
-    return [dict(t) for t in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -65,8 +67,11 @@ async def create_task(
         body.estimated_cost, body.actual_cost, body.event_id, body.reminder_date,
     ).run()
 
-    task = await db.prepare("SELECT * FROM tasks WHERE id = ?").bind(task_id).first()
-    return dict(task)
+    task = row_to_dict(await db.prepare("SELECT * FROM tasks WHERE id = ?").bind(task_id).first())
+    if task is None:
+        print(f"[tasks] post-insert re-select missed for {task_id}")
+        raise HTTPException(500, "Failed to create task")
+    return task
 
 
 @router.put("/{task_id}")
@@ -82,7 +87,7 @@ async def update_task(
     ).bind(task_id, wedding["id"]).first()
     if not task:
         raise HTTPException(404, "Task not found")
-    task = dict(task)
+    task = row_to_dict(task)
 
     updates = []
     binds = []
@@ -122,7 +127,7 @@ async def update_task(
         ).bind(*binds).run()
 
     updated = await db.prepare("SELECT * FROM tasks WHERE id = ?").bind(task_id).first()
-    return dict(updated)
+    return row_to_dict(updated)
 
 
 @router.delete("/{task_id}")

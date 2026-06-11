@@ -27,6 +27,8 @@ from middleware import get_db, get_wedding
 from entitlements import get_limits
 
 logger = logging.getLogger(__name__)
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 STRIPE_API_BASE = "https://api.stripe.com/v1"
@@ -234,7 +236,7 @@ async def create_checkout_session(
     wedding_id = wedding["id"]
 
     user_raw = await db.prepare("SELECT email, name FROM users WHERE id = ?").bind(wedding["owner_id"]).first()
-    user = dict(user_raw) if user_raw else None
+    user = row_to_dict(user_raw)
     email = user.get("email") if user else ""
     name = user.get("name") if user else (wedding.get("partner_one_name") or "")
 
@@ -341,8 +343,8 @@ def _epoch_to_date(epoch) -> str | None:
 
 
 async def _stored_plan(db, wedding_id: str) -> str | None:
-    row = await db.prepare("SELECT plan FROM weddings WHERE id = ?").bind(wedding_id).first()
-    return (dict(row) if row else {}).get("plan")
+    raw = await db.prepare("SELECT plan FROM weddings WHERE id = ?").bind(wedding_id).first()
+    return (row_to_dict(raw) or {}).get("plan")
 
 
 async def _unpublish_sites(db, wedding_id: str) -> None:
@@ -426,7 +428,7 @@ async def _handle_checkout_completed(db, session: dict) -> None:
             "SELECT w.partner_one_name, w.partner_two_name, u.email "
             "FROM weddings w JOIN users u ON u.id = w.owner_id WHERE w.id = ?"
         ).bind(wedding_id).first()
-        wed_row = dict(wed_row_raw) if wed_row_raw else None
+        wed_row = row_to_dict(wed_row_raw)
         if wed_row:
             from services.email_service import send_upgrade_confirmation_email
             couple = " & ".join(filter(None, [wed_row.get("partner_one_name"), wed_row.get("partner_two_name")])) or "there"
@@ -443,7 +445,7 @@ async def _handle_subscription_updated(db, subscription: dict) -> None:
         row_raw = await db.prepare(
             "SELECT id FROM weddings WHERE stripe_subscription_id = ?"
         ).bind(sub_id).first()
-        wedding_id = (dict(row_raw) if row_raw else {}).get("id")
+        wedding_id = ((row_to_dict(row_raw) or {})).get("id")
     if not wedding_id:
         logger.warning("[stripe] subscription.updated without a resolvable wedding")
         return
@@ -486,7 +488,7 @@ async def _handle_subscription_deleted(db, subscription: dict) -> None:
     row_raw = await db.prepare(
         "SELECT id, owner_id, plan FROM weddings WHERE stripe_subscription_id = ?"
     ).bind(sub_id).first()
-    row = dict(row_raw) if row_raw else None
+    row = row_to_dict(row_raw)
     if not row:
         logger.info(f"[stripe] subscription.deleted {sub_id}: no matching wedding")
         return
@@ -502,7 +504,7 @@ async def _handle_subscription_deleted(db, subscription: dict) -> None:
         owner_raw = await db.prepare(
             "SELECT email, name FROM users WHERE id = ?"
         ).bind(row.get("owner_id")).first()
-        owner = dict(owner_raw) if owner_raw else None
+        owner = row_to_dict(owner_raw)
         if owner:
             from services.email_service import send_subscription_cancelled_email
             await send_subscription_cancelled_email(owner.get("email"), owner.get("name") or "there")
@@ -522,7 +524,7 @@ async def _handle_payment_failed(db, invoice: dict) -> None:
         row_raw = await db.prepare(
             "SELECT id FROM weddings WHERE stripe_subscription_id = ?"
         ).bind(sub_id).first()
-        wedding_id = (dict(row_raw) if row_raw else {}).get("id")
+        wedding_id = ((row_to_dict(row_raw) or {})).get("id")
     if not wedding_id:
         logger.warning(f"[stripe] invoice.payment_failed: no wedding for subscription {sub_id}")
         return

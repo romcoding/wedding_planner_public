@@ -1,6 +1,7 @@
 import os
 from fastapi import Request, HTTPException, Depends
 from auth import require_couple_auth, decode_token
+from db import row_to_dict, rows_to_list
 
 
 def _admin_emails() -> set[str]:
@@ -48,8 +49,8 @@ async def require_platform_admin(
     """
     db = await get_db(request)
     user_id = payload.get("sub")
-    row = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
-    user = dict(row) if row else None
+    raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
+    user = row_to_dict(raw)
     email = (user or {}).get("email", "")
     if not email or email.lower() not in _admin_emails():
         raise HTTPException(403, "Platform administrator access required")
@@ -76,7 +77,7 @@ async def get_wedding_db(current_user=Depends(get_current_user)):
 async def _finalize_wedding(db, wedding_dict: dict, user_id: str) -> dict:
     """Attach the effective plan + admin-override flag to a resolved wedding row."""
     user_row = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
-    email = (dict(user_row) if user_row else {}).get("email")
+    email = ((row_to_dict(user_row) or {})).get("email")
     wedding_dict["plan"] = _effective_plan(wedding_dict, email)
     wedding_dict["is_admin_override"] = bool(email and email.lower() in _admin_emails())
     return wedding_dict
@@ -100,27 +101,27 @@ async def get_wedding(
             "SELECT * FROM weddings WHERE id = ? AND is_active = 1"
         ).bind(wedding_id).first()
         if wedding_raw:
-            return await _finalize_wedding(db, dict(wedding_raw), user_id)
+            return await _finalize_wedding(db, row_to_dict(wedding_raw), user_id)
 
     # Fallback: look up by current_wedding_id
     user_raw = await db.prepare(
         "SELECT current_wedding_id FROM users WHERE id = ?"
     ).bind(user_id).first()
-    user = dict(user_raw) if user_raw else None
+    user = row_to_dict(user_raw)
 
     if user and user.get("current_wedding_id"):
         wedding_raw = await db.prepare(
             "SELECT * FROM weddings WHERE id = ? AND is_active = 1"
         ).bind(user.get("current_wedding_id")).first()
         if wedding_raw:
-            return await _finalize_wedding(db, dict(wedding_raw), user_id)
+            return await _finalize_wedding(db, row_to_dict(wedding_raw), user_id)
 
     # Final fallback: first owned wedding
     wedding_raw = await db.prepare(
         "SELECT * FROM weddings WHERE owner_id = ? AND is_active = 1 LIMIT 1"
     ).bind(user_id).first()
     if wedding_raw:
-        return await _finalize_wedding(db, dict(wedding_raw), user_id)
+        return await _finalize_wedding(db, row_to_dict(wedding_raw), user_id)
 
     raise HTTPException(403, detail={
         "error": "No wedding found. Please complete onboarding.",

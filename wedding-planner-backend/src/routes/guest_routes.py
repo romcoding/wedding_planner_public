@@ -9,6 +9,8 @@ from pydantic import BaseModel
 from auth import create_guest_token
 from middleware import get_db, get_wedding
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -110,7 +112,7 @@ async def update_rsvp(body: UpdateRsvpBody, request: Request):
 
     db = await get_db(request)
     guest_raw = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
-    guest = dict(guest_raw) if guest_raw else None
+    guest = row_to_dict(guest_raw)
     if not guest:
         raise HTTPException(404, "Guest not found")
 
@@ -149,7 +151,7 @@ async def update_rsvp(body: UpdateRsvpBody, request: Request):
     ).bind(*binds).run()
 
     updated_raw = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
-    updated = dict(updated_raw) if updated_raw else {}
+    updated = (row_to_dict(updated_raw) or {})
     return {"message": "RSVP updated successfully", "guest": _guest_dict(updated)}
 
 
@@ -182,7 +184,7 @@ async def create_guest(
     ).run()
 
     guest = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
-    guest_dict = _guest_dict(dict(guest), include_token=True)
+    guest_dict = _guest_dict(row_to_dict(guest), include_token=True)
     rsvp_link = f"{frontend_url}/rsvp/{token}"
     guest_dict["rsvp_link"] = rsvp_link
     return {"message": "Guest created successfully", "guest": guest_dict, "rsvp_link": rsvp_link}
@@ -211,7 +213,7 @@ async def get_guests(
     sql += " ORDER BY registered_at DESC"
     result = await db.prepare(sql).bind(*binds).all()
     guests = []
-    for g in [dict(r) for r in (result.results or [])]:
+    for g in rows_to_list(result):
         gd = _guest_dict(g, include_token=True)
         gd["rsvp_link"] = f"{frontend_url}/rsvp/{g.get('unique_token')}"
         guests.append(gd)
@@ -225,7 +227,7 @@ async def get_guest_by_token(token: str, request: Request):
     guest_raw = await db.prepare("SELECT * FROM guests WHERE unique_token = ?").bind(token).first()
     if not guest_raw:
         raise HTTPException(404, "Invalid RSVP link")
-    guest = dict(guest_raw)
+    guest = row_to_dict(guest_raw)
     await db.prepare(
         "UPDATE guests SET last_accessed = datetime('now') WHERE id = ?"
     ).bind(guest.get("id")).run()
@@ -239,7 +241,7 @@ async def authenticate_guest_token(token: str, request: Request):
     guest_raw = await db.prepare("SELECT * FROM guests WHERE unique_token = ?").bind(token).first()
     if not guest_raw:
         raise HTTPException(404, "Invalid RSVP link")
-    guest = dict(guest_raw)
+    guest = row_to_dict(guest_raw)
     await db.prepare(
         "UPDATE guests SET last_accessed = datetime('now') WHERE id = ?"
     ).bind(guest.get("id")).run()
@@ -309,8 +311,8 @@ async def export_guests_csv(
     buffer = io.StringIO()
     writer = csv.DictWriter(buffer, fieldnames=CSV_EXPORT_COLUMNS)
     writer.writeheader()
-    for row in result.results or []:
-        guest = dict(row)
+    for raw in result.results or []:
+        guest = row_to_dict(raw)
         names = json.loads(guest["invitee_names"]) if guest.get("invitee_names") else []
         row_values = {
             "first_name": guest.get("first_name") or "",
@@ -446,7 +448,7 @@ async def get_guest(
     ).bind(guest_id, wedding["id"]).first()
     if not guest_raw:
         raise HTTPException(404, "Guest not found")
-    guest = dict(guest_raw)
+    guest = row_to_dict(guest_raw)
     gd = _guest_dict(guest, include_token=True)
     gd["rsvp_link"] = f"{frontend_url}/rsvp/{guest.get('unique_token')}"
     return gd
@@ -463,7 +465,7 @@ async def update_guest(
     guest_raw = await db.prepare(
         "SELECT * FROM guests WHERE id = ? AND wedding_id = ?"
     ).bind(guest_id, wedding["id"]).first()
-    guest = dict(guest_raw) if guest_raw else None
+    guest = row_to_dict(guest_raw)
     if not guest:
         raise HTTPException(404, "Guest not found")
 
@@ -505,7 +507,7 @@ async def update_guest(
         ).bind(*binds).run()
 
     updated_raw = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
-    updated = dict(updated_raw) if updated_raw else {}
+    updated = (row_to_dict(updated_raw) or {})
     return _guest_dict(updated)
 
 

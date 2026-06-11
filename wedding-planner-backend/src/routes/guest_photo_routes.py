@@ -7,6 +7,8 @@ from entitlements import require_feature
 
 _gate = require_feature("guest_photos")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -24,7 +26,7 @@ async def list_photos(wedding: dict = Depends(_gate), request: Request = None):
         "LEFT JOIN guests g ON gp.guest_id = g.id "
         "WHERE gp.wedding_id = ? ORDER BY gp.uploaded_at DESC"
     ).bind(wedding["id"]).all()
-    return [dict(p) for p in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -63,7 +65,7 @@ async def upload_photo(body: PhotoBody, request: Request):
     ).bind(photo_id, wedding_id, guest_id, body.file_url, body.caption).run()
 
     photo = await db.prepare("SELECT * FROM guest_photos WHERE id = ?").bind(photo_id).first()
-    return dict(photo)
+    return row_to_dict(photo)
 
 
 @router.put("/{photo_id}/approve")

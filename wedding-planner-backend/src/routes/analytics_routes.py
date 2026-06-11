@@ -3,6 +3,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding, require_platform_admin
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -41,7 +43,7 @@ async def analytics_overview(
 
     rsvp_counts = {"pending": 0, "confirmed": 0, "declined": 0}
     total_guests = 0
-    for row in [dict(r) for r in (guests_result.results or [])]:
+    for row in rows_to_list(guests_result):
         st = row.get("rsvp_status") or "pending"
         cnt = row.get("count") or 0
         rsvp_counts[st] = cnt
@@ -51,20 +53,20 @@ async def analytics_overview(
         "SELECT status, COUNT(*) as count FROM tasks WHERE wedding_id = ? GROUP BY status"
     ).bind(wedding_id).all()
     task_counts = {}
-    for row in [dict(r) for r in (tasks_result.results or [])]:
+    for row in rows_to_list(tasks_result):
         task_counts[row.get("status")] = row.get("count")
 
     costs_result = await db.prepare(
         "SELECT SUM(amount) as total, status FROM costs WHERE wedding_id = ? GROUP BY status"
     ).bind(wedding_id).all()
     cost_totals = {}
-    for row in [dict(r) for r in (costs_result.results or [])]:
+    for row in rows_to_list(costs_result):
         cost_totals[row.get("status")] = float(row.get("total") or 0)
 
     ai_result_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? AND used_at >= date('now', 'start of day')"
     ).bind(wedding_id).first()
-    ai_result = dict(ai_result_raw) if ai_result_raw else None
+    ai_result = row_to_dict(ai_result_raw)
     ai_today = ai_result.get("count") if ai_result else 0
 
     return {
@@ -88,4 +90,4 @@ async def security_events(
     result = await db.prepare(
         "SELECT * FROM security_events ORDER BY created_at DESC LIMIT 100"
     ).all()
-    return [dict(e) for e in (result.results or [])]
+    return rows_to_list(result)

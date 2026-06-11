@@ -7,6 +7,8 @@ from entitlements import require_feature
 
 _gate = require_feature("events")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -29,7 +31,7 @@ async def list_events(
     result = await db.prepare(
         "SELECT * FROM events WHERE wedding_id = ? ORDER BY start_time ASC"
     ).bind(wedding["id"]).all()
-    return [dict(e) for e in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -60,7 +62,7 @@ async def create_event(
     ).bind(event_id, wedding["id"]).first()
     if not event:
         raise HTTPException(500, "Failed to create event")
-    return dict(event)
+    return row_to_dict(event)
 
 
 @router.put("/{event_id}")
@@ -99,7 +101,7 @@ async def update_event(
     updated = await db.prepare(
         "SELECT * FROM events WHERE id = ? AND wedding_id = ?"
     ).bind(event_id, wedding["id"]).first()
-    return dict(updated)
+    return row_to_dict(updated)
 
 
 @router.delete("/{event_id}")

@@ -1,6 +1,8 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
 from middleware import get_db, require_platform_admin
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 # All endpoints here operate across the entire users table (every tenant), so
@@ -18,7 +20,7 @@ async def list_users(
         "SELECT id, email, name, role, is_active, current_wedding_id, created_at, updated_at "
         "FROM users ORDER BY created_at DESC"
     ).all()
-    return [dict(u) for u in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.get("/{user_id}")
@@ -34,7 +36,7 @@ async def get_user(
     ).bind(user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
-    return dict(user)
+    return row_to_dict(user)
 
 
 @router.put("/{user_id}")
@@ -64,4 +66,4 @@ async def update_user(
     ).bind(user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
-    return dict(user)
+    return row_to_dict(user)

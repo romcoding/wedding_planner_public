@@ -6,6 +6,8 @@ from entitlements import require_feature
 
 _gate = require_feature("messages")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -23,7 +25,7 @@ async def list_messages(wedding: dict = Depends(_gate), request: Request = None)
         "LEFT JOIN guests g ON m.guest_id = g.id AND g.wedding_id = ? "
         "WHERE m.wedding_id = ? ORDER BY m.created_at ASC"
     ).bind(wedding["id"], wedding["id"]).all()
-    return [dict(r) for r in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -50,8 +52,11 @@ async def create_message(
         "VALUES (?, ?, ?, ?, ?, 0, datetime('now'))"
     ).bind(msg_id, wedding["id"], body.guest_id, body.content, body.sender_type or "admin").run()
 
-    msg = await db.prepare("SELECT * FROM messages WHERE id = ?").bind(msg_id).first()
-    return dict(msg)
+    msg = row_to_dict(await db.prepare("SELECT * FROM messages WHERE id = ?").bind(msg_id).first())
+    if msg is None:
+        print(f"[messages] post-insert re-select missed for {msg_id}")
+        raise HTTPException(500, "Failed to create message")
+    return msg
 
 
 @router.put("/{message_id}/read")

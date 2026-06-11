@@ -6,6 +6,8 @@ from entitlements import require_feature
 
 _gate = require_feature("seating")
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -30,13 +32,13 @@ async def list_tables(wedding: dict = Depends(_gate), request: Request = None):
     ).bind(wedding["id"]).all()
     tables = []
     for t in (result.results or []):
-        t = dict(t)
+        t = row_to_dict(t)
         seats_r = await db.prepare(
             "SELECT sa.*, g.first_name, g.last_name FROM seat_assignments sa "
             "LEFT JOIN guests g ON sa.guest_id = g.id AND g.wedding_id = ? "
             "WHERE sa.table_id = ? AND sa.wedding_id = ?"
         ).bind(wedding["id"], t["id"], wedding["id"]).all()
-        t["assignments"] = [dict(s) for s in (seats_r.results or [])]
+        t["assignments"] = rows_to_list(seats_r)
         tables.append(t)
     return tables
 
@@ -53,8 +55,11 @@ async def create_table(
         "INSERT INTO seating_tables (id, wedding_id, name, capacity, shape, x, y, created_at) "
         "VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))"
     ).bind(tid, wedding["id"], body.name, body.capacity or 10, body.shape or "round", body.x, body.y).run()
-    t = await db.prepare("SELECT * FROM seating_tables WHERE id = ?").bind(tid).first()
-    return dict(t)
+    t = row_to_dict(await db.prepare("SELECT * FROM seating_tables WHERE id = ?").bind(tid).first())
+    if t is None:
+        print(f"[seating] post-insert re-select missed for {tid}")
+        raise HTTPException(500, "Failed to create table")
+    return t
 
 
 @router.put("/tables/{table_id}")
@@ -80,7 +85,7 @@ async def update_table(
         await db.prepare(f"UPDATE seating_tables SET {', '.join(updates)} WHERE id = ?").bind(*binds).run()
 
     updated = await db.prepare("SELECT * FROM seating_tables WHERE id = ?").bind(table_id).first()
-    return dict(updated)
+    return row_to_dict(updated)
 
 
 @router.delete("/tables/{table_id}")
@@ -133,7 +138,7 @@ async def assign_seat(
     ).bind(assign_id, table_id, wedding["id"], body.guest_id, body.seat_number).run()
 
     sa = await db.prepare("SELECT * FROM seat_assignments WHERE id = ?").bind(assign_id).first()
-    return dict(sa)
+    return row_to_dict(sa)
 
 
 @router.delete("/assignments/{assignment_id}")

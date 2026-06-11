@@ -6,6 +6,8 @@ from auth import require_couple_auth
 from middleware import get_db, get_wedding
 from entitlements import get_plan, get_limit, get_limits
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -77,12 +79,12 @@ async def create_wedding(
     existing_raw = await db.prepare(
         "SELECT id FROM weddings WHERE owner_id = ?"
     ).bind(user_id).first()
-    existing = dict(existing_raw) if existing_raw else None
+    existing = row_to_dict(existing_raw)
     if existing:
         w_raw = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(existing.get("id")).first()
         raise HTTPException(409, {
             "error": "You already have a wedding. Use PUT /api/weddings/current to update it.",
-            "wedding": _wedding_dict(dict(w_raw)),
+            "wedding": _wedding_dict(row_to_dict(w_raw)),
         })
 
     year = 2026
@@ -116,7 +118,7 @@ async def create_wedding(
     ).bind(wedding_id, user_id).run()
 
     w = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(wedding_id).first()
-    return {"message": "Wedding created successfully", "wedding": _wedding_dict(dict(w))}
+    return {"message": "Wedding created successfully", "wedding": _wedding_dict(row_to_dict(w))}
 
 
 @router.get("/current")
@@ -174,7 +176,7 @@ async def update_current_wedding(
             ).bind(new_slug, wedding_id).run()
 
     w = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(wedding_id).first()
-    return _wedding_dict(dict(w))
+    return _wedding_dict(row_to_dict(w))
 
 
 @router.get("/by-slug/{slug}")
@@ -186,7 +188,7 @@ async def get_wedding_by_slug(slug: str, request: Request):
     ).bind(slug).first()
     if not w:
         raise HTTPException(404, "Wedding not found")
-    w = dict(w)
+    w = row_to_dict(w)
     return {
         "id": w["id"],
         "slug": w["slug"],

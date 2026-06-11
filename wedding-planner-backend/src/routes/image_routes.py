@@ -3,6 +3,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -25,7 +27,7 @@ async def list_images(
     result = await db.prepare(
         "SELECT * FROM images WHERE wedding_id = ? ORDER BY created_at DESC"
     ).bind(wedding["id"]).all()
-    return [dict(i) for i in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("/api/images", status_code=201)
@@ -48,7 +50,7 @@ async def create_image(
     ).bind(img_id, wedding["id"]).first()
     if not img:
         raise HTTPException(500, "Failed to create image")
-    return dict(img)
+    return row_to_dict(img)
 
 
 @router.delete("/api/images/{image_id}")
