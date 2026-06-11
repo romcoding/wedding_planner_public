@@ -58,7 +58,9 @@ async def get_moodboard(
     request: Request = None,
 ):
     db = await get_db(request)
-    m = await db.prepare("SELECT * FROM moodboards WHERE id = ?").bind(moodboard_id).first()
+    m = await db.prepare(
+        "SELECT * FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).first()
     if not m:
         raise HTTPException(404, "Moodboard not found")
     m = dict(m)
@@ -76,6 +78,14 @@ async def save_moodboard(
     payload: dict = Depends(require_couple_auth),
 ):
     db = await get_db(request)
+
+    # Re-verify ownership before mutating elements (IDOR guard).
+    owner = await db.prepare(
+        "SELECT id FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).first()
+    if not owner:
+        raise HTTPException(404, "Moodboard not found")
+
     body = await request.json()
     elements = body.get("elements", [])
 
@@ -106,6 +116,13 @@ async def delete_moodboard(
     request: Request = None,
 ):
     db = await get_db(request)
+    owner = await db.prepare(
+        "SELECT id FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).first()
+    if not owner:
+        raise HTTPException(404, "Moodboard not found")
     await db.prepare("DELETE FROM moodboard_elements WHERE moodboard_id = ?").bind(moodboard_id).run()
-    await db.prepare("DELETE FROM moodboards WHERE id = ?").bind(moodboard_id).run()
+    await db.prepare(
+        "DELETE FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).run()
     return {"message": "Moodboard deleted"}
