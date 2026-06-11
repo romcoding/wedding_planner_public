@@ -8,7 +8,10 @@ TOKEN_EXPIRE_DAYS = 7
 
 
 def _get_secret() -> str:
-    return os.environ.get("JWT_SECRET_KEY", "dev-secret-change-in-production")
+    secret = os.environ.get("JWT_SECRET_KEY")
+    if not secret:
+        raise RuntimeError("JWT_SECRET_KEY not configured")
+    return secret
 
 
 def create_token(user_id: str, wedding_id: str | None = None, role: str = "admin") -> str:

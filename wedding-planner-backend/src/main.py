@@ -53,6 +53,11 @@ class Default(WorkerEntrypoint):
             if value is not None:
                 os.environ[key] = str(value)
 
+        # Fail closed on the first request if the signing secret is missing.
+        # Tokens must never be signed/verified with an implicit default secret.
+        if not os.environ.get("JWT_SECRET_KEY"):
+            raise RuntimeError("JWT_SECRET_KEY not configured")
+
         origin = request.headers.get("origin") or ""
         cors_origin = origin if origin in _allowed_origins else ""
 
