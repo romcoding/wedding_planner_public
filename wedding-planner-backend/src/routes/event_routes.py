@@ -19,19 +19,20 @@ class EventBody(BaseModel):
 
 @router.get("")
 async def list_events(
-    payload: dict = Depends(require_couple_auth),
+    wedding: dict = Depends(get_wedding),
     request: Request = None,
 ):
     db = await get_db(request)
     result = await db.prepare(
-        "SELECT * FROM events ORDER BY start_time ASC"
-    ).all()
+        "SELECT * FROM events WHERE wedding_id = ? ORDER BY start_time ASC"
+    ).bind(wedding["id"]).all()
     return [dict(e) for e in (result.results or [])]
 
 
 @router.post("", status_code=201)
 async def create_event(
     body: EventBody,
+    wedding: dict = Depends(get_wedding),
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
@@ -41,17 +42,21 @@ async def create_event(
 
     event_id = str(uuid.uuid4())
     await db.prepare(
-        "INSERT INTO events (id, user_id, name, description, location, start_time, end_time, "
+        "INSERT INTO events (id, wedding_id, user_id, name, description, location, start_time, end_time, "
         "is_public, is_active, created_at, updated_at) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
     ).bind(
-        event_id, payload["sub"], body.name, body.description, body.location,
+        event_id, wedding["id"], payload["sub"], body.name, body.description, body.location,
         body.start_time, body.end_time,
         int(body.is_public if body.is_public is not None else 1),
         int(body.is_active if body.is_active is not None else 1),
     ).run()
 
-    event = await db.prepare("SELECT * FROM events WHERE id = ?").bind(event_id).first()
+    event = await db.prepare(
+        "SELECT * FROM events WHERE id = ? AND wedding_id = ?"
+    ).bind(event_id, wedding["id"]).first()
+    if not event:
+        raise HTTPException(500, "Failed to create event")
     return dict(event)
 
 
@@ -59,11 +64,13 @@ async def create_event(
 async def update_event(
     event_id: str,
     body: EventBody,
-    payload: dict = Depends(require_couple_auth),
+    wedding: dict = Depends(get_wedding),
     request: Request = None,
 ):
     db = await get_db(request)
-    event = await db.prepare("SELECT * FROM events WHERE id = ?").bind(event_id).first()
+    event = await db.prepare(
+        "SELECT id FROM events WHERE id = ? AND wedding_id = ?"
+    ).bind(event_id, wedding["id"]).first()
     if not event:
         raise HTTPException(404, "Event not found")
 
@@ -81,22 +88,30 @@ async def update_event(
 
     if updates:
         updates.append("updated_at = datetime('now')")
-        binds.append(event_id)
-        await db.prepare(f"UPDATE events SET {', '.join(updates)} WHERE id = ?").bind(*binds).run()
+        binds.extend([event_id, wedding["id"]])
+        await db.prepare(
+            f"UPDATE events SET {', '.join(updates)} WHERE id = ? AND wedding_id = ?"
+        ).bind(*binds).run()
 
-    updated = await db.prepare("SELECT * FROM events WHERE id = ?").bind(event_id).first()
+    updated = await db.prepare(
+        "SELECT * FROM events WHERE id = ? AND wedding_id = ?"
+    ).bind(event_id, wedding["id"]).first()
     return dict(updated)
 
 
 @router.delete("/{event_id}")
 async def delete_event(
     event_id: str,
-    payload: dict = Depends(require_couple_auth),
+    wedding: dict = Depends(get_wedding),
     request: Request = None,
 ):
     db = await get_db(request)
-    event = await db.prepare("SELECT id FROM events WHERE id = ?").bind(event_id).first()
+    event = await db.prepare(
+        "SELECT id FROM events WHERE id = ? AND wedding_id = ?"
+    ).bind(event_id, wedding["id"]).first()
     if not event:
         raise HTTPException(404, "Event not found")
-    await db.prepare("DELETE FROM events WHERE id = ?").bind(event_id).run()
+    await db.prepare(
+        "DELETE FROM events WHERE id = ? AND wedding_id = ?"
+    ).bind(event_id, wedding["id"]).run()
     return {"message": "Event deleted successfully"}
