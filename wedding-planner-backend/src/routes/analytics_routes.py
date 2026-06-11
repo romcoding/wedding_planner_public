@@ -15,17 +15,39 @@ class PageViewBody(BaseModel):
     session_id: str | None = None
 
 
+def _cap(value, limit: int = 512):
+    """Bound an attacker-controlled string field; None stays None."""
+    if value is None:
+        return None
+    return str(value)[:limit]
+
+
 @router.post("/track")
 async def track_page_view(body: PageViewBody, request: Request):
     """Public: track a page view. Does not require auth."""
     db = await get_db(request)
+
+    # Operator precedence fix: the CF header must win even when request.client
+    # is None (the `if/else` previously bound tighter than `or`).
+    ip = request.headers.get("CF-Connecting-IP") or (
+        request.client.host if request.client else None
+    )
+
+    # 60/IP/hour durable limit on this unauthenticated, attacker-reachable ingest.
+    try:
+        env = request.scope["env"]
+    except Exception:
+        env = None
+    from services import rate_limit
+    if not await rate_limit.check(env, f"track:ip:{ip}", 60, 3600):
+        raise HTTPException(429, "Too many requests")
+
     view_id = str(uuid.uuid4())
-    ip = request.headers.get("CF-Connecting-IP") or request.client.host if request.client else None
-    ua = body.user_agent or request.headers.get("User-Agent")
+    ua = _cap(body.user_agent or request.headers.get("User-Agent"))
     await db.prepare(
         "INSERT INTO page_views (id, path, referrer, user_agent, ip_address, created_at) "
         "VALUES (?, ?, ?, ?, ?, datetime('now'))"
-    ).bind(view_id, body.path, body.referrer, ua, ip).run()
+    ).bind(view_id, _cap(body.path), _cap(body.referrer), ua, ip).run()
     return {"tracked": True}
 
 
