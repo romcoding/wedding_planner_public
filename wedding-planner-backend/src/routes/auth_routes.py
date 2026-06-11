@@ -9,7 +9,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import create_token, create_guest_token, require_admin_auth, decode_token
+from auth import create_token, create_guest_token, require_couple_auth, decode_token
 from middleware import get_db
 
 router = APIRouter()
@@ -551,7 +551,7 @@ async def register(body: LoginBody, request: Request):
 
 
 @router.get("/profile")
-async def get_profile(payload: dict = Depends(require_admin_auth), request: Request = None):
+async def get_profile(payload: dict = Depends(require_couple_auth), request: Request = None):
     db = await get_db(request)
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(payload["sub"]).first()
     if not user:
@@ -572,7 +572,7 @@ async def get_profile(payload: dict = Depends(require_admin_auth), request: Requ
 @router.put("/profile")
 async def update_profile(
     body: ProfileUpdateBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

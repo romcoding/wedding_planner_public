@@ -6,7 +6,7 @@ import io
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
-from auth import require_admin_auth, create_guest_token
+from auth import create_guest_token
 from middleware import get_db, get_wedding
 
 router = APIRouter()

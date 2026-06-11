@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db
 
 router = APIRouter()
@@ -29,7 +29,7 @@ async def get_content(request: Request, admin: str | None = None, lang: str | No
     if admin and admin.lower() == "true":
         # Try to verify admin auth
         try:
-            payload = await require_admin_auth(request)
+            payload = await require_couple_auth(request)
         except HTTPException:
             raise HTTPException(401, "Unauthorized")
         result = await db.prepare("SELECT * FROM content ORDER BY \"order\" ASC").all()
@@ -55,7 +55,7 @@ async def get_content_by_key(key: str, request: Request, lang: str | None = "en"
         raise HTTPException(404, "Content not found")
     content = dict(content)
     if not content.get("is_public"):
-        await require_admin_auth(request)
+        await require_couple_auth(request)
     body_key = f"content_{lang}" if lang else "content_en"
     content["body"] = content.get(body_key) or content.get("content") or ""
     return content
@@ -64,7 +64,7 @@ async def get_content_by_key(key: str, request: Request, lang: str | None = "en"
 @router.post("", status_code=201)
 async def create_content(
     body: ContentBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -100,7 +100,7 @@ async def create_content(
 async def update_content(
     content_id: str,
     body: ContentBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -148,7 +148,7 @@ async def update_content(
 @router.delete("/{content_id}")
 async def delete_content(
     content_id: str,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db, get_wedding
 
 router = APIRouter()
@@ -25,7 +25,7 @@ class ElementBody(BaseModel):
 
 @router.get("/moodboards")
 async def list_moodboards(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -38,7 +38,7 @@ async def list_moodboards(
 @router.post("/moodboards", status_code=201)
 async def create_moodboard(
     body: MoodboardBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -54,7 +54,7 @@ async def create_moodboard(
 @router.get("/moodboards/{moodboard_id}")
 async def get_moodboard(
     moodboard_id: str,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -73,7 +73,7 @@ async def get_moodboard(
 async def save_moodboard(
     moodboard_id: str,
     request: Request,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
 ):
     db = await get_db(request)
     body = await request.json()
@@ -102,7 +102,7 @@ async def save_moodboard(
 @router.delete("/moodboards/{moodboard_id}")
 async def delete_moodboard(
     moodboard_id: str,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

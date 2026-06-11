@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, Depends, HTTPException
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db, get_wedding
 from pydantic import BaseModel
 
@@ -97,7 +97,7 @@ def _build_task_template():
 
 @router.get("/status")
 async def onboarding_status(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     """Return onboarding completion state for the authenticated user."""
@@ -138,7 +138,7 @@ async def onboarding_status(
 
 @router.post("/complete")
 async def complete_onboarding(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     """Mark onboarding as complete — no-op in this version, returns current status."""
@@ -148,7 +148,7 @@ async def complete_onboarding(
 @router.post("/quick-setup")
 async def quick_setup(
     body: QuickSetupBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     wedding: dict = Depends(get_wedding),
     request: Request = None,
 ):

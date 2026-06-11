@@ -1,6 +1,18 @@
 import os
 from fastapi import Request, HTTPException, Depends
-from auth import require_admin_auth, decode_token
+from auth import require_couple_auth, decode_token
+
+
+def _admin_emails() -> set[str]:
+    """Parse ADMIN_EMAILS into a normalized set.
+
+    Single source list with two distinct, explicit uses:
+      - authorization: ``require_platform_admin`` (who may touch platform data)
+      - plan override:  ``_effective_plan`` (who gets full entitlements)
+    """
+    raw = os.environ.get("ADMIN_EMAILS", "")
+    return {e.strip().lower() for e in raw.split(",") if e.strip()}
+
 
 PLAN_ORDER = {"free": 0, "starter": 1, "premium": 2}
 
@@ -30,11 +42,8 @@ PLAN_LIMITS = {
 
 
 def _effective_plan(wedding: dict, user_email: str | None = None) -> str:
-    admin_emails = os.environ.get("ADMIN_EMAILS", "")
-    if user_email and admin_emails:
-        admins = {e.strip().lower() for e in admin_emails.split(",") if e.strip()}
-        if user_email.lower() in admins:
-            return "premium"
+    if user_email and user_email.lower() in _admin_emails():
+        return "premium"
     return wedding.get("plan", "free")
 
 
@@ -46,6 +55,28 @@ async def get_db(request: Request):
 async def get_env(request: Request):
     """Dependency: return the full CF Workers env object."""
     return request.scope["env"]
+
+
+async def require_platform_admin(
+    payload: dict = Depends(require_couple_auth),
+    request: Request = None,
+) -> dict:
+    """Dependency: require a real platform administrator.
+
+    Resolves the authenticated (non-guest) user and checks their email against
+    the env-configured ``ADMIN_EMAILS`` allow-list. This is AUTHORIZATION for
+    platform-wide resources (all users, global CMS, security log); it is the
+    same source list that ``_effective_plan`` uses for plan override, but a
+    distinct, explicit use. 403 for everyone else.
+    """
+    db = await get_db(request)
+    user_id = payload.get("sub")
+    row = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
+    user = dict(row) if row else None
+    email = (user or {}).get("email", "")
+    if not email or email.lower() not in _admin_emails():
+        raise HTTPException(403, "Platform administrator access required")
+    return payload
 
 
 async def get_current_user(request: Request, db=Depends(get_db)):
@@ -66,7 +97,7 @@ async def get_wedding_db(current_user=Depends(get_current_user)):
 
 
 async def get_wedding(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ) -> dict:
     """

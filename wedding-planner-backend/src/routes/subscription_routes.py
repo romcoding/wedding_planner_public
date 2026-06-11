@@ -1,6 +1,6 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db
 
 router = APIRouter()
@@ -8,7 +8,7 @@ router = APIRouter()
 
 @router.get("/status")
 async def subscription_status(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -30,7 +30,7 @@ async def subscription_status(
 
 @router.get("/token-usage")
 async def token_usage(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

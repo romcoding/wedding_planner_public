@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db
 
 router = APIRouter()
@@ -19,7 +19,7 @@ class ImageBody(BaseModel):
 
 @router.get("/api/images")
 async def list_images(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -30,7 +30,7 @@ async def list_images(
 @router.post("/api/images", status_code=201)
 async def create_image(
     body: ImageBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -49,7 +49,7 @@ async def create_image(
 @router.delete("/api/images/{image_id}")
 async def delete_image(
     image_id: str,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

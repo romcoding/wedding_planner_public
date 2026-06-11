@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db, get_wedding
 
 router = APIRouter()
@@ -82,7 +82,7 @@ async def analytics_overview(
 
 @router.get("/security")
 async def security_events(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

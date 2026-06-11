@@ -2,7 +2,7 @@ import uuid
 import re
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db, get_wedding, wedding_meets_plan, PLAN_LIMITS
 
 router = APIRouter()
@@ -67,7 +67,7 @@ def _wedding_dict(w: dict) -> dict:
 @router.post("/create", status_code=201)
 async def create_wedding(
     body: CreateWeddingBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)

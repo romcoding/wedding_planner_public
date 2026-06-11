@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db
 
 router = APIRouter()
@@ -7,7 +7,7 @@ router = APIRouter()
 
 @router.get("")
 async def list_users(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -21,7 +21,7 @@ async def list_users(
 @router.get("/{user_id}")
 async def get_user(
     user_id: str,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -37,7 +37,7 @@ async def get_user(
 @router.put("/{user_id}")
 async def update_user(
     user_id: str,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
