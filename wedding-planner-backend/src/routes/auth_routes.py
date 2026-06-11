@@ -371,18 +371,11 @@ async def verify_email(body: VerifyEmailBody, request: Request):
 
     user_id = row["user_id"]
 
-    # Mark user as verified. Older schemas may not yet have email_verified columns.
-    try:
-        await db.prepare(
-            "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
-            "updated_at = datetime('now') WHERE id = ?"
-        ).bind(user_id).run()
-    except Exception as exc:
-        if "no such column: email_verified" not in str(exc):
-            raise
-        await db.prepare(
-            "UPDATE users SET updated_at = datetime('now') WHERE id = ?"
-        ).bind(user_id).run()
+    # Mark user as verified (email_verified columns are guaranteed by schema.sql).
+    await db.prepare(
+        "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
+        "updated_at = datetime('now') WHERE id = ?"
+    ).bind(user_id).run()
 
     # Mark token as used
     await db.prepare(
@@ -506,18 +499,11 @@ async def reset_password(body: ResetPasswordBody, request: Request):
         raise HTTPException(400, "Invalid reset token")
 
     user_id = row["user_id"]
-    try:
-        await db.prepare(
-            "UPDATE users SET password_hash = ?, email_verified = 1, "
-            "updated_at = datetime('now') WHERE id = ?"
-        ).bind(_hash_password(body.password), user_id).run()
-    except Exception as exc:
-        if "no such column: email_verified" not in str(exc):
-            raise
-        # Backward compatibility for older users schema.
-        await db.prepare(
-            "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?"
-        ).bind(_hash_password(body.password), user_id).run()
+    # email_verified column is guaranteed by schema.sql.
+    await db.prepare(
+        "UPDATE users SET password_hash = ?, email_verified = 1, "
+        "updated_at = datetime('now') WHERE id = ?"
+    ).bind(_hash_password(body.password), user_id).run()
 
     await db.prepare(
         "UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?"

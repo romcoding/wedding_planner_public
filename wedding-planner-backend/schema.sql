@@ -54,9 +54,11 @@ CREATE TABLE IF NOT EXISTS weddings (
   partner_two_name TEXT,
   wedding_date TEXT,
   location TEXT,
-  plan TEXT NOT NULL DEFAULT 'free',
+  plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'premium', 'lifetime')),
   stripe_customer_id TEXT,
   stripe_subscription_id TEXT,
+  plan_expires_at TEXT,
+  plan_updated_at TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -539,3 +541,13 @@ CREATE TABLE IF NOT EXISTS security_events (
   ip_address TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Stripe webhook idempotency log (folded in from migration_v2.sql).
+-- _seen_event() relies on this table; it must always exist.
+CREATE TABLE IF NOT EXISTS stripe_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  processed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_stripe_events_type ON stripe_events(event_type);
