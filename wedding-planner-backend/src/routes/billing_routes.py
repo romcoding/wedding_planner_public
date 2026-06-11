@@ -23,7 +23,8 @@ import httpx
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 
-from middleware import get_db, get_wedding, PLAN_LIMITS
+from middleware import get_db, get_wedding
+from entitlements import get_limits
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -423,6 +424,6 @@ async def billing_status(wedding: dict = Depends(get_wedding)):
         "stripe_customer_id": wedding.get("stripe_customer_id"),
         "stripe_subscription_id": wedding.get("stripe_subscription_id"),
         "plan_expires_at": wedding.get("plan_expires_at"),
-        "limits": PLAN_LIMITS.get(plan, {}),
+        "limits": get_limits(plan),
         "is_admin_override": bool(wedding.get("is_admin_override", False)),
     }

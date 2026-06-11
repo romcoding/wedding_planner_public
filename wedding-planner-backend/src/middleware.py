@@ -14,37 +14,14 @@ def _admin_emails() -> set[str]:
     return {e.strip().lower() for e in raw.split(",") if e.strip()}
 
 
-PLAN_ORDER = {"free": 0, "starter": 1, "premium": 2}
-
-PLAN_LIMITS = {
-    "free": {
-        "max_guests": 30,
-        "max_tasks": 10,
-        "ai_uses_per_day": 0,
-        "custom_slug": False,
-        "full_budget": False,
-    },
-    "starter": {
-        "max_guests": 150,
-        "max_tasks": None,
-        "ai_uses_per_day": 3,
-        "custom_slug": True,
-        "full_budget": True,
-    },
-    "premium": {
-        "max_guests": None,
-        "max_tasks": None,
-        "ai_uses_per_day": None,
-        "custom_slug": True,
-        "full_budget": True,
-    },
-}
-
-
 def _effective_plan(wedding: dict, user_email: str | None = None) -> str:
-    if user_email and user_email.lower() in _admin_emails():
-        return "premium"
-    return wedding.get("plan", "free")
+    """Resolve the effective plan. Delegates to entitlements (single source).
+
+    Kept as a thin wrapper because ``get_wedding`` calls it; the lazy import
+    avoids a circular import (entitlements imports ``get_wedding`` from here).
+    """
+    from entitlements import get_plan
+    return get_plan(wedding, user_email)
 
 
 async def get_db(request: Request):
@@ -96,6 +73,15 @@ async def get_wedding_db(current_user=Depends(get_current_user)):
     return current_user["wedding_id"]
 
 
+async def _finalize_wedding(db, wedding_dict: dict, user_id: str) -> dict:
+    """Attach the effective plan + admin-override flag to a resolved wedding row."""
+    user_row = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
+    email = (dict(user_row) if user_row else {}).get("email")
+    wedding_dict["plan"] = _effective_plan(wedding_dict, email)
+    wedding_dict["is_admin_override"] = bool(email and email.lower() in _admin_emails())
+    return wedding_dict
+
+
 async def get_wedding(
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
@@ -103,10 +89,9 @@ async def get_wedding(
     """
     Tenant dependency — resolve the active wedding for the authenticated user.
     Extracts wedding_id from the JWT payload; falls back to DB lookup.
-    Returns the wedding row as a dict.
+    Returns the wedding row as a dict (with effective plan + is_admin_override).
     """
     db = await get_db(request)
-
     user_id = payload.get("sub")
 
     wedding_id = payload.get("wedding_id")
@@ -114,16 +99,10 @@ async def get_wedding(
         wedding_raw = await db.prepare(
             "SELECT * FROM weddings WHERE id = ? AND is_active = 1"
         ).bind(wedding_id).first()
-        wedding_dict = dict(wedding_raw) if wedding_raw else None
-        if wedding_dict:
-            user_row_raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
-            user_email_row = dict(user_row_raw) if user_row_raw else {}
-            orig_plan = wedding_dict.get("plan", "free")
-            wedding_dict["plan"] = _effective_plan(wedding_dict, user_email_row.get("email"))
-            wedding_dict["is_admin_override"] = wedding_dict["plan"] != orig_plan
-            return wedding_dict
+        if wedding_raw:
+            return await _finalize_wedding(db, dict(wedding_raw), user_id)
 
-    # Fallback: look up by owner_id
+    # Fallback: look up by current_wedding_id
     user_raw = await db.prepare(
         "SELECT current_wedding_id FROM users WHERE id = ?"
     ).bind(user_id).first()
@@ -133,53 +112,17 @@ async def get_wedding(
         wedding_raw = await db.prepare(
             "SELECT * FROM weddings WHERE id = ? AND is_active = 1"
         ).bind(user.get("current_wedding_id")).first()
-        wedding_dict = dict(wedding_raw) if wedding_raw else None
-        if wedding_dict:
-            user_row_raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
-            user_email_row = dict(user_row_raw) if user_row_raw else {}
-            orig_plan = wedding_dict.get("plan", "free")
-            wedding_dict["plan"] = _effective_plan(wedding_dict, user_email_row.get("email"))
-            wedding_dict["is_admin_override"] = wedding_dict["plan"] != orig_plan
-            return wedding_dict
+        if wedding_raw:
+            return await _finalize_wedding(db, dict(wedding_raw), user_id)
 
     # Final fallback: first owned wedding
     wedding_raw = await db.prepare(
         "SELECT * FROM weddings WHERE owner_id = ? AND is_active = 1 LIMIT 1"
     ).bind(user_id).first()
-    wedding_dict = dict(wedding_raw) if wedding_raw else None
-    if wedding_dict:
-        user_row_raw = await db.prepare("SELECT email FROM users WHERE id = ?").bind(user_id).first()
-        user_email_row = dict(user_row_raw) if user_row_raw else {}
-        orig_plan = wedding_dict.get("plan", "free")
-        wedding_dict["plan"] = _effective_plan(wedding_dict, user_email_row.get("email"))
-        wedding_dict["is_admin_override"] = wedding_dict["plan"] != orig_plan
-        return wedding_dict
+    if wedding_raw:
+        return await _finalize_wedding(db, dict(wedding_raw), user_id)
 
     raise HTTPException(403, detail={
         "error": "No wedding found. Please complete onboarding.",
         "needs_onboarding": True,
     })
-
-
-def wedding_meets_plan(wedding: dict, min_plan: str) -> bool:
-    my_tier = PLAN_ORDER.get(wedding.get("plan", "free"), 0)
-    req_tier = PLAN_ORDER.get(min_plan, 0)
-    return my_tier >= req_tier
-
-
-def get_plan_limit(wedding: dict, feature: str):
-    return PLAN_LIMITS.get(wedding.get("plan", "free"), {}).get(feature)
-
-
-def require_plan(min_plan: str):
-    """Decorator-style dependency factory for plan enforcement."""
-    async def _check(wedding: dict = Depends(get_wedding)):
-        if not wedding_meets_plan(wedding, min_plan):
-            raise HTTPException(402, detail={
-                "error": f"This feature requires the {min_plan} plan or higher.",
-                "current_plan": wedding.get("plan"),
-                "required_plan": min_plan,
-                "upgrade_url": "/admin/billing",
-            })
-        return wedding
-    return _check

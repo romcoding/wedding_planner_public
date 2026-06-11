@@ -1,27 +1,29 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding, wedding_meets_plan, get_plan_limit
+from middleware import get_db, get_wedding
+from entitlements import get_plan, get_limit, plan_has_feature
 
 router = APIRouter()
 
 
 async def _ai_gate(db, wedding: dict):
     """Check plan and daily usage. Returns None if allowed, raises HTTPException if not."""
-    if not wedding_meets_plan(wedding, "starter"):
+    plan = get_plan(wedding)
+    if not plan_has_feature(plan, "ai"):
         raise HTTPException(402, {
-            "error": "AI features require the Starter plan or higher.",
-            "current_plan": wedding.get("plan"),
+            "error": "AI features require the Premium plan or higher.",
+            "current_plan": plan,
             "upgrade_url": "/admin/billing",
         })
 
-    limit = get_plan_limit(wedding, "ai_uses_per_day")
+    limit = get_limit(plan, "ai_uses_per_day")
     wedding_id = wedding["id"]
 
     if limit == 0:
         raise HTTPException(402, {
-            "error": "AI features require the Starter plan or higher.",
-            "current_plan": wedding.get("plan"),
+            "error": "AI features require the Premium plan or higher.",
+            "current_plan": plan,
             "upgrade_url": "/admin/billing",
         })
 
@@ -58,11 +60,12 @@ async def get_ai_usage(
     ).bind(wedding["id"]).first()
     today_row = dict(today_row_raw) if today_row_raw else None
     count = today_row.get("count") if today_row else 0
-    limit = get_plan_limit(wedding, "ai_uses_per_day")
+    plan = get_plan(wedding)
+    limit = get_limit(plan, "ai_uses_per_day")
     return {
         "count": count,
         "limit": limit,
-        "plan": wedding.get("plan"),
+        "plan": plan,
         "unlimited": limit is None,
     }
 

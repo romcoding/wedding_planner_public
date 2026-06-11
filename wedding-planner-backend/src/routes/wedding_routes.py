@@ -3,7 +3,8 @@ import re
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import require_couple_auth
-from middleware import get_db, get_wedding, wedding_meets_plan, PLAN_LIMITS
+from middleware import get_db, get_wedding
+from entitlements import get_plan, get_limit, get_limits
 
 router = APIRouter()
 
@@ -59,7 +60,7 @@ def _wedding_dict(w: dict) -> dict:
         "is_active": bool(w.get("is_active", 1)),
         "stripe_customer_id": w.get("stripe_customer_id"),
         "stripe_subscription_id": w.get("stripe_subscription_id"),
-        "limits": PLAN_LIMITS.get(plan, {}),
+        "limits": get_limits(plan),
         "created_at": w.get("created_at"),
     }
 
@@ -155,9 +156,9 @@ async def update_current_wedding(
         ).bind(body.wedding_date or None, wedding_id).run()
 
     if body.slug:
-        if not wedding_meets_plan(wedding, "starter"):
+        if not get_limit(get_plan(wedding), "custom_slug"):
             raise HTTPException(402, {
-                "error": "Custom slug requires Starter plan or higher",
+                "error": "Custom slug requires a paid plan",
                 "upgrade_url": "/admin/billing",
             })
         new_slug = re.sub(r"[^a-z0-9-]", "-", body.slug.lower())
