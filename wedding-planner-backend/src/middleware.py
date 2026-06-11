@@ -1,6 +1,6 @@
 import os
 from fastapi import Request, HTTPException, Depends
-from auth import require_couple_auth, decode_token
+from auth import require_couple_auth
 from db import row_to_dict, rows_to_list
 
 
@@ -55,23 +55,6 @@ async def require_platform_admin(
     if not email or email.lower() not in _admin_emails():
         raise HTTPException(403, "Platform administrator access required")
     return payload
-
-
-async def get_current_user(request: Request, db=Depends(get_db)):
-    """Validates Bearer JWT and returns decoded payload."""
-    auth = request.headers.get("Authorization", "")
-    if not auth.startswith("Bearer "):
-        raise HTTPException(401, "Missing token")
-    try:
-        payload = decode_token(auth.split(" ", 1)[1])
-        return payload
-    except Exception:
-        raise HTTPException(401, "Invalid token")
-
-
-async def get_wedding_db(current_user=Depends(get_current_user)):
-    """Returns the wedding_id from the current JWT."""
-    return current_user["wedding_id"]
 
 
 async def _finalize_wedding(db, wedding_dict: dict, user_id: str) -> dict:
