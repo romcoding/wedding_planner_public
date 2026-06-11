@@ -283,6 +283,17 @@ def _split_names(value: str | None) -> list[str]:
     return parts
 
 
+def _csv_safe(value):
+    """Neutralize CSV/formula injection.
+
+    Cells beginning with = + - @ are interpreted as formulas by Excel/Sheets;
+    prefix them with a single quote so they render as literal text.
+    """
+    if isinstance(value, str) and value[:1] in ("=", "+", "-", "@"):
+        return "'" + value
+    return value
+
+
 @router.get("/export")
 async def export_guests_csv(
     wedding: dict = Depends(get_wedding),
@@ -301,7 +312,7 @@ async def export_guests_csv(
     for row in result.results or []:
         guest = dict(row)
         names = json.loads(guest["invitee_names"]) if guest.get("invitee_names") else []
-        writer.writerow({
+        row_values = {
             "first_name": guest.get("first_name") or "",
             "last_name": guest.get("last_name") or "",
             "email": guest.get("email") or "",
@@ -317,7 +328,8 @@ async def export_guests_csv(
             "address": guest.get("address") or "",
             "notes": guest.get("notes") or "",
             "language": guest.get("language") or "en",
-        })
+        }
+        writer.writerow({k: _csv_safe(v) for k, v in row_values.items()})
 
     return Response(
         content=buffer.getvalue(),
