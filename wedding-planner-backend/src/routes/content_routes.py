@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import require_couple_auth
-from middleware import get_db
+from middleware import get_db, require_platform_admin
 
 router = APIRouter()
 
@@ -64,7 +64,7 @@ async def get_content_by_key(key: str, request: Request, lang: str | None = "en"
 @router.post("", status_code=201)
 async def create_content(
     body: ContentBody,
-    payload: dict = Depends(require_couple_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -100,7 +100,7 @@ async def create_content(
 async def update_content(
     content_id: str,
     body: ContentBody,
-    payload: dict = Depends(require_couple_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -148,7 +148,7 @@ async def update_content(
 @router.delete("/{content_id}")
 async def delete_content(
     content_id: str,
-    payload: dict = Depends(require_couple_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
