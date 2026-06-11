@@ -10,6 +10,12 @@
       "database_id": "e123df31-5265-49af-b674-f6ffc9554b16"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "REPLACE_WITH_RATE_LIMIT_KV_NAMESPACE_ID"
+    }
+  ],
   "observability": {
     "enabled": true
   }

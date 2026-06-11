@@ -41,6 +41,30 @@ Copy the `database_id` from the output and update `wedding-planner-backend/wrang
 npx wrangler d1 execute wedding-planner-db --file=wedding-planner-backend/schema.sql
 ```
 
+### 2b. Create the Rate-Limit KV Namespace
+
+The durable rate limiter (login/register/password-reset/etc.) stores TTL'd
+counters in a KV namespace bound as `RATE_LIMIT`. Create it and paste the id
+into `wedding-planner-backend/wrangler.jsonc`:
+
+```bash
+npx wrangler kv namespace create RATE_LIMIT
+```
+
+```jsonc
+{
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "YOUR_KV_NAMESPACE_ID_HERE"   // ← paste here
+    }
+  ]
+}
+```
+
+> If the binding is missing the limiter fails open (allows traffic) and logs a
+> warning — so configure it before launch.
+
 ### 3. Set Secrets (Backend Worker)
 
 ```bash
