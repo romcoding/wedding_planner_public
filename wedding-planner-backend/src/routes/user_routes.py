@@ -1,13 +1,16 @@
 from fastapi import APIRouter, Request, Depends, HTTPException
-from auth import require_couple_auth
-from middleware import get_db
+from middleware import get_db, require_platform_admin
 
 router = APIRouter()
+
+# All endpoints here operate across the entire users table (every tenant), so
+# they are restricted to a real platform administrator (ADMIN_EMAILS). A normal
+# couple — even though it holds role='admin' — must never reach these.
 
 
 @router.get("")
 async def list_users(
-    payload: dict = Depends(require_couple_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -21,7 +24,7 @@ async def list_users(
 @router.get("/{user_id}")
 async def get_user(
     user_id: str,
-    payload: dict = Depends(require_couple_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -37,11 +40,10 @@ async def get_user(
 @router.put("/{user_id}")
 async def update_user(
     user_id: str,
-    payload: dict = Depends(require_couple_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
-    from fastapi import Body
     body = await request.json()
     updates, binds = [], []
 
@@ -60,4 +62,6 @@ async def update_user(
         "SELECT id, email, name, role, is_active, current_wedding_id, created_at, updated_at "
         "FROM users WHERE id = ?"
     ).bind(user_id).first()
+    if not user:
+        raise HTTPException(404, "User not found")
     return dict(user)
