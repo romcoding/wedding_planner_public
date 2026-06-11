@@ -78,6 +78,12 @@ async def venue_chat(
 ):
     """AI-assisted venue chat using venue documents as context."""
     db = await get_db(request)
+
+    # Route through the same AI gate as ai_routes (plan + daily cap + counts
+    # toward usage) so this Claude path is never an ungated free-tier bypass.
+    from routes.ai_routes import _ai_gate
+    await _ai_gate(db, wedding)
+
     chat_id = str(uuid.uuid4())
     await db.prepare(
         "INSERT INTO venue_chat_history (id, venue_id, wedding_id, role, content, created_at) "
