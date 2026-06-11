@@ -2,7 +2,7 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import require_couple_auth
-from middleware import get_db, get_wedding
+from middleware import get_db
 from entitlements import require_feature
 
 _gate = require_feature("moodboard")
