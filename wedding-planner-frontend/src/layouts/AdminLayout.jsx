@@ -166,21 +166,42 @@ export default function AdminLayout() {
               const lockedTitle = locked
                 ? `Available on ${PLAN_NAMES[FEATURE_MIN_PLAN[item.featureKey]]} plan`
                 : undefined
+              const className = `flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors ${
+                isActive
+                  ? 'bg-rose-50 text-rose-700 font-medium'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+              } ${locked ? 'opacity-60' : ''}`
+              const content = (
+                <>
+                  <Icon className="w-4 h-4 flex-shrink-0" />
+                  <span className="truncate text-sm flex-1">{item.label}</span>
+                  {locked && <Lock className="w-3 h-3 flex-shrink-0 text-gray-400" />}
+                </>
+              )
+              // Locked items open the paywall (billing) instead of routing to a
+              // gated feature page the backend would now 403.
+              if (locked) {
+                return (
+                  <button
+                    key={item.path}
+                    type="button"
+                    onClick={() => { setSidebarOpen(false); navigate('/admin/billing') }}
+                    title={lockedTitle}
+                    className={`${className} w-full text-left`}
+                  >
+                    {content}
+                  </button>
+                )
+              }
               return (
                 <Link
                   key={item.path}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
                   title={lockedTitle}
-                  className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-rose-50 text-rose-700 font-medium'
-                      : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                  } ${locked ? 'opacity-60' : ''}`}
+                  className={className}
                 >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  <span className="truncate text-sm flex-1">{item.label}</span>
-                  {locked && <Lock className="w-3 h-3 flex-shrink-0 text-gray-400" />}
+                  {content}
                 </Link>
               )
             })}
