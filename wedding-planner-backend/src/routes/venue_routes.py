@@ -84,6 +84,15 @@ async def venue_chat(
     from routes.ai_routes import _ai_gate
     await _ai_gate(db, wedding)
 
+    # 10/min burst limit on top of the daily cap.
+    try:
+        env = request.scope["env"]
+    except Exception:
+        env = None
+    from services import rate_limit
+    if not await rate_limit.check(env, f"venue-chat:{wedding['id']}", 10, 60):
+        raise HTTPException(429, "Too many requests. Please slow down and try again shortly.")
+
     chat_id = str(uuid.uuid4())
     await db.prepare(
         "INSERT INTO venue_chat_history (id, venue_id, wedding_id, role, content, created_at) "
