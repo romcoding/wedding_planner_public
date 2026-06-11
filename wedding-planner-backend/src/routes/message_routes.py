@@ -17,9 +17,9 @@ async def list_messages(wedding: dict = Depends(get_wedding), request: Request =
     db = await get_db(request)
     result = await db.prepare(
         "SELECT m.*, g.first_name, g.last_name FROM messages m "
-        "LEFT JOIN guests g ON m.guest_id = g.id "
+        "LEFT JOIN guests g ON m.guest_id = g.id AND g.wedding_id = ? "
         "WHERE m.wedding_id = ? ORDER BY m.created_at ASC"
-    ).bind(wedding["id"]).all()
+    ).bind(wedding["id"], wedding["id"]).all()
     return [dict(r) for r in (result.results or [])]
 
 
@@ -32,6 +32,14 @@ async def create_message(
     db = await get_db(request)
     if not body.content:
         raise HTTPException(400, "Content is required")
+
+    # Verify a client-supplied guest_id belongs to this wedding before insert.
+    if body.guest_id:
+        guest = await db.prepare(
+            "SELECT id FROM guests WHERE id = ? AND wedding_id = ?"
+        ).bind(body.guest_id, wedding["id"]).first()
+        if not guest:
+            raise HTTPException(404, "Guest not found")
 
     msg_id = str(uuid.uuid4())
     await db.prepare(

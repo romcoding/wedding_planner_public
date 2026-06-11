@@ -30,8 +30,9 @@ async def list_tables(wedding: dict = Depends(get_wedding), request: Request = N
         t = dict(t)
         seats_r = await db.prepare(
             "SELECT sa.*, g.first_name, g.last_name FROM seat_assignments sa "
-            "LEFT JOIN guests g ON sa.guest_id = g.id WHERE sa.table_id = ?"
-        ).bind(t["id"]).all()
+            "LEFT JOIN guests g ON sa.guest_id = g.id AND g.wedding_id = ? "
+            "WHERE sa.table_id = ? AND sa.wedding_id = ?"
+        ).bind(wedding["id"], t["id"], wedding["id"]).all()
         t["assignments"] = [dict(s) for s in (seats_r.results or [])]
         tables.append(t)
     return tables
@@ -110,8 +111,14 @@ async def assign_seat(
     if not t:
         raise HTTPException(404, "Table not found")
 
-    # Remove existing assignment for this guest if any
+    # Verify the guest belongs to this wedding before trusting a client-supplied
+    # guest_id, then remove any existing assignment for that guest.
     if body.guest_id:
+        guest = await db.prepare(
+            "SELECT id FROM guests WHERE id = ? AND wedding_id = ?"
+        ).bind(body.guest_id, wedding["id"]).first()
+        if not guest:
+            raise HTTPException(404, "Guest not found")
         await db.prepare(
             "DELETE FROM seat_assignments WHERE guest_id = ? AND wedding_id = ?"
         ).bind(body.guest_id, wedding["id"]).run()

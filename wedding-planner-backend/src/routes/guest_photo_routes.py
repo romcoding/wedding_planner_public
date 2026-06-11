@@ -43,6 +43,16 @@ async def upload_photo(body: PhotoBody, request: Request):
         raise HTTPException(400, "No wedding context in token")
 
     db = await get_db(request)
+
+    # Verify a client-supplied guest_id belongs to this wedding (admin upload
+    # path); guest tokens derive guest_id from their own sub.
+    if guest_id:
+        guest = await db.prepare(
+            "SELECT id FROM guests WHERE id = ? AND wedding_id = ?"
+        ).bind(guest_id, wedding_id).first()
+        if not guest:
+            raise HTTPException(404, "Guest not found")
+
     photo_id = str(uuid.uuid4())
     await db.prepare(
         "INSERT INTO guest_photos (id, wedding_id, guest_id, file_url, caption, is_approved, uploaded_at) "
