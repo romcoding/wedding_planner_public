@@ -1,8 +1,11 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding
 from auth import decode_token
+from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("guest_photos")
 
 router = APIRouter()
 
@@ -14,7 +17,7 @@ class PhotoBody(BaseModel):
 
 
 @router.get("")
-async def list_photos(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_photos(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT gp.*, g.first_name, g.last_name FROM guest_photos gp "
@@ -64,7 +67,7 @@ async def upload_photo(body: PhotoBody, request: Request):
 
 
 @router.put("/{photo_id}/approve")
-async def approve_photo(photo_id: str, wedding: dict = Depends(get_wedding), request: Request = None):
+async def approve_photo(photo_id: str, wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     await db.prepare(
         "UPDATE guest_photos SET is_approved = 1 WHERE id = ? AND wedding_id = ?"
@@ -73,7 +76,7 @@ async def approve_photo(photo_id: str, wedding: dict = Depends(get_wedding), req
 
 
 @router.delete("/{photo_id}")
-async def delete_photo(photo_id: str, wedding: dict = Depends(get_wedding), request: Request = None):
+async def delete_photo(photo_id: str, wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     await db.prepare(
         "DELETE FROM guest_photos WHERE id = ? AND wedding_id = ?"

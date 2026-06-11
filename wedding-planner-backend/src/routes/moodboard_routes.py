@@ -3,6 +3,9 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import require_couple_auth
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("moodboard")
 
 router = APIRouter()
 
@@ -25,6 +28,7 @@ class ElementBody(BaseModel):
 
 @router.get("/moodboards")
 async def list_moodboards(
+    wedding: dict = Depends(_gate),
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
@@ -38,6 +42,7 @@ async def list_moodboards(
 @router.post("/moodboards", status_code=201)
 async def create_moodboard(
     body: MoodboardBody,
+    wedding: dict = Depends(_gate),
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
@@ -54,6 +59,7 @@ async def create_moodboard(
 @router.get("/moodboards/{moodboard_id}")
 async def get_moodboard(
     moodboard_id: str,
+    wedding: dict = Depends(_gate),
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
@@ -75,6 +81,7 @@ async def get_moodboard(
 async def save_moodboard(
     moodboard_id: str,
     request: Request,
+    wedding: dict = Depends(_gate),
     payload: dict = Depends(require_couple_auth),
 ):
     db = await get_db(request)
@@ -112,6 +119,7 @@ async def save_moodboard(
 @router.delete("/moodboards/{moodboard_id}")
 async def delete_moodboard(
     moodboard_id: str,
+    wedding: dict = Depends(_gate),
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):

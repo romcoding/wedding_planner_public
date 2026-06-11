@@ -2,6 +2,9 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("venue")
 
 router = APIRouter()
 
@@ -36,7 +39,7 @@ async def get_venue(venue_id: str, request: Request):
 @router.post("/requests", status_code=201)
 async def create_venue_request(
     body: VenueRequestBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -70,7 +73,7 @@ async def list_offer_categories(venue_id: str, request: Request):
 async def venue_chat(
     venue_id: str,
     body: VenueChatBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     """AI-assisted venue chat using venue documents as context."""
@@ -129,7 +132,7 @@ async def venue_chat(
 @router.get("/{venue_id}/chat")
 async def get_chat_history(
     venue_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

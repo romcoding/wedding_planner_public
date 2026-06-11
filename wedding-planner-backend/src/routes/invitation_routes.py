@@ -3,6 +3,9 @@ import secrets
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("invitations")
 
 router = APIRouter()
 
@@ -21,7 +24,7 @@ class TemplateBody(BaseModel):
 
 
 @router.get("")
-async def list_invitations(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_invitations(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT i.*, g.first_name, g.last_name, g.email as guest_email FROM invitations i "
@@ -33,7 +36,7 @@ async def list_invitations(wedding: dict = Depends(get_wedding), request: Reques
 @router.post("", status_code=201)
 async def create_invitation(
     body: InvitationBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -57,7 +60,7 @@ async def create_invitation(
 @router.post("/{invitation_id}/send")
 async def send_invitation(
     invitation_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -105,7 +108,7 @@ async def track_open(token: str, request: Request):
 
 # Templates
 @router.get("/templates")
-async def list_templates(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_templates(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM invitation_templates WHERE wedding_id = ? ORDER BY created_at DESC"
@@ -116,7 +119,7 @@ async def list_templates(wedding: dict = Depends(get_wedding), request: Request 
 @router.post("/templates", status_code=201)
 async def create_template(
     body: TemplateBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

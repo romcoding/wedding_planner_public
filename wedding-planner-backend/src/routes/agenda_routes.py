@@ -2,6 +2,9 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("agenda_basic")
 
 router = APIRouter()
 
@@ -17,7 +20,7 @@ class AgendaBody(BaseModel):
 
 
 @router.get("")
-async def list_agenda(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_agenda(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM agenda_items WHERE wedding_id = ? ORDER BY start_time ASC, \"order\" ASC"
@@ -29,7 +32,7 @@ async def list_agenda(wedding: dict = Depends(get_wedding), request: Request = N
 @router.post("", status_code=201)
 async def create_agenda_item(
     body: AgendaBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -56,7 +59,7 @@ async def create_agenda_item(
 async def update_agenda_item(
     item_id: str,
     body: AgendaBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -89,7 +92,7 @@ async def update_agenda_item(
 @router.delete("/{item_id}")
 async def delete_agenda_item(
     item_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

@@ -2,6 +2,9 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("seating")
 
 router = APIRouter()
 
@@ -20,7 +23,7 @@ class AssignBody(BaseModel):
 
 
 @router.get("/tables")
-async def list_tables(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_tables(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM seating_tables WHERE wedding_id = ? ORDER BY name ASC"
@@ -41,7 +44,7 @@ async def list_tables(wedding: dict = Depends(get_wedding), request: Request = N
 @router.post("/tables", status_code=201)
 async def create_table(
     body: TableBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -58,7 +61,7 @@ async def create_table(
 async def update_table(
     table_id: str,
     body: TableBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -83,7 +86,7 @@ async def update_table(
 @router.delete("/tables/{table_id}")
 async def delete_table(
     table_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -101,7 +104,7 @@ async def delete_table(
 async def assign_seat(
     table_id: str,
     body: AssignBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -136,7 +139,7 @@ async def assign_seat(
 @router.delete("/assignments/{assignment_id}")
 async def remove_assignment(
     assignment_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

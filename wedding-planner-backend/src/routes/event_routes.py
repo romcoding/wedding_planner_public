@@ -3,6 +3,9 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import require_couple_auth
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("events")
 
 router = APIRouter()
 
@@ -19,7 +22,7 @@ class EventBody(BaseModel):
 
 @router.get("")
 async def list_events(
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -32,7 +35,7 @@ async def list_events(
 @router.post("", status_code=201)
 async def create_event(
     body: EventBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
@@ -64,7 +67,7 @@ async def create_event(
 async def update_event(
     event_id: str,
     body: EventBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -102,7 +105,7 @@ async def update_event(
 @router.delete("/{event_id}")
 async def delete_event(
     event_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

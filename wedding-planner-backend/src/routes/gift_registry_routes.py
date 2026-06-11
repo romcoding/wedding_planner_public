@@ -2,6 +2,9 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+_gate = require_feature("gift_registry")
 
 router = APIRouter()
 
@@ -17,7 +20,7 @@ class GiftBody(BaseModel):
 
 
 @router.get("")
-async def list_gifts(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_gifts(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM gift_registry WHERE wedding_id = ? ORDER BY created_at DESC"
@@ -28,7 +31,7 @@ async def list_gifts(wedding: dict = Depends(get_wedding), request: Request = No
 @router.post("", status_code=201)
 async def create_gift(
     body: GiftBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -51,7 +54,7 @@ async def create_gift(
 async def update_gift(
     gift_id: str,
     body: GiftBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -82,7 +85,7 @@ async def update_gift(
 @router.delete("/{gift_id}")
 async def delete_gift(
     gift_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

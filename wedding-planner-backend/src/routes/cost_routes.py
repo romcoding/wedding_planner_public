@@ -2,6 +2,11 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import require_feature
+
+# Basic cost tracking is free (costs_basic); the analytics/insights view is the
+# "full budget" premium feature.
+_full_budget = require_feature("full_budget")
 
 router = APIRouter()
 
@@ -138,7 +143,7 @@ async def delete_cost(
 
 @router.get("/analytics")
 async def cost_analytics(
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_full_budget),
     request: Request = None,
 ):
     db = await get_db(request)
