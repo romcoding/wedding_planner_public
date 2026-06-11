@@ -33,7 +33,6 @@ from routes.onboarding_routes import router as onboarding_router
 from routes.subscription_routes import router as subscription_router
 from routes.image_routes import router as image_router
 from routes.demo_routes import router as demo_router
-from routes.stripe_routes import router as stripe_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -152,4 +151,3 @@ app.include_router(onboarding_router, prefix="/api/onboarding")
 app.include_router(subscription_router, prefix="/api/subscriptions")
 app.include_router(image_router)  # Has own /api/images prefix in routes
 app.include_router(demo_router, prefix="/api/demo")
-app.include_router(stripe_router, prefix="/api/stripe")
