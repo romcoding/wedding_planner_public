@@ -13,7 +13,7 @@
   "kv_namespaces": [
     {
       "binding": "RATE_LIMIT",
-      "id": "REPLACE_WITH_RATE_LIMIT_KV_NAMESPACE_ID"
+      "id": "51ca7fc808bf48db90647ad82de79d45"
     }
   ],
   "observability": {
