@@ -1,27 +1,31 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding, wedding_meets_plan, get_plan_limit
+from middleware import get_db, get_wedding
+from entitlements import get_plan, get_limit, plan_has_feature
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
 
 async def _ai_gate(db, wedding: dict):
     """Check plan and daily usage. Returns None if allowed, raises HTTPException if not."""
-    if not wedding_meets_plan(wedding, "starter"):
+    plan = get_plan(wedding)
+    if not plan_has_feature(plan, "ai"):
         raise HTTPException(402, {
-            "error": "AI features require the Starter plan or higher.",
-            "current_plan": wedding.get("plan"),
+            "error": "AI features require the Premium plan or higher.",
+            "current_plan": plan,
             "upgrade_url": "/admin/billing",
         })
 
-    limit = get_plan_limit(wedding, "ai_uses_per_day")
+    limit = get_limit(plan, "ai_uses_per_day")
     wedding_id = wedding["id"]
 
     if limit == 0:
         raise HTTPException(402, {
-            "error": "AI features require the Starter plan or higher.",
-            "current_plan": wedding.get("plan"),
+            "error": "AI features require the Premium plan or higher.",
+            "current_plan": plan,
             "upgrade_url": "/admin/billing",
         })
 
@@ -30,7 +34,7 @@ async def _ai_gate(db, wedding: dict):
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? "
         "AND date(used_at) = date('now')"
     ).bind(wedding_id).first()
-    today_row = dict(today_row_raw) if today_row_raw else None
+    today_row = row_to_dict(today_row_raw)
     today_count = today_row.get("count") if today_row else 0
 
     if limit is not None and today_count >= limit:
@@ -56,13 +60,14 @@ async def get_ai_usage(
     today_row_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? AND date(used_at) = date('now')"
     ).bind(wedding["id"]).first()
-    today_row = dict(today_row_raw) if today_row_raw else None
+    today_row = row_to_dict(today_row_raw)
     count = today_row.get("count") if today_row else 0
-    limit = get_plan_limit(wedding, "ai_uses_per_day")
+    plan = get_plan(wedding)
+    limit = get_limit(plan, "ai_uses_per_day")
     return {
         "count": count,
         "limit": limit,
-        "plan": wedding.get("plan"),
+        "plan": plan,
         "unlimited": limit is None,
     }
 
@@ -92,7 +97,8 @@ async def ai_timeline(
             ceremony_type=body.ceremony_type,
         )
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result
 
 
@@ -121,7 +127,8 @@ async def ai_vendor_suggestions(
             guest_count=body.guest_count,
         )
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result
 
 
@@ -150,7 +157,8 @@ async def ai_copy_generator(
             story_notes=body.story_notes,
         )
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result
 
 
@@ -176,5 +184,6 @@ async def ai_seating(
     try:
         result = generate_seating_suggestions(guests=body.guests)
     except RuntimeError as e:
-        raise HTTPException(502, str(e))
+        print(f"[ai] request failed: {e}")
+        raise HTTPException(502, "AI request failed. Please try again later.")
     return result

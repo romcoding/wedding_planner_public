@@ -1,8 +1,9 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
-from middleware import get_db, get_wedding
+from middleware import get_db, get_wedding, require_platform_admin
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -14,17 +15,39 @@ class PageViewBody(BaseModel):
     session_id: str | None = None
 
 
+def _cap(value, limit: int = 512):
+    """Bound an attacker-controlled string field; None stays None."""
+    if value is None:
+        return None
+    return str(value)[:limit]
+
+
 @router.post("/track")
 async def track_page_view(body: PageViewBody, request: Request):
     """Public: track a page view. Does not require auth."""
     db = await get_db(request)
+
+    # Operator precedence fix: the CF header must win even when request.client
+    # is None (the `if/else` previously bound tighter than `or`).
+    ip = request.headers.get("CF-Connecting-IP") or (
+        request.client.host if request.client else None
+    )
+
+    # 60/IP/hour durable limit on this unauthenticated, attacker-reachable ingest.
+    try:
+        env = request.scope["env"]
+    except Exception:
+        env = None
+    from services import rate_limit
+    if not await rate_limit.check(env, f"track:ip:{ip}", 60, 3600):
+        raise HTTPException(429, "Too many requests")
+
     view_id = str(uuid.uuid4())
-    ip = request.headers.get("CF-Connecting-IP") or request.client.host if request.client else None
-    ua = body.user_agent or request.headers.get("User-Agent")
+    ua = _cap(body.user_agent or request.headers.get("User-Agent"))
     await db.prepare(
         "INSERT INTO page_views (id, path, referrer, user_agent, ip_address, created_at) "
         "VALUES (?, ?, ?, ?, ?, datetime('now'))"
-    ).bind(view_id, body.path, body.referrer, ua, ip).run()
+    ).bind(view_id, _cap(body.path), _cap(body.referrer), ua, ip).run()
     return {"tracked": True}
 
 
@@ -42,7 +65,7 @@ async def analytics_overview(
 
     rsvp_counts = {"pending": 0, "confirmed": 0, "declined": 0}
     total_guests = 0
-    for row in [dict(r) for r in (guests_result.results or [])]:
+    for row in rows_to_list(guests_result):
         st = row.get("rsvp_status") or "pending"
         cnt = row.get("count") or 0
         rsvp_counts[st] = cnt
@@ -52,20 +75,20 @@ async def analytics_overview(
         "SELECT status, COUNT(*) as count FROM tasks WHERE wedding_id = ? GROUP BY status"
     ).bind(wedding_id).all()
     task_counts = {}
-    for row in [dict(r) for r in (tasks_result.results or [])]:
+    for row in rows_to_list(tasks_result):
         task_counts[row.get("status")] = row.get("count")
 
     costs_result = await db.prepare(
         "SELECT SUM(amount) as total, status FROM costs WHERE wedding_id = ? GROUP BY status"
     ).bind(wedding_id).all()
     cost_totals = {}
-    for row in [dict(r) for r in (costs_result.results or [])]:
+    for row in rows_to_list(costs_result):
         cost_totals[row.get("status")] = float(row.get("total") or 0)
 
     ai_result_raw = await db.prepare(
         "SELECT COUNT(*) as count FROM ai_usage WHERE wedding_id = ? AND used_at >= date('now', 'start of day')"
     ).bind(wedding_id).first()
-    ai_result = dict(ai_result_raw) if ai_result_raw else None
+    ai_result = row_to_dict(ai_result_raw)
     ai_today = ai_result.get("count") if ai_result else 0
 
     return {
@@ -82,11 +105,11 @@ async def analytics_overview(
 
 @router.get("/security")
 async def security_events(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_platform_admin),
     request: Request = None,
 ):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM security_events ORDER BY created_at DESC LIMIT 100"
     ).all()
-    return [dict(e) for e in (result.results or [])]
+    return rows_to_list(result)

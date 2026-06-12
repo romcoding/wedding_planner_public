@@ -1,7 +1,12 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("agenda_basic")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -17,19 +22,19 @@ class AgendaBody(BaseModel):
 
 
 @router.get("")
-async def list_agenda(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_agenda(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM agenda_items WHERE wedding_id = ? ORDER BY start_time ASC, \"order\" ASC"
     ).bind(wedding["id"]).all()
-    rows = [dict(a) for a in (result.results or [])]
+    rows = rows_to_list(result)
     return rows
 
 
 @router.post("", status_code=201)
 async def create_agenda_item(
     body: AgendaBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -49,21 +54,21 @@ async def create_agenda_item(
     ).run()
 
     item_raw = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
-    return dict(item_raw)
+    return row_to_dict(item_raw)
 
 
 @router.put("/{item_id}")
 async def update_agenda_item(
     item_id: str,
     body: AgendaBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
     item_raw = await db.prepare(
         "SELECT id FROM agenda_items WHERE id = ? AND wedding_id = ?"
     ).bind(item_id, wedding["id"]).first()
-    item = dict(item_raw) if item_raw else None
+    item = row_to_dict(item_raw)
     if not item:
         raise HTTPException(404, "Agenda item not found")
 
@@ -83,13 +88,13 @@ async def update_agenda_item(
         await db.prepare(f"UPDATE agenda_items SET {', '.join(updates)} WHERE id = ?").bind(*binds).run()
 
     updated_raw = await db.prepare("SELECT * FROM agenda_items WHERE id = ?").bind(item_id).first()
-    return dict(updated_raw)
+    return row_to_dict(updated_raw)
 
 
 @router.delete("/{item_id}")
 async def delete_agenda_item(
     item_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

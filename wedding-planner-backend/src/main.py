@@ -33,7 +33,6 @@ from routes.onboarding_routes import router as onboarding_router
 from routes.subscription_routes import router as subscription_router
 from routes.image_routes import router as image_router
 from routes.demo_routes import router as demo_router
-from routes.stripe_routes import router as stripe_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -48,10 +47,16 @@ class Default(WorkerEntrypoint):
             "STRIPE_STARTER_PRICE_ID", "STRIPE_PREMIUM_PRICE_ID",
             "STRIPE_MONTHLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID",
             "ADMIN_EMAILS",
+            "ANTHROPIC_API_KEY",
         ):
             value = getattr(self.env, key, None)
             if value is not None:
                 os.environ[key] = str(value)
+
+        # Fail closed on the first request if the signing secret is missing.
+        # Tokens must never be signed/verified with an implicit default secret.
+        if not os.environ.get("JWT_SECRET_KEY"):
+            raise RuntimeError("JWT_SECRET_KEY not configured")
 
         origin = request.headers.get("origin") or ""
         cors_origin = origin if origin in _allowed_origins else ""
@@ -147,4 +152,3 @@ app.include_router(onboarding_router, prefix="/api/onboarding")
 app.include_router(subscription_router, prefix="/api/subscriptions")
 app.include_router(image_router)  # Has own /api/images prefix in routes
 app.include_router(demo_router, prefix="/api/demo")
-app.include_router(stripe_router, prefix="/api/stripe")

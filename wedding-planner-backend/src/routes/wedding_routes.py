@@ -2,8 +2,11 @@ import uuid
 import re
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
-from middleware import get_db, get_wedding, wedding_meets_plan, PLAN_LIMITS
+from auth import require_couple_auth
+from middleware import get_db, get_wedding
+from entitlements import get_plan, get_limit, get_limits
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -59,7 +62,7 @@ def _wedding_dict(w: dict) -> dict:
         "is_active": bool(w.get("is_active", 1)),
         "stripe_customer_id": w.get("stripe_customer_id"),
         "stripe_subscription_id": w.get("stripe_subscription_id"),
-        "limits": PLAN_LIMITS.get(plan, {}),
+        "limits": get_limits(plan),
         "created_at": w.get("created_at"),
     }
 
@@ -67,7 +70,7 @@ def _wedding_dict(w: dict) -> dict:
 @router.post("/create", status_code=201)
 async def create_wedding(
     body: CreateWeddingBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -76,12 +79,12 @@ async def create_wedding(
     existing_raw = await db.prepare(
         "SELECT id FROM weddings WHERE owner_id = ?"
     ).bind(user_id).first()
-    existing = dict(existing_raw) if existing_raw else None
+    existing = row_to_dict(existing_raw)
     if existing:
         w_raw = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(existing.get("id")).first()
         raise HTTPException(409, {
             "error": "You already have a wedding. Use PUT /api/weddings/current to update it.",
-            "wedding": _wedding_dict(dict(w_raw)),
+            "wedding": _wedding_dict(row_to_dict(w_raw)),
         })
 
     year = 2026
@@ -115,7 +118,7 @@ async def create_wedding(
     ).bind(wedding_id, user_id).run()
 
     w = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(wedding_id).first()
-    return {"message": "Wedding created successfully", "wedding": _wedding_dict(dict(w))}
+    return {"message": "Wedding created successfully", "wedding": _wedding_dict(row_to_dict(w))}
 
 
 @router.get("/current")
@@ -155,9 +158,9 @@ async def update_current_wedding(
         ).bind(body.wedding_date or None, wedding_id).run()
 
     if body.slug:
-        if not wedding_meets_plan(wedding, "starter"):
+        if not get_limit(get_plan(wedding), "custom_slug"):
             raise HTTPException(402, {
-                "error": "Custom slug requires Starter plan or higher",
+                "error": "Custom slug requires a paid plan",
                 "upgrade_url": "/admin/billing",
             })
         new_slug = re.sub(r"[^a-z0-9-]", "-", body.slug.lower())
@@ -173,7 +176,7 @@ async def update_current_wedding(
             ).bind(new_slug, wedding_id).run()
 
     w = await db.prepare("SELECT * FROM weddings WHERE id = ?").bind(wedding_id).first()
-    return _wedding_dict(dict(w))
+    return _wedding_dict(row_to_dict(w))
 
 
 @router.get("/by-slug/{slug}")
@@ -185,7 +188,7 @@ async def get_wedding_by_slug(slug: str, request: Request):
     ).bind(slug).first()
     if not w:
         raise HTTPException(404, "Wedding not found")
-    w = dict(w)
+    w = row_to_dict(w)
     return {
         "id": w["id"],
         "slug": w["slug"],

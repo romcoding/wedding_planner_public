@@ -8,7 +8,10 @@ TOKEN_EXPIRE_DAYS = 7
 
 
 def _get_secret() -> str:
-    return os.environ.get("JWT_SECRET_KEY", "dev-secret-change-in-production")
+    secret = os.environ.get("JWT_SECRET_KEY")
+    if not secret:
+        raise RuntimeError("JWT_SECRET_KEY not configured")
+    return secret
 
 
 def create_token(user_id: str, wedding_id: str | None = None, role: str = "admin") -> str:
@@ -50,8 +53,13 @@ async def require_auth(request: Request) -> dict:
         raise HTTPException(401, "Invalid token")
 
 
-async def require_admin_auth(request: Request) -> dict:
-    """Dependency: require a non-guest JWT."""
+async def require_couple_auth(request: Request) -> dict:
+    """Dependency: require a non-guest (couple) JWT.
+
+    This only rejects guest tokens. It confers NO platform privilege — every
+    couple account holds this. For platform-admin authorization use
+    ``middleware.require_platform_admin``.
+    """
     payload = await require_auth(request)
     sub = payload.get("sub", "")
     if str(sub).startswith("guest_"):

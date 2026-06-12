@@ -1,8 +1,13 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
-from middleware import get_db, get_wedding
+from auth import require_couple_auth
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("moodboard")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -25,20 +30,22 @@ class ElementBody(BaseModel):
 
 @router.get("/moodboards")
 async def list_moodboards(
-    payload: dict = Depends(require_admin_auth),
+    wedding: dict = Depends(_gate),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM moodboards WHERE user_id = ? ORDER BY created_at DESC"
     ).bind(payload["sub"]).all()
-    return [dict(m) for m in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("/moodboards", status_code=201)
 async def create_moodboard(
     body: MoodboardBody,
-    payload: dict = Depends(require_admin_auth),
+    wedding: dict = Depends(_gate),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -48,24 +55,27 @@ async def create_moodboard(
         "VALUES (?, ?, ?, datetime('now'), datetime('now'))"
     ).bind(mid, payload["sub"], body.name).run()
     m = await db.prepare("SELECT * FROM moodboards WHERE id = ?").bind(mid).first()
-    return dict(m)
+    return row_to_dict(m)
 
 
 @router.get("/moodboards/{moodboard_id}")
 async def get_moodboard(
     moodboard_id: str,
-    payload: dict = Depends(require_admin_auth),
+    wedding: dict = Depends(_gate),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
-    m = await db.prepare("SELECT * FROM moodboards WHERE id = ?").bind(moodboard_id).first()
+    m = await db.prepare(
+        "SELECT * FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).first()
     if not m:
         raise HTTPException(404, "Moodboard not found")
-    m = dict(m)
+    m = row_to_dict(m)
     elements_r = await db.prepare(
         "SELECT * FROM moodboard_elements WHERE moodboard_id = ? ORDER BY z_index ASC"
     ).bind(moodboard_id).all()
-    m["elements"] = [dict(e) for e in (elements_r.results or [])]
+    m["elements"] = rows_to_list(elements_r)
     return m
 
 
@@ -73,9 +83,18 @@ async def get_moodboard(
 async def save_moodboard(
     moodboard_id: str,
     request: Request,
-    payload: dict = Depends(require_admin_auth),
+    wedding: dict = Depends(_gate),
+    payload: dict = Depends(require_couple_auth),
 ):
     db = await get_db(request)
+
+    # Re-verify ownership before mutating elements (IDOR guard).
+    owner = await db.prepare(
+        "SELECT id FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).first()
+    if not owner:
+        raise HTTPException(404, "Moodboard not found")
+
     body = await request.json()
     elements = body.get("elements", [])
 
@@ -102,10 +121,18 @@ async def save_moodboard(
 @router.delete("/moodboards/{moodboard_id}")
 async def delete_moodboard(
     moodboard_id: str,
-    payload: dict = Depends(require_admin_auth),
+    wedding: dict = Depends(_gate),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
+    owner = await db.prepare(
+        "SELECT id FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).first()
+    if not owner:
+        raise HTTPException(404, "Moodboard not found")
     await db.prepare("DELETE FROM moodboard_elements WHERE moodboard_id = ?").bind(moodboard_id).run()
-    await db.prepare("DELETE FROM moodboards WHERE id = ?").bind(moodboard_id).run()
+    await db.prepare(
+        "DELETE FROM moodboards WHERE id = ? AND user_id = ?"
+    ).bind(moodboard_id, payload["sub"]).run()
     return {"message": "Moodboard deleted"}

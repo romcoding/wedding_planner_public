@@ -1,8 +1,13 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding
 from auth import decode_token
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("guest_photos")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -14,14 +19,14 @@ class PhotoBody(BaseModel):
 
 
 @router.get("")
-async def list_photos(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_photos(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT gp.*, g.first_name, g.last_name FROM guest_photos gp "
         "LEFT JOIN guests g ON gp.guest_id = g.id "
         "WHERE gp.wedding_id = ? ORDER BY gp.uploaded_at DESC"
     ).bind(wedding["id"]).all()
-    return [dict(p) for p in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
@@ -43,6 +48,16 @@ async def upload_photo(body: PhotoBody, request: Request):
         raise HTTPException(400, "No wedding context in token")
 
     db = await get_db(request)
+
+    # Verify a client-supplied guest_id belongs to this wedding (admin upload
+    # path); guest tokens derive guest_id from their own sub.
+    if guest_id:
+        guest = await db.prepare(
+            "SELECT id FROM guests WHERE id = ? AND wedding_id = ?"
+        ).bind(guest_id, wedding_id).first()
+        if not guest:
+            raise HTTPException(404, "Guest not found")
+
     photo_id = str(uuid.uuid4())
     await db.prepare(
         "INSERT INTO guest_photos (id, wedding_id, guest_id, file_url, caption, is_approved, uploaded_at) "
@@ -50,11 +65,11 @@ async def upload_photo(body: PhotoBody, request: Request):
     ).bind(photo_id, wedding_id, guest_id, body.file_url, body.caption).run()
 
     photo = await db.prepare("SELECT * FROM guest_photos WHERE id = ?").bind(photo_id).first()
-    return dict(photo)
+    return row_to_dict(photo)
 
 
 @router.put("/{photo_id}/approve")
-async def approve_photo(photo_id: str, wedding: dict = Depends(get_wedding), request: Request = None):
+async def approve_photo(photo_id: str, wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     await db.prepare(
         "UPDATE guest_photos SET is_approved = 1 WHERE id = ? AND wedding_id = ?"
@@ -63,7 +78,7 @@ async def approve_photo(photo_id: str, wedding: dict = Depends(get_wedding), req
 
 
 @router.delete("/{photo_id}")
-async def delete_photo(photo_id: str, wedding: dict = Depends(get_wedding), request: Request = None):
+async def delete_photo(photo_id: str, wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     await db.prepare(
         "DELETE FROM guest_photos WHERE id = ? AND wedding_id = ?"

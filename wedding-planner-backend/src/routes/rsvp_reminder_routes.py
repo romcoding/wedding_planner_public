@@ -1,7 +1,12 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("rsvp_reminders")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -14,18 +19,18 @@ class ReminderBody(BaseModel):
 
 
 @router.get("")
-async def list_reminders(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_reminders(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM rsvp_reminders WHERE wedding_id = ? ORDER BY send_at ASC"
     ).bind(wedding["id"]).all()
-    return [dict(r) for r in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
 async def create_reminder(
     body: ReminderBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -38,14 +43,14 @@ async def create_reminder(
         "target_rsvp_status, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?, datetime('now'))"
     ).bind(rid, wedding["id"], body.name, body.message, body.send_at, body.target_rsvp_status).run()
 
-    r = await db.prepare("SELECT * FROM rsvp_reminders WHERE id = ?").bind(rid).first()
-    return dict(r)
+    rr = await db.prepare("SELECT * FROM rsvp_reminders WHERE id = ?").bind(rid).first()
+    return row_to_dict(rr)
 
 
 @router.delete("/{reminder_id}")
 async def delete_reminder(
     reminder_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

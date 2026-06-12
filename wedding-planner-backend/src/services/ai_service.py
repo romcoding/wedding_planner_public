@@ -8,7 +8,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_MAX_TOKENS = 2000
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
@@ -19,12 +18,15 @@ def call_claude(system_prompt: str, user_message: str, max_tokens: int = DEFAULT
     Call Claude API via httpx (pure Python, no native extensions needed).
     Raises RuntimeError on failure.
     """
-    if not ANTHROPIC_API_KEY:
+    # Read the key per-call: on Workers the secret is mirrored into os.environ
+    # per request (main.py), so reading it at import time would capture "".
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY is not configured")
 
     import httpx
     headers = {
-        "x-api-key": ANTHROPIC_API_KEY,
+        "x-api-key": api_key,
         "anthropic-version": "2023-06-01",
         "content-type": "application/json",
     }

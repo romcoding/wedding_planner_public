@@ -1,7 +1,12 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("gift_registry")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -17,18 +22,18 @@ class GiftBody(BaseModel):
 
 
 @router.get("")
-async def list_gifts(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_gifts(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT * FROM gift_registry WHERE wedding_id = ? ORDER BY created_at DESC"
     ).bind(wedding["id"]).all()
-    return [dict(g) for g in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
 async def create_gift(
     body: GiftBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -44,14 +49,14 @@ async def create_gift(
         body.image_url, int(body.is_purchased or False), body.purchased_by,
     ).run()
     gift = await db.prepare("SELECT * FROM gift_registry WHERE id = ?").bind(gift_id).first()
-    return dict(gift)
+    return row_to_dict(gift)
 
 
 @router.put("/{gift_id}")
 async def update_gift(
     gift_id: str,
     body: GiftBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -76,13 +81,13 @@ async def update_gift(
         await db.prepare(f"UPDATE gift_registry SET {', '.join(updates)} WHERE id = ?").bind(*binds).run()
 
     updated = await db.prepare("SELECT * FROM gift_registry WHERE id = ?").bind(gift_id).first()
-    return dict(updated)
+    return row_to_dict(updated)
 
 
 @router.delete("/{gift_id}")
 async def delete_gift(
     gift_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)

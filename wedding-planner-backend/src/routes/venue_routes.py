@@ -1,8 +1,12 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import require_admin_auth
-from middleware import get_db, get_wedding
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("venue")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -22,7 +26,7 @@ async def list_venues(request: Request):
     """Public: list all active venues."""
     db = await get_db(request)
     result = await db.prepare("SELECT * FROM venues WHERE is_active = 1 ORDER BY name ASC").all()
-    return [dict(v) for v in (result.results or [])]
+    return rows_to_list(result)
 
 
 @router.get("/{venue_id}")
@@ -31,13 +35,13 @@ async def get_venue(venue_id: str, request: Request):
     venue = await db.prepare("SELECT * FROM venues WHERE id = ?").bind(venue_id).first()
     if not venue:
         raise HTTPException(404, "Venue not found")
-    return dict(venue)
+    return row_to_dict(venue)
 
 
 @router.post("/requests", status_code=201)
 async def create_venue_request(
     body: VenueRequestBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -46,8 +50,8 @@ async def create_venue_request(
         "INSERT INTO venue_requests (id, venue_id, wedding_id, status, message, created_at, updated_at) "
         "VALUES (?, ?, ?, 'pending', ?, datetime('now'), datetime('now'))"
     ).bind(rid, body.venue_id, wedding["id"], body.message).run()
-    r = await db.prepare("SELECT * FROM venue_requests WHERE id = ?").bind(rid).first()
-    return dict(r)
+    rr = await db.prepare("SELECT * FROM venue_requests WHERE id = ?").bind(rid).first()
+    return row_to_dict(rr)
 
 
 @router.get("/{venue_id}/offers/categories")
@@ -58,11 +62,11 @@ async def list_offer_categories(venue_id: str, request: Request):
     ).bind(venue_id).all()
     cats = []
     for c in (result.results or []):
-        c = dict(c)
+        c = row_to_dict(c)
         offers_r = await db.prepare(
             "SELECT * FROM venue_offers WHERE category_id = ? AND is_active = 1"
         ).bind(c["id"]).all()
-        c["offers"] = [dict(o) for o in (offers_r.results or [])]
+        c["offers"] = rows_to_list(offers_r)
         cats.append(c)
     return cats
 
@@ -71,11 +75,26 @@ async def list_offer_categories(venue_id: str, request: Request):
 async def venue_chat(
     venue_id: str,
     body: VenueChatBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     """AI-assisted venue chat using venue documents as context."""
     db = await get_db(request)
+
+    # Route through the same AI gate as ai_routes (plan + daily cap + counts
+    # toward usage) so this Claude path is never an ungated free-tier bypass.
+    from routes.ai_routes import _ai_gate
+    await _ai_gate(db, wedding)
+
+    # 10/min burst limit on top of the daily cap.
+    try:
+        env = request.scope["env"]
+    except Exception:
+        env = None
+    from services import rate_limit
+    if not await rate_limit.check(env, f"venue-chat:{wedding['id']}", 10, 60):
+        raise HTTPException(429, "Too many requests. Please slow down and try again shortly.")
+
     chat_id = str(uuid.uuid4())
     await db.prepare(
         "INSERT INTO venue_chat_history (id, venue_id, wedding_id, role, content, created_at) "
@@ -84,7 +103,7 @@ async def venue_chat(
 
     # Get venue info for context
     venue_raw = await db.prepare("SELECT * FROM venues WHERE id = ?").bind(venue_id).first()
-    venue = dict(venue_raw) if venue_raw else None
+    venue = row_to_dict(venue_raw)
     venue_name = venue.get("name") if venue else "this venue"
 
     # Get recent chat history
@@ -92,14 +111,14 @@ async def venue_chat(
         "SELECT role, content FROM venue_chat_history WHERE venue_id = ? AND wedding_id = ? "
         "ORDER BY created_at ASC LIMIT 20"
     ).bind(venue_id, wedding["id"]).all()
-    history = [{"role": r.get("role"), "content": r.get("content")} for r in [dict(x) for x in (history_r.results or [])]]
+    history = [{"role": r.get("role"), "content": r.get("content")} for r in rows_to_list(history_r)]
 
     # Get venue document snippets for context
     docs_r = await db.prepare(
         "SELECT content_text FROM venue_documents WHERE venue_id = ? LIMIT 3"
     ).bind(venue_id).all()
     doc_context = "\n\n".join(
-        d.get("content_text") for d in [dict(x) for x in (docs_r.results or [])] if d.get("content_text")
+        d.get("content_text") for d in rows_to_list(docs_r) if d.get("content_text")
     )
 
     try:
@@ -130,7 +149,7 @@ async def venue_chat(
 @router.get("/{venue_id}/chat")
 async def get_chat_history(
     venue_id: str,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -138,4 +157,4 @@ async def get_chat_history(
         "SELECT role, content, created_at FROM venue_chat_history "
         "WHERE venue_id = ? AND wedding_id = ? ORDER BY created_at ASC"
     ).bind(venue_id, wedding["id"]).all()
-    return [dict(r) for r in (result.results or [])]
+    return rows_to_list(result)

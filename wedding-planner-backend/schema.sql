@@ -54,9 +54,11 @@ CREATE TABLE IF NOT EXISTS weddings (
   partner_two_name TEXT,
   wedding_date TEXT,
   location TEXT,
-  plan TEXT NOT NULL DEFAULT 'free',
+  plan TEXT NOT NULL DEFAULT 'free' CHECK (plan IN ('free', 'premium', 'lifetime')),
   stripe_customer_id TEXT,
   stripe_subscription_id TEXT,
+  plan_expires_at TEXT,
+  plan_updated_at TEXT,
   is_active INTEGER NOT NULL DEFAULT 1,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -539,3 +541,28 @@ CREATE TABLE IF NOT EXISTS security_events (
   ip_address TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Stripe webhook idempotency log (folded in from migration_v2.sql).
+-- _seen_event() relies on this table; it must always exist.
+CREATE TABLE IF NOT EXISTS stripe_events (
+  id TEXT PRIMARY KEY,
+  event_type TEXT NOT NULL,
+  processed_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_stripe_events_type ON stripe_events(event_type);
+
+-- Foreign-key indexes for hot lookups (F25).
+CREATE INDEX IF NOT EXISTS idx_seat_assignments_table ON seat_assignments(table_id);
+CREATE INDEX IF NOT EXISTS idx_seat_assignments_wedding ON seat_assignments(wedding_id);
+CREATE INDEX IF NOT EXISTS idx_seat_assignments_guest ON seat_assignments(guest_id);
+CREATE INDEX IF NOT EXISTS idx_venue_chat_history_venue_wedding ON venue_chat_history(venue_id, wedding_id);
+CREATE INDEX IF NOT EXISTS idx_venue_requests_wedding ON venue_requests(wedding_id);
+CREATE INDEX IF NOT EXISTS idx_venue_offer_categories_venue ON venue_offer_categories(venue_id);
+CREATE INDEX IF NOT EXISTS idx_venue_offers_category ON venue_offers(category_id);
+CREATE INDEX IF NOT EXISTS idx_venue_documents_venue ON venue_documents(venue_id);
+CREATE INDEX IF NOT EXISTS idx_invitation_templates_wedding ON invitation_templates(wedding_id);
+CREATE INDEX IF NOT EXISTS idx_moodboards_user ON moodboards(user_id);
+CREATE INDEX IF NOT EXISTS idx_moodboard_elements_moodboard ON moodboard_elements(moodboard_id);
+CREATE INDEX IF NOT EXISTS idx_token_usage_user ON token_usage(user_id);
+CREATE INDEX IF NOT EXISTS idx_reminder_sent_reminder ON reminder_sent(reminder_id);

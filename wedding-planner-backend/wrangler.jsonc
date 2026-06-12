@@ -10,6 +10,12 @@
       "database_id": "e123df31-5265-49af-b674-f6ffc9554b16"
     }
   ],
+  "kv_namespaces": [
+    {
+      "binding": "RATE_LIMIT",
+      "id": "51ca7fc808bf48db90647ad82de79d45"
+    }
+  ],
   "observability": {
     "enabled": true
   }

@@ -5,12 +5,13 @@ import hmac
 import os
 import base64
 import secrets
-import time
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from auth import create_token, create_guest_token, require_admin_auth, decode_token
+from auth import create_token, create_guest_token, require_couple_auth, decode_token
 from middleware import get_db
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -61,28 +62,30 @@ _WEAK_PASSWORDS = frozenset([
     "mustang1", "shadow123", "superman1", "michael1", "football1",
 ])
 
-# ---------- In-memory rate limiter (per-IP, per-account) ----------
-# Maps key -> list of timestamps; evicted lazily.
-_rate_buckets: dict[str, list[float]] = {}
+# ---------- Durable rate limiter (Cloudflare KV, per-IP / per-account) ----------
+_RATE_LIMIT_WINDOW = 900    # 15 minutes in seconds
+_RATE_LIMIT_REGISTER = 5    # register: 5 / IP / window
+_RATE_LIMIT_LOGIN = 10      # login: 10 / IP and 10 / account / window
+_RATE_LIMIT_SENSITIVE = 5   # reset/verify/resend/forgot: 5 / IP / window
 
-_RATE_LIMIT_WINDOW = 900   # 15 minutes in seconds
-_RATE_LIMIT_REGISTER = 5   # max registration attempts per IP per window
-_RATE_LIMIT_LOGIN = 10     # max login attempts per IP/account per window
 
-def _rate_check(key: str, limit: int) -> None:
-    """Raise 429 if key has exceeded limit within the rolling window."""
-    now = time.time()
-    cutoff = now - _RATE_LIMIT_WINDOW
-    bucket = _rate_buckets.get(key, [])
-    bucket = [t for t in bucket if t > cutoff]
-    if len(bucket) >= limit:
-        retry_after = int(_RATE_LIMIT_WINDOW - (now - bucket[0]))
-        raise HTTPException(
-            429,
-            f"Too many attempts. Please try again in {retry_after // 60 + 1} minutes.",
-        )
-    bucket.append(now)
-    _rate_buckets[key] = bucket
+def _rl_env(request: Request):
+    """Best-effort extraction of the Worker env from the request scope."""
+    try:
+        return request.scope["env"]
+    except Exception:
+        return None
+
+
+async def _enforce_rate_limit(
+    request: Request, key: str, limit: int, window_seconds: int = _RATE_LIMIT_WINDOW
+) -> None:
+    """Raise 429 if *key* has exceeded *limit* within the window (durable KV)."""
+    from services import rate_limit
+    allowed = await rate_limit.check(_rl_env(request), key, limit, window_seconds)
+    if not allowed:
+        raise HTTPException(429, "Too many attempts. Please try again later.")
+
 
 def _get_client_ip(request: Request) -> str:
     cf_ip = request.headers.get("CF-Connecting-IP")
@@ -94,21 +97,6 @@ def _get_client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-def _row_to_dict(row) -> dict | None:
-    """Normalize Cloudflare D1 rows across dict/JsProxy representations."""
-    if row is None:
-        return None
-    if isinstance(row, dict):
-        return row
-    to_py = getattr(row, "to_py", None)
-    if callable(to_py):
-        converted = to_py()
-        if isinstance(converted, dict):
-            return converted
-    try:
-        return dict(row)
-    except Exception as exc:
-        raise HTTPException(500, f"Unexpected DB row format: {type(row).__name__}") from exc
 
 # ---------- Helpers ----------
 
@@ -195,14 +183,14 @@ async def login(body: LoginBody, request: Request):
         raise HTTPException(400, "Email and password are required")
 
     # Rate-limit by IP and by account to prevent brute-force
-    _rate_check(f"login:ip:{ip}", _RATE_LIMIT_LOGIN)
-    _rate_check(f"login:account:{email}", _RATE_LIMIT_LOGIN)
+    await _enforce_rate_limit(request, f"login:ip:{ip}", _RATE_LIMIT_LOGIN)
+    await _enforce_rate_limit(request, f"login:account:{email}", _RATE_LIMIT_LOGIN)
 
     user = await db.prepare(
         "SELECT * FROM users WHERE email = ?"
     ).bind(email).first()
 
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     if not user or not _check_password(body.password, user.get("password_hash", "")):
         raise HTTPException(401, "Invalid credentials")
 
@@ -239,7 +227,7 @@ async def register_couple(body: RegisterBody, request: Request):
     db = await get_db(request)
 
     ip = _get_client_ip(request)
-    _rate_check(f"register:ip:{ip}", _RATE_LIMIT_REGISTER)
+    await _enforce_rate_limit(request, f"register:ip:{ip}", _RATE_LIMIT_REGISTER)
 
     # Validate required fields
     missing: list[str] = []
@@ -346,19 +334,20 @@ async def register_couple(body: RegisterBody, request: Request):
 @router.post("/verify-email")
 async def verify_email(body: VerifyEmailBody, request: Request):
     """Consume a verification token and mark the user's email as verified."""
+    await _enforce_rate_limit(request, f"verify-email:ip:{_get_client_ip(request)}", _RATE_LIMIT_SENSITIVE)
     if not body.token:
         raise HTTPException(400, "Verification token is required")
 
     db = await get_db(request)
 
-    row = await db.prepare(
+    raw = await db.prepare(
         "SELECT * FROM email_verifications WHERE token = ? AND used_at IS NULL"
     ).bind(body.token).first()
 
-    if not row:
+    if not raw:
         raise HTTPException(400, "Invalid or already-used verification token")
 
-    row = _row_to_dict(row)
+    row = row_to_dict(raw)
     now_utc = datetime.now(timezone.utc)
 
     # Check expiry
@@ -371,18 +360,11 @@ async def verify_email(body: VerifyEmailBody, request: Request):
 
     user_id = row["user_id"]
 
-    # Mark user as verified. Older schemas may not yet have email_verified columns.
-    try:
-        await db.prepare(
-            "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
-            "updated_at = datetime('now') WHERE id = ?"
-        ).bind(user_id).run()
-    except Exception as exc:
-        if "no such column: email_verified" not in str(exc):
-            raise
-        await db.prepare(
-            "UPDATE users SET updated_at = datetime('now') WHERE id = ?"
-        ).bind(user_id).run()
+    # Mark user as verified (email_verified columns are guaranteed by schema.sql).
+    await db.prepare(
+        "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
+        "updated_at = datetime('now') WHERE id = ?"
+    ).bind(user_id).run()
 
     # Mark token as used
     await db.prepare(
@@ -397,7 +379,7 @@ async def resend_verification(body: ResendVerificationBody, request: Request):
     """Re-issue a verification token for an unverified account."""
     db = await get_db(request)
     ip = _get_client_ip(request)
-    _rate_check(f"resend-verification:ip:{ip}", 3)
+    await _enforce_rate_limit(request, f"resend-verification:ip:{ip}", _RATE_LIMIT_SENSITIVE)
 
     email = body.email.strip().lower() if body.email else ""
     if not email:
@@ -408,7 +390,7 @@ async def resend_verification(body: ResendVerificationBody, request: Request):
     if not user:
         return {"message": "If that email exists and is unverified, a new link has been sent."}
 
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     if user.get("email_verified") == 1:
         return {"message": "Email is already verified. You can log in."}
 
@@ -439,7 +421,7 @@ async def forgot_password(body: ForgotPasswordBody, request: Request):
     """Generate a password-reset token and email it. Always returns 200."""
     db = await get_db(request)
     ip = _get_client_ip(request)
-    _rate_check(f"forgot-password:ip:{ip}", 3)
+    await _enforce_rate_limit(request, f"forgot-password:ip:{ip}", _RATE_LIMIT_SENSITIVE)
 
     email = body.email.strip().lower() if body.email else ""
     if not email:
@@ -449,7 +431,7 @@ async def forgot_password(body: ForgotPasswordBody, request: Request):
     if not user:
         return {"message": "If that email is registered, a reset link has been sent."}
 
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
 
     # Invalidate existing unused reset tokens for this user
     await db.prepare(
@@ -478,6 +460,7 @@ async def forgot_password(body: ForgotPasswordBody, request: Request):
 @router.post("/reset-password")
 async def reset_password(body: ResetPasswordBody, request: Request):
     """Consume a password-reset token and set the new password."""
+    await _enforce_rate_limit(request, f"reset-password:ip:{_get_client_ip(request)}", _RATE_LIMIT_SENSITIVE)
     if not body.token:
         raise HTTPException(400, "Reset token is required")
     if body.password != body.password_confirmation:
@@ -489,14 +472,14 @@ async def reset_password(body: ResetPasswordBody, request: Request):
 
     db = await get_db(request)
 
-    row = await db.prepare(
+    raw = await db.prepare(
         "SELECT * FROM password_reset_tokens WHERE token = ? AND used_at IS NULL"
     ).bind(body.token).first()
 
-    if not row:
+    if not raw:
         raise HTTPException(400, "Invalid or already-used reset token")
 
-    row = _row_to_dict(row)
+    row = row_to_dict(raw)
     now_utc = datetime.now(timezone.utc)
     try:
         expires = datetime.fromisoformat(row["expires_at"]).replace(tzinfo=timezone.utc)
@@ -506,18 +489,11 @@ async def reset_password(body: ResetPasswordBody, request: Request):
         raise HTTPException(400, "Invalid reset token")
 
     user_id = row["user_id"]
-    try:
-        await db.prepare(
-            "UPDATE users SET password_hash = ?, email_verified = 1, "
-            "updated_at = datetime('now') WHERE id = ?"
-        ).bind(_hash_password(body.password), user_id).run()
-    except Exception as exc:
-        if "no such column: email_verified" not in str(exc):
-            raise
-        # Backward compatibility for older users schema.
-        await db.prepare(
-            "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?"
-        ).bind(_hash_password(body.password), user_id).run()
+    # email_verified column is guaranteed by schema.sql.
+    await db.prepare(
+        "UPDATE users SET password_hash = ?, email_verified = 1, "
+        "updated_at = datetime('now') WHERE id = ?"
+    ).bind(_hash_password(body.password), user_id).run()
 
     await db.prepare(
         "UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?"
@@ -551,12 +527,12 @@ async def register(body: LoginBody, request: Request):
 
 
 @router.get("/profile")
-async def get_profile(payload: dict = Depends(require_admin_auth), request: Request = None):
+async def get_profile(payload: dict = Depends(require_couple_auth), request: Request = None):
     db = await get_db(request)
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(payload["sub"]).first()
     if not user:
         raise HTTPException(404, "User not found")
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     return {
         "id": user["id"],
         "email": user["email"],
@@ -572,7 +548,7 @@ async def get_profile(payload: dict = Depends(require_admin_auth), request: Requ
 @router.put("/profile")
 async def update_profile(
     body: ProfileUpdateBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     db = await get_db(request)
@@ -602,7 +578,7 @@ async def update_profile(
         ).bind(_hash_password(body.password), user_id).run()
 
     user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
-    user = _row_to_dict(user)
+    user = row_to_dict(user)
     return {
         "id": user["id"],
         "email": user["email"],

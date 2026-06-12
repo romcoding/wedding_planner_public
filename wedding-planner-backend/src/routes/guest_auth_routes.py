@@ -3,6 +3,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from auth import create_guest_token, decode_token
 from middleware import get_db
 
+from db import row_to_dict, rows_to_list
+
 router = APIRouter()
 
 
@@ -26,7 +28,7 @@ async def guest_profile(request: Request):
     if not guest:
         raise HTTPException(404, "Guest not found")
 
-    guest = dict(guest)
+    guest = row_to_dict(guest)
     return {
         "id": guest["id"],
         "first_name": guest["first_name"],

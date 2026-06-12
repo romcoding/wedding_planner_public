@@ -1,7 +1,12 @@
 import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
-from middleware import get_db, get_wedding
+from middleware import get_db
+from entitlements import require_feature
+
+_gate = require_feature("messages")
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -13,25 +18,33 @@ class MessageBody(BaseModel):
 
 
 @router.get("")
-async def list_messages(wedding: dict = Depends(get_wedding), request: Request = None):
+async def list_messages(wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     result = await db.prepare(
         "SELECT m.*, g.first_name, g.last_name FROM messages m "
-        "LEFT JOIN guests g ON m.guest_id = g.id "
+        "LEFT JOIN guests g ON m.guest_id = g.id AND g.wedding_id = ? "
         "WHERE m.wedding_id = ? ORDER BY m.created_at ASC"
-    ).bind(wedding["id"]).all()
-    return [dict(r) for r in (result.results or [])]
+    ).bind(wedding["id"], wedding["id"]).all()
+    return rows_to_list(result)
 
 
 @router.post("", status_code=201)
 async def create_message(
     body: MessageBody,
-    wedding: dict = Depends(get_wedding),
+    wedding: dict = Depends(_gate),
     request: Request = None,
 ):
     db = await get_db(request)
     if not body.content:
         raise HTTPException(400, "Content is required")
+
+    # Verify a client-supplied guest_id belongs to this wedding before insert.
+    if body.guest_id:
+        guest = await db.prepare(
+            "SELECT id FROM guests WHERE id = ? AND wedding_id = ?"
+        ).bind(body.guest_id, wedding["id"]).first()
+        if not guest:
+            raise HTTPException(404, "Guest not found")
 
     msg_id = str(uuid.uuid4())
     await db.prepare(
@@ -39,12 +52,15 @@ async def create_message(
         "VALUES (?, ?, ?, ?, ?, 0, datetime('now'))"
     ).bind(msg_id, wedding["id"], body.guest_id, body.content, body.sender_type or "admin").run()
 
-    msg = await db.prepare("SELECT * FROM messages WHERE id = ?").bind(msg_id).first()
-    return dict(msg)
+    msg = row_to_dict(await db.prepare("SELECT * FROM messages WHERE id = ?").bind(msg_id).first())
+    if msg is None:
+        print(f"[messages] post-insert re-select missed for {msg_id}")
+        raise HTTPException(500, "Failed to create message")
+    return msg
 
 
 @router.put("/{message_id}/read")
-async def mark_read(message_id: str, wedding: dict = Depends(get_wedding), request: Request = None):
+async def mark_read(message_id: str, wedding: dict = Depends(_gate), request: Request = None):
     db = await get_db(request)
     await db.prepare(
         "UPDATE messages SET is_read = 1 WHERE id = ? AND wedding_id = ?"

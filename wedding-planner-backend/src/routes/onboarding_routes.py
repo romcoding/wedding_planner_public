@@ -1,9 +1,11 @@
 import uuid
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, Depends, HTTPException
-from auth import require_admin_auth
+from auth import require_couple_auth
 from middleware import get_db, get_wedding
 from pydantic import BaseModel
+
+from db import row_to_dict, rows_to_list
 
 router = APIRouter()
 
@@ -19,26 +21,11 @@ DEFAULTS = {
 }
 
 
-def _row_to_dict(row) -> dict | None:
-    """Normalize Cloudflare D1 rows across dict/JsProxy representations."""
-    if row is None:
-        return None
-    if isinstance(row, dict):
-        return row
-    to_py = getattr(row, "to_py", None)
-    if callable(to_py):
-        converted = to_py()
-        if isinstance(converted, dict):
-            return converted
-    try:
-        return dict(row)
-    except Exception as exc:
-        raise HTTPException(500, f"Unexpected DB row format: {type(row).__name__}") from exc
 
 
-def _row_count(row, key: str = "c") -> int:
+def _row_count(raw, key: str = "c") -> int:
     """Read an integer aggregate (e.g. SELECT COUNT(*) AS c) from a D1 row."""
-    data = _row_to_dict(row)
+    data = row_to_dict(raw)
     if not data:
         return 0
     try:
@@ -97,14 +84,14 @@ def _build_task_template():
 
 @router.get("/status")
 async def onboarding_status(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     """Return onboarding completion state for the authenticated user."""
     db = await get_db(request)
     user_id = payload["sub"]
 
-    user = _row_to_dict(
+    user = row_to_dict(
         await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
     )
     if not user:
@@ -112,7 +99,7 @@ async def onboarding_status(
 
     wedding = None
     if user.get("current_wedding_id"):
-        wedding = _row_to_dict(
+        wedding = row_to_dict(
             await db.prepare(
                 "SELECT * FROM weddings WHERE id = ?"
             ).bind(user["current_wedding_id"]).first()
@@ -138,7 +125,7 @@ async def onboarding_status(
 
 @router.post("/complete")
 async def complete_onboarding(
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
     """Mark onboarding as complete — no-op in this version, returns current status."""
@@ -148,7 +135,7 @@ async def complete_onboarding(
 @router.post("/quick-setup")
 async def quick_setup(
     body: QuickSetupBody,
-    payload: dict = Depends(require_admin_auth),
+    payload: dict = Depends(require_couple_auth),
     wedding: dict = Depends(get_wedding),
     request: Request = None,
 ):
@@ -190,7 +177,7 @@ async def quick_setup(
     # Upsert per-wedding simple public content.
     message = f"{planner_brand} created this space so each guest has a smooth, premium wedding journey. {style_note}"
     faq = f"Hashtag: {wedding_hashtag}"
-    existing_content = _row_to_dict(
+    existing_content = row_to_dict(
         await db.prepare("SELECT id FROM wedding_content WHERE wedding_id = ?").bind(wedding["id"]).first()
     )
     if existing_content:

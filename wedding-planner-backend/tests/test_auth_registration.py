@@ -30,9 +30,9 @@ for _name in ("workers", "asgi", "js"):
 if "auth" not in sys.modules:
     auth_stub = _make_stub("auth")
     auth_stub.create_token = lambda user_id, wedding_id, role: f"token:{user_id}"
-    async def _fake_require_admin_auth():
+    async def _fake_require_couple_auth():
         return {"sub": "test-user-id"}
-    auth_stub.require_admin_auth = _fake_require_admin_auth
+    auth_stub.require_couple_auth = _fake_require_couple_auth
     auth_stub.decode_token = lambda t: {}
     auth_stub.create_guest_token = lambda *a, **kw: "guest_token"
 
@@ -59,6 +59,17 @@ _SRC = os.path.join(os.path.dirname(__file__), "..", "src")
 if _SRC not in sys.path:
     sys.path.insert(0, os.path.abspath(_SRC))
 
+# Load the real durable rate limiter and expose it on the stubbed services
+# package so auth_routes' lazy `from services import rate_limit` resolves to it.
+import importlib.util as _ilu
+_rl_spec = _ilu.spec_from_file_location(
+    "services.rate_limit", os.path.join(os.path.abspath(_SRC), "services", "rate_limit.py")
+)
+rate_limit = _ilu.module_from_spec(_rl_spec)
+_rl_spec.loader.exec_module(rate_limit)
+services_stub.rate_limit = rate_limit
+sys.modules["services.rate_limit"] = rate_limit
+
 from routes.auth_routes import (  # noqa: E402
     RegisterBody,
     VerifyEmailBody,
@@ -68,8 +79,6 @@ from routes.auth_routes import (  # noqa: E402
     _hash_password,
     _check_password,
     _validate_password_strength,
-    _rate_check,
-    _rate_buckets,
     register_couple,
     verify_email,
     resend_verification,
@@ -108,6 +117,13 @@ class FakeDB:
 
     def prepare(self, sql: str):
         return _PreparedStmt(sql, self)
+
+    async def batch(self, statements):
+        """Execute a list of prepared statements (mirrors D1 db.batch)."""
+        results = []
+        for stmt in statements:
+            results.append(await stmt.run())
+        return results
 
 
 class _PreparedStmt:
@@ -157,6 +173,9 @@ def _make_request(db: FakeDB):
     req = MagicMock()
     req.headers.get = MagicMock(return_value=None)
     req.client.host = ip
+    # Real dict scope without a RATE_LIMIT KV → the durable limiter fails open
+    # (allows), so these tests exercise handler logic, not rate limiting.
+    req.scope = {}
 
     # Patch the name that auth_routes actually uses (captured via `from middleware import get_db`)
     import sys
@@ -197,32 +216,56 @@ def test_validate_password_strength_ok():
 
 
 # ---------------------------------------------------------------------------
-# Rate-limiter tests
+# Durable rate-limiter tests (services.rate_limit.check, KV-backed)
 # ---------------------------------------------------------------------------
 
-def test_rate_check_allows_under_limit():
-    key = f"test:ratelimit:{uuid.uuid4()}"
-    for _ in range(3):
-        _rate_check(key, 5)  # should not raise
+class _FakeKV:
+    """In-memory stand-in for a Cloudflare KV namespace."""
+
+    def __init__(self):
+        self.store: dict[str, str] = {}
+
+    async def get(self, key):
+        return self.store.get(key)
+
+    async def put(self, key, value, options=None):
+        self.store[key] = value
 
 
-def test_rate_check_blocks_over_limit():
-    from fastapi import HTTPException as FastHTTPException
+class _FakeEnv:
+    def __init__(self):
+        self.RATE_LIMIT = _FakeKV()
+
+
+def test_rate_limit_allows_under_limit():
+    env = _FakeEnv()
     key = f"test:ratelimit:{uuid.uuid4()}"
     for _ in range(5):
-        _rate_check(key, 5)
-    with pytest.raises(FastHTTPException) as exc_info:
-        _rate_check(key, 5)
-    assert exc_info.value.status_code == 429
+        assert run(rate_limit.check(env, key, 5, 900)) is True
 
 
-def test_rate_check_different_keys_are_independent():
+def test_rate_limit_blocks_over_limit():
+    env = _FakeEnv()
+    key = f"test:ratelimit:{uuid.uuid4()}"
+    for _ in range(5):
+        assert run(rate_limit.check(env, key, 5, 900)) is True
+    # 6th call within the window is denied
+    assert run(rate_limit.check(env, key, 5, 900)) is False
+
+
+def test_rate_limit_different_keys_are_independent():
+    env = _FakeEnv()
     key_a = f"test:independent:a:{uuid.uuid4()}"
     key_b = f"test:independent:b:{uuid.uuid4()}"
     for _ in range(5):
-        _rate_check(key_a, 5)
-    # key_b has never been used, so this should be fine
-    _rate_check(key_b, 5)
+        run(rate_limit.check(env, key_a, 5, 900))
+    # key_b has never been used, so this should still be allowed
+    assert run(rate_limit.check(env, key_b, 5, 900)) is True
+
+
+def test_rate_limit_fails_open_without_kv():
+    # No KV binding (env=None) → allow rather than lock everyone out.
+    assert run(rate_limit.check(None, "anykey", 1, 900)) is True
 
 
 # ---------------------------------------------------------------------------
