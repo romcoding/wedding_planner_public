@@ -13,10 +13,22 @@ DEFAULT_MAX_TOKENS = 2000
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 
 
-def call_claude(system_prompt: str, user_message: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
-    """
-    Call Claude API via httpx (pure Python, no native extensions needed).
-    Raises RuntimeError on failure.
+def call_claude_json(
+    system_prompt: str,
+    user_message: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    temperature: float | None = None,
+    timeout: float = 60.0,
+) -> dict:
+    """Call the Anthropic Messages API and return the FULL parsed response dict.
+
+    This is the SINGLE low-level entry point to Anthropic — ``call_claude`` (text
+    only) is a thin wrapper over it, and the Wedi website generator reads the
+    ``usage`` field off the dict this returns. Keep every Anthropic call routed
+    through here so there is exactly one gated code path. Raises RuntimeError on
+    failure.
     """
     # Read the key per-call: on Workers the secret is mirrored into os.environ
     # per request (main.py), so reading it at import time would capture "".
@@ -31,19 +43,26 @@ def call_claude(system_prompt: str, user_message: str, max_tokens: int = DEFAULT
         "content-type": "application/json",
     }
     body = {
-        "model": DEFAULT_MODEL,
+        "model": model,
         "max_tokens": max_tokens,
         "system": system_prompt,
         "messages": [{"role": "user", "content": user_message}],
     }
+    if temperature is not None:
+        body["temperature"] = temperature
     try:
-        response = httpx.post(ANTHROPIC_API_URL, headers=headers, json=body, timeout=60.0)
+        response = httpx.post(ANTHROPIC_API_URL, headers=headers, json=body, timeout=timeout)
         response.raise_for_status()
-        data = response.json()
-        return data["content"][0]["text"]
+        return response.json()
     except Exception as e:
         logger.error(f"Claude API error: {e}")
         raise RuntimeError(f"AI request failed: {str(e)}")
+
+
+def call_claude(system_prompt: str, user_message: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
+    """Call Claude and return just the assistant text. Raises RuntimeError on failure."""
+    data = call_claude_json(system_prompt, user_message, max_tokens=max_tokens)
+    return data["content"][0]["text"]
 
 
 def _parse_json_response(raw: str) -> dict:
