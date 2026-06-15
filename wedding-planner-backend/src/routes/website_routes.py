@@ -19,24 +19,31 @@ There are two distinct RSVP channels in this codebase; do not conflate them:
     renderer land with the P4 public-hosting phase.)
 """
 import json
+import logging
 import re
 
 from fastapi import APIRouter, Request, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from middleware import get_db, get_env
-from entitlements import require_feature
+from entitlements import require_feature, get_plan
 from db import row_to_dict, rows_to_list
-from services import site_schema, rate_limit
+from services import site_schema, rate_limit, usage, wedi_site, ai_service
 from services.site_cache import purge_site_cache
 # Reuse the SAME PBKDF2 hashing as user auth (passlib pbkdf2_sha256) for the
 # optional guest password — never roll a second password scheme.
 from routes.auth_routes import _hash_password
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
 
 # All website routes share this gate (require_feature -> get_wedding chain).
 _gate = require_feature("website_builder")
+
+# Wedi generation is a distinct entitlement (premium/lifetime only) so a free
+# website-builder user (there is none today) could never reach the model path.
+_wedi_gate = require_feature("wedi_site_generation")
 
 # Slugs that can never be claimed (collide with product/app routes).
 RESERVED_SLUGS = {
@@ -64,6 +71,11 @@ class SettingsBody(BaseModel):
     # Optional guest password: a non-empty string sets it, "" clears it,
     # None leaves it unchanged.
     password: str | None = None
+
+
+class GenerateBody(BaseModel):
+    prompt: str = ""
+    mode: str = "full"  # 'full' (whole site) | 'refine' (targeted block edits)
 
 
 # ---------------------------------------------------------------------------
@@ -366,3 +378,134 @@ async def restore_revision(
     ).bind(rev["snapshot"], site["id"]).run()
     raw = await db.prepare("SELECT * FROM wedding_sites WHERE id = ?").bind(site["id"]).first()
     return _site_dict(row_to_dict(raw))
+
+
+# ---------------------------------------------------------------------------
+# Wedi generation ("Wedi designs your website")
+# ---------------------------------------------------------------------------
+
+_WEDI_FAILED_DETAIL = {
+    "code": "wedi_failed",
+    "detail": "Wedi couldn't finish this draft just now — please try again.",
+}
+
+
+async def _wedding_context(db, wedding: dict) -> dict:
+    """Assemble the SAFE generation context for a wedding.
+
+    Includes ONLY partner names, the date, the location/venue, and agenda
+    highlights (titles/times/locations). It must NEVER include guest rows or
+    emails, costs, or messages — those never leave the database for generation.
+    """
+    ctx = {
+        "partner_one": (wedding.get("partner_one_name") or "").strip(),
+        "partner_two": (wedding.get("partner_two_name") or "").strip(),
+        "wedding_date": (wedding.get("wedding_date") or "").strip(),
+        "location": (wedding.get("location") or "").strip(),
+        "agenda_highlights": [],
+    }
+    try:
+        result = await db.prepare(
+            'SELECT title, start_time, location FROM agenda_items '
+            'WHERE wedding_id = ? ORDER BY "order", start_time LIMIT 8'
+        ).bind(wedding["id"]).all()
+        for item in rows_to_list(result):
+            title = (item.get("title") or "").strip()
+            if title:
+                ctx["agenda_highlights"].append({
+                    "title": title,
+                    "time": (item.get("start_time") or "").strip(),
+                    "location": (item.get("location") or "").strip(),
+                })
+    except Exception:  # agenda is best-effort context; never block generation on it
+        ctx["agenda_highlights"] = []
+    return ctx
+
+
+@router.post("/generate")
+async def generate(
+    body: GenerateBody,
+    wedding: dict = Depends(_wedi_gate),
+    request: Request = None,
+):
+    """Let Wedi draft (mode='full') or refine (mode='refine') the site.
+
+    Strict order of operations: kill switch -> per-minute velocity -> monthly
+    budget -> model call -> validate/merge -> save to DRAFT (never auto-publish)
+    -> record usage from actual token counts.
+    """
+    env = await get_env(request)
+    db = await get_db(request)
+    wedding_id = wedding["id"]
+    plan = get_plan(wedding)
+
+    # 1. Kill switch — before any work, so a paused feature costs nothing.
+    if usage.generation_disabled(env):
+        raise HTTPException(503, {
+            "code": "wedi_paused",
+            "detail": "Wedi is taking a short break — please try again soon.",
+        })
+
+    prompt = (body.prompt or "").strip()
+    if len(prompt) > 1500:
+        raise HTTPException(400, {
+            "code": "prompt_too_long",
+            "detail": "Please shorten your note to Wedi a little.",
+        })
+    mode = "refine" if body.mode == "refine" else "full"
+
+    # 2. Per-minute velocity (KV-backed; fails open if unconfigured).
+    if not await usage.within_velocity(env, wedding_id):
+        raise HTTPException(429, {
+            "code": "slow_down",
+            "detail": "Wedi is still working — give it a moment.",
+        })
+
+    # 3. Monthly budget — BEFORE the model call, so an over-limit account makes
+    #    zero model requests.
+    try:
+        await usage.check_budget(db, wedding_id, plan)
+    except usage.BudgetExceeded as exc:
+        await usage.log_generation(db, wedding_id, ai_service.DEFAULT_MODEL, "over_limit", purpose=mode)
+        raise HTTPException(429, {
+            "code": "wedi_limit",
+            "detail": f"Wedi has reached this month's design limit. It resets on {exc.resets_on}.",
+        })
+
+    site = await _get_or_create_site(db, wedding)
+    current_content = _parse_doc(site.get("draft_content"))
+    wedding_context = await _wedding_context(db, wedding)
+
+    # 4 + 5. Model call, then validate/merge (one retry lives inside the service).
+    try:
+        result = await wedi_site.generate_site_content(
+            env, wedding_context, prompt, current_content, mode
+        )
+    except (wedi_site.GenerationError, RuntimeError) as exc:
+        logger.warning(f"wedi generation failed for wedding {wedding_id}: {exc}")
+        await usage.log_generation(db, wedding_id, ai_service.DEFAULT_MODEL, "error", purpose=mode)
+        raise HTTPException(502, _WEDI_FAILED_DETAIL)
+
+    doc = result["content"]
+
+    # 6. Save to the DRAFT only — Wedi never publishes on the couple's behalf.
+    await db.prepare(
+        "UPDATE wedding_sites SET draft_content = ?, updated_at = datetime('now') WHERE id = ?"
+    ).bind(json.dumps(doc), site["id"]).run()
+
+    # 7. Record usage from the model's ACTUAL token counts (+ an 'ok' audit row).
+    await usage.record_usage(db, wedding_id, result["model"], result["usage"], purpose=mode)
+
+    status = await usage.get_status(db, wedding_id, plan)
+    return {"content": doc, "remaining_generations": status["remaining"]}
+
+
+@router.get("/generation-status")
+async def generation_status(
+    wedding: dict = Depends(_wedi_gate),
+    request: Request = None,
+):
+    """Wedi's monthly usage for the quiet footer indicator and client gating."""
+    db = await get_db(request)
+    status = await usage.get_status(db, wedding["id"], get_plan(wedding))
+    return {"used": status["used"], "limit": status["limit"], "resetsOn": status["resetsOn"]}
