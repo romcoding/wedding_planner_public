@@ -635,3 +635,39 @@ CREATE TABLE IF NOT EXISTS site_rsvp_responses (
 
 CREATE INDEX IF NOT EXISTS idx_site_rsvp_responses_wedding ON site_rsvp_responses(wedding_id);
 CREATE INDEX IF NOT EXISTS idx_site_rsvp_responses_site ON site_rsvp_responses(site_id);
+
+-- Wedi website-generation usage ledger (SEPARATE from the legacy ai_usage /
+-- token_usage daily-cap tables — do not overload those). This is the monthly
+-- budget for "Wedi designs your website": a generation counter and the actual
+-- token totals reported by the model, keyed by UTC 'YYYY-MM' period so the
+-- monthly reset is implicit (no cron).
+--
+-- ID TYPES (mirror of the wedding_sites convention): the surrogate id is an
+-- INTEGER rowid PK (monotonic), but every FOREIGN KEY column keeps its
+-- referent's actual type — weddings(id) is a TEXT uuid, so wedding_id is TEXT.
+CREATE TABLE IF NOT EXISTS wedi_site_usage (
+  id INTEGER PRIMARY KEY,
+  wedding_id TEXT NOT NULL REFERENCES weddings(id),
+  period TEXT NOT NULL,                     -- 'YYYY-MM' (UTC); monthly reset is implicit
+  generations INTEGER NOT NULL DEFAULT 0,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(wedding_id, period)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wedi_site_usage_wedding ON wedi_site_usage(wedding_id);
+
+-- Append-only audit of every generation attempt (one row per attempt), used for
+-- reconciling against the model provider's console and for diagnosing failures.
+CREATE TABLE IF NOT EXISTS wedi_generation_log (
+  id INTEGER PRIMARY KEY,
+  wedding_id TEXT NOT NULL REFERENCES weddings(id),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  model TEXT,
+  input_tokens INTEGER NOT NULL DEFAULT 0,
+  output_tokens INTEGER NOT NULL DEFAULT 0,
+  status TEXT NOT NULL CHECK (status IN ('ok','error','over_limit')),
+  purpose TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_wedi_generation_log_wedding ON wedi_generation_log(wedding_id);
