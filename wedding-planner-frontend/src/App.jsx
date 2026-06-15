@@ -32,6 +32,7 @@ import UsersPage from './pages/admin/UsersPage'
 import QuickSetupPage from './pages/admin/QuickSetupPage'
 import BillingPage from './pages/admin/BillingPage'
 import OnboardingWizard from './pages/admin/OnboardingWizard'
+import WebsiteBuilderPage from './features/website/WebsiteBuilderPage'
 
 // Guest pages
 import GuestHome from './pages/guest/Home'
@@ -183,6 +184,7 @@ function AppRoutes() {
         <Route path="wedding" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WeddingManagement />} fallbackTo="/admin/guests" />} />
         <Route path="images" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ImagesPage />} fallbackTo="/admin/guests" />} />
         <Route path="webpage" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<WebpageBuilderPage />} fallbackTo="/admin/guests" />} />
+        <Route path="website" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<WebsiteBuilderPage />} fallbackTo="/admin/guests" />} />
         <Route path="invitations" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<InvitationsPage />} fallbackTo="/admin/guests" />} />
         <Route path="rsvp-reminders" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<RSVPRemindersPage />} fallbackTo="/admin/guests" />} />
         <Route path="costs" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<CostsPage />} fallbackTo="/admin/guests" />} />

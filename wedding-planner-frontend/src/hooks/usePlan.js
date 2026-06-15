@@ -45,6 +45,8 @@ export function usePlan() {
       return
     }
     refresh()
+    // Intentionally keyed on wedding id only — refresh() reads the latest wedding.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wedding?.id])
 
   const plan = status?.plan || wedding?.plan || 'free'

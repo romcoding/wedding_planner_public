@@ -20,9 +20,13 @@ export const FEATURE_MIN_PLAN = {
   gift_registry: "premium",
   venue: "premium",
   rsvp_reminders: "premium",
+  website: "premium",
 };
 
-export const PLAN_ORDER = { free: 0, starter: 1, premium: 2 };
+// 'lifetime' is the top tier (full entitlements server-side). It was missing
+// here, which wrongly gated lifetime/admin-override accounts out of premium
+// features — include it so they correctly clear every premium gate.
+export const PLAN_ORDER = { free: 0, starter: 1, premium: 2, lifetime: 3 };
 
 export function hasFeature(currentPlan, feature) {
   const required = FEATURE_MIN_PLAN[feature] || "free";
@@ -33,4 +37,5 @@ export const PLAN_NAMES = {
   free: "Free",
   starter: "Starter",
   premium: "Premium",
+  lifetime: "Lifetime",
 };
