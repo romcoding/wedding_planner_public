@@ -79,6 +79,34 @@ npx wrangler secret put FRONTEND_URL --name wedding-planner-api
 npx wrangler secret put FROM_EMAIL --name wedding-planner-api
 ```
 
+### 4. Wedi website generation — budget & kill switch
+
+"Wedi designs your website" calls the model with HARD server-side cost controls
+(monthly generation/token budgets in `entitlements.py`, per-minute velocity on
+the `RATE_LIMIT` KV namespace, and a 4000-token-per-request ceiling). No extra
+secret is required beyond `ANTHROPIC_API_KEY` above.
+
+Apply the usage-ledger migration once (fresh databases get it from `schema.sql`):
+
+```bash
+npx wrangler d1 execute wedding-planner-db --file=wedding-planner-backend/migrations/005_wedi_usage.sql
+```
+
+**Operator kill switch.** To pause all Wedi generation instantly (incidents,
+cost spikes) set the `WEDI_GENERATION_DISABLED` var to `"1"` — the generate
+endpoint then returns `503 wedi_paused` before any model call. Unset it (or set
+anything other than `"1"`) to resume.
+
+```bash
+# Pause:
+npx wrangler secret put WEDI_GENERATION_DISABLED --name wedding-planner-api   # enter: 1
+# Resume:
+npx wrangler secret delete WEDI_GENERATION_DISABLED --name wedding-planner-api
+```
+
+> It can also be set as a plain `[vars]` entry in `wrangler.jsonc` if you prefer
+> a non-secret toggle; a secret is recommended so flipping it needs no redeploy.
+
 ---
 
 ## Deploy Backend API Worker

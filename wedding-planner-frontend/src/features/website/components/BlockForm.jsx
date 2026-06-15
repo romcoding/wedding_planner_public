@@ -1,5 +1,6 @@
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, Sparkles } from 'lucide-react'
 import { BLOCK_SPECS, BLOCK_LABELS, BLOCK_HINTS, validateBlockData } from '../siteSchema'
+import { ROSE_GOLD } from '../wedi'
 
 const FIELD_LABELS = {
   coupleNames: 'Couple names',
@@ -222,7 +223,7 @@ function ObjListField({ label, value, onChange, cap, item, error }) {
 }
 
 // Per-block form, generated from the shared field spec (no raw JSON in the UI).
-export default function BlockForm({ block, onChange }) {
+export default function BlockForm({ block, onChange, onRefine, refineDisabled }) {
   const spec = BLOCK_SPECS[block.type]
   const data = block.data || {}
   const set = (field, value) => onChange({ [field]: value })
@@ -241,9 +242,25 @@ export default function BlockForm({ block, onChange }) {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h3 className="font-semibold text-gray-900">{BLOCK_LABELS[block.type]}</h3>
-        <p className="text-xs text-gray-500 mt-0.5">{BLOCK_HINTS[block.type]}</p>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="font-semibold text-gray-900">{BLOCK_LABELS[block.type]}</h3>
+          <p className="text-xs text-gray-500 mt-0.5">{BLOCK_HINTS[block.type]}</p>
+        </div>
+        {onRefine ? (
+          <button
+            type="button"
+            onClick={onRefine}
+            disabled={refineDisabled}
+            title="Ask Wedi to rework this section"
+            aria-label="Ask Wedi to rework this section"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium flex-shrink-0 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ color: ROSE_GOLD, background: '#FFF4EA' }}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            Ask Wedi
+          </button>
+        ) : null}
       </div>
       {Object.entries(spec).map(([field, fspec]) => {
         const id = `f-${block.type}-${field}`

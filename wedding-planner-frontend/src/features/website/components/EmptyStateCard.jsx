@@ -4,8 +4,9 @@ import Tooltip from '../../../components/ui/Tooltip'
 const ROSE_GOLD = '#C4956A'
 
 // Warm intro shown until the site is first published. The "Let Wedi draft it
-// for you" action is present but disabled — P3 will wire it up.
-export default function EmptyStateCard({ onDismiss }) {
+// for you" action opens the generation sheet (disabled once the monthly design
+// limit is reached).
+export default function EmptyStateCard({ onDismiss, onDraft, atLimit }) {
   return (
     <div
       className="relative rounded-2xl border p-5"
@@ -35,17 +36,32 @@ export default function EmptyStateCard({ onDismiss }) {
             below, make them yours, pick a theme, and publish when you are ready.
           </p>
           <div className="mt-3">
-            <Tooltip content="Coming right up" position="right">
+            {onDraft && !atLimit ? (
               <button
                 type="button"
-                disabled
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white text-sm font-medium opacity-60 cursor-not-allowed"
+                onClick={onDraft}
+                className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white text-sm font-medium hover:opacity-90"
                 style={{ background: ROSE_GOLD }}
               >
                 <Sparkles className="w-4 h-4" />
                 Let Wedi draft it for you
               </button>
-            </Tooltip>
+            ) : (
+              <Tooltip
+                content={atLimit ? "Wedi's monthly limit is reached" : 'Coming right up'}
+                position="right"
+              >
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center gap-2 px-3 py-2 rounded-lg text-white text-sm font-medium opacity-60 cursor-not-allowed"
+                  style={{ background: ROSE_GOLD }}
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Let Wedi draft it for you
+                </button>
+              </Tooltip>
+            )}
           </div>
         </div>
       </div>

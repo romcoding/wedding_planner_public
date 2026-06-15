@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Sparkles } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import useWebsite from './hooks/useWebsite'
 import PublishBar from './components/PublishBar'
@@ -10,11 +11,23 @@ import PreviewPane from './components/PreviewPane'
 import EmptyStateCard from './components/EmptyStateCard'
 import RevisionHistory from './components/RevisionHistory'
 import GuestAccess from './components/GuestAccess'
+import WediGenerateSheet from './components/WediGenerateSheet'
+import { BLOCK_LABELS } from './siteSchema'
+import { ROSE_GOLD, formatResetDate, isAtLimit } from './wedi'
 
 function errorMessage(err, fallback) {
   const detail = err?.response?.data
   if (detail && typeof detail === 'object' && detail.error) return detail.error
   if (typeof detail === 'string') return detail
+  return fallback
+}
+
+// Wedi endpoints return FastAPI-style { detail: { code, detail } } bodies; pull
+// out the friendly message (e.g. the monthly-limit copy) when present.
+function wediError(err, fallback) {
+  const d = err?.response?.data?.detail
+  if (d && typeof d === 'object' && d.detail) return d.detail
+  if (typeof d === 'string') return d
   return fallback
 }
 
@@ -24,6 +37,33 @@ export default function WebsiteBuilder() {
   const [selected, setSelected] = useState('hero')
   const [showIntro, setShowIntro] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [generating, setGenerating] = useState(false)
+  const [sheet, setSheet] = useState({ open: false, mode: 'full', sectionLabel: null })
+
+  const atLimit = isAtLimit(site.wedi)
+
+  const openFull = () => setSheet({ open: true, mode: 'full', sectionLabel: null })
+  const openRefine = (label) => setSheet({ open: true, mode: 'refine', sectionLabel: label })
+  const closeSheet = () => setSheet((s) => ({ ...s, open: false }))
+
+  const onGenerate = async (promptText) => {
+    const { mode, sectionLabel } = sheet
+    closeSheet()
+    setGenerating(true)
+    try {
+      // For a targeted rework, name the section so Wedi edits the right block.
+      const finalPrompt =
+        mode === 'refine' && sectionLabel
+          ? `Rework the “${sectionLabel}” section. ${promptText}`
+          : promptText
+      await site.generate(finalPrompt, mode)
+      toast.success('Draft updated — review and publish when ready.')
+    } catch (err) {
+      toast.error(wediError(err, "Wedi couldn't finish this draft just now — please try again."))
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   if (site.loading) {
     return <div className="py-20 text-center text-gray-400">Loading your website…</div>
@@ -121,10 +161,25 @@ export default function WebsiteBuilder() {
 
       <div className="grid gap-4 lg:grid-cols-[330px_minmax(0,1fr)]">
         <div className="space-y-4">
-          {showIntro && !site.publishedAt ? <EmptyStateCard onDismiss={() => setShowIntro(false)} /> : null}
+          {showIntro && !site.publishedAt ? (
+            <EmptyStateCard onDismiss={() => setShowIntro(false)} onDraft={openFull} atLimit={atLimit} />
+          ) : null}
 
           <div className="rounded-xl border border-gray-200 bg-white p-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400 px-1 mb-2">Sections</h2>
+            <div className="flex items-center justify-between px-1 mb-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Sections</h2>
+              <button
+                type="button"
+                onClick={openFull}
+                disabled={atLimit || generating}
+                title="Let Wedi draft the whole site"
+                className="inline-flex items-center gap-1 text-xs font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ color: ROSE_GOLD }}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                Ask Wedi
+              </button>
+            </div>
             <BlockList
               blocks={site.content.blocks}
               selected={selected}
@@ -138,6 +193,8 @@ export default function WebsiteBuilder() {
               <BlockForm
                 block={selectedBlock}
                 onChange={(patch) => site.updateBlockData(selectedBlock.type, patch)}
+                onRefine={() => openRefine(BLOCK_LABELS[selectedBlock.type] || 'this section')}
+                refineDisabled={atLimit || generating}
               />
             </div>
           ) : null}
@@ -156,9 +213,32 @@ export default function WebsiteBuilder() {
         </div>
 
         <div className="lg:sticky lg:top-4 self-start w-full">
-          <PreviewPane content={site.content} theme={site.theme} slug={site.slug} status={site.status} />
+          <PreviewPane
+            content={site.content}
+            theme={site.theme}
+            slug={site.slug}
+            status={site.status}
+            generating={generating}
+          />
         </div>
       </div>
+
+      {/* Quiet footer indicator — hidden until at least one design is used. */}
+      {site.wedi && site.wedi.used > 0 ? (
+        <p className="mt-4 text-center text-xs text-gray-400">
+          Wedi designs: {site.wedi.used} of {site.wedi.limit} used this month
+          {atLimit ? ` · resets ${formatResetDate(site.wedi.resetsOn)}` : ''}
+        </p>
+      ) : null}
+
+      <WediGenerateSheet
+        open={sheet.open}
+        mode={sheet.mode}
+        sectionLabel={sheet.sectionLabel}
+        wedi={site.wedi}
+        onClose={closeSheet}
+        onSubmit={onGenerate}
+      />
     </div>
   )
 }

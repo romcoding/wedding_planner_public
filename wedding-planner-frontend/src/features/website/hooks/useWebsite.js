@@ -23,6 +23,8 @@ export function useWebsite() {
   const [publishedAt, setPublishedAt] = useState(null)
   // 'saved' | 'unsaved' | 'saving' | 'error'
   const [saveState, setSaveState] = useState('saved')
+  // Wedi monthly usage: { used, limit, resetsOn } (null until loaded).
+  const [wedi, setWedi] = useState(null)
 
   const contentRef = useRef(null)
   const timerRef = useRef(null)
@@ -143,6 +145,34 @@ export function useWebsite() {
     return updated
   }, [hydrateAll])
 
+  const loadWedi = useCallback(async () => {
+    try {
+      const data = await websiteApi.getGenerationStatus()
+      setWedi(data)
+      return data
+    } catch {
+      return null
+    }
+  }, [])
+
+  // Load Wedi's monthly usage once the feature is available.
+  useEffect(() => {
+    loadWedi()
+  }, [loadWedi])
+
+  const generate = useCallback(async (prompt, mode = 'full') => {
+    // Flush any pending edits first so the server's draft is current — essential
+    // for 'refine', which the model bases on the stored draft_content.
+    await flushSave()
+    const res = await websiteApi.generateContent(prompt, mode)
+    const doc = ensureDocument(res.content)
+    contentRef.current = doc
+    setContent(doc)
+    setSaveState('saved') // the server already persisted this into the draft
+    loadWedi()
+    return res
+  }, [flushSave, loadWedi])
+
   return {
     loading,
     error,
@@ -155,12 +185,15 @@ export function useWebsite() {
     hasPassword,
     publishedAt,
     saveState,
+    wedi,
     updateBlockData,
     setBlockEnabled,
     saveSettings,
     publish,
     unpublish,
     restore,
+    generate,
+    reloadWedi: loadWedi,
     checkSlug: websiteApi.checkSlug,
     listRevisions: websiteApi.listRevisions,
   }

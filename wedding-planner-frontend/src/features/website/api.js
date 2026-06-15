@@ -9,3 +9,8 @@ export const publishSite = () => api.post('/website/publish').then((r) => r.data
 export const unpublishSite = () => api.post('/website/unpublish').then((r) => r.data)
 export const listRevisions = () => api.get('/website/revisions').then((r) => r.data)
 export const restoreRevision = (id) => api.post(`/website/revisions/${id}/restore`).then((r) => r.data)
+
+// Wedi generation ("Wedi designs your website").
+export const generateContent = (prompt, mode = 'full') =>
+  api.post('/website/generate', { prompt, mode }).then((r) => r.data)
+export const getGenerationStatus = () => api.get('/website/generation-status').then((r) => r.data)
