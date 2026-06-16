@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 from middleware import get_db, get_wedding
 from entitlements import get_limits
+from services.site_cache import purge_site_cache
 
 logger = logging.getLogger(__name__)
 from db import row_to_dict, rows_to_list
@@ -348,19 +349,23 @@ async def _stored_plan(db, wedding_id: str) -> str | None:
 
 
 async def _unpublish_sites(db, wedding_id: str) -> None:
-    """On downgrade to free, unpublish any public wedding_sites row.
-
-    Forward-declared for Phase 4 — guarded so it is inert until the
-    wedding_sites table exists.
+    """On downgrade to free, unpublish any public wedding_sites row AND purge its
+    cached HTML so the public /s/{slug} URL stops serving immediately.
     """
     try:
+        raw = await db.prepare(
+            "SELECT slug FROM wedding_sites WHERE wedding_id = ?"
+        ).bind(wedding_id).first()
+        site = row_to_dict(raw)
         await db.prepare(
             "UPDATE wedding_sites SET status = 'unpublished' WHERE wedding_id = ?"
         ).bind(wedding_id).run()
         logger.info(f"[stripe] wedding {wedding_id}: wedding_sites unpublished")
+        if site and site.get("slug"):
+            await purge_site_cache(site["slug"])
     except Exception as exc:
         if "no such table" in str(exc).lower():
-            return  # table not present yet — inert until P4 ships it
+            return  # table not present yet (older DBs)
         logger.warning(f"[stripe] failed to unpublish sites for {wedding_id}: {exc}")
 
 
