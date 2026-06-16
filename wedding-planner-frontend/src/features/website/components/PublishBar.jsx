@@ -81,7 +81,7 @@ export default function PublishBar({ status, slug, saveState, onPublish, onUnpub
           style={{ background: '#C4956A' }}
         >
           {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-          {live ? 'Re-publish' : 'Publish'}
+          {live ? 'Re-publish' : status === 'unpublished' ? 'Republish' : 'Publish'}
         </button>
       </div>
 
