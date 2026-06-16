@@ -1,18 +1,21 @@
 import { useState } from 'react'
-import { Globe, Copy, Check, Loader2 } from 'lucide-react'
+import { Globe, Copy, Check, Loader2, ExternalLink } from 'lucide-react'
 import ConfirmDialog from '../../../components/ui/ConfirmDialog'
 import SavedIndicator from './SavedIndicator'
+import { publicSiteUrl } from '../publicSite'
 
-// Status line + copy-link + publish/unpublish (with confirmation).
+// Status line + copy-link + open-site + publish/unpublish (with confirmation).
 export default function PublishBar({ status, slug, saveState, onPublish, onUnpublish, busy }) {
   const [confirm, setConfirm] = useState(null) // 'publish' | 'unpublish'
   const [copied, setCopied] = useState(false)
-  const publicPath = `/w/${slug}`
+  const publicUrl = publicSiteUrl(slug)
+  // Display the address without the scheme — calmer than a full URL.
+  const publicLabel = publicUrl.replace(/^https?:\/\//, '')
   const live = status === 'published'
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(`${window.location.origin}${publicPath}`)
+      await navigator.clipboard.writeText(publicUrl)
       setCopied(true)
       setTimeout(() => setCopied(false), 1500)
     } catch {
@@ -23,11 +26,11 @@ export default function PublishBar({ status, slug, saveState, onPublish, onUnpub
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex items-center gap-2 min-w-0">
-        <span className={`inline-flex items-center gap-1.5 text-sm ${live ? 'text-green-700' : 'text-gray-500'}`}>
-          <Globe className="w-4 h-4" />
+        <span className={`inline-flex items-center gap-1.5 text-sm min-w-0 ${live ? 'text-green-700' : 'text-gray-500'}`}>
+          <Globe className="w-4 h-4 shrink-0" />
           {live ? (
-            <span>
-              Live at <span className="font-medium">{publicPath}</span>
+            <span className="truncate">
+              Live at <span className="font-medium">{publicLabel}</span>
             </span>
           ) : status === 'unpublished' ? (
             'Offline'
@@ -36,14 +39,25 @@ export default function PublishBar({ status, slug, saveState, onPublish, onUnpub
           )}
         </span>
         {live ? (
-          <button
-            type="button"
-            onClick={copy}
-            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied' : 'Copy link'}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={copy}
+              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 shrink-0"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? 'Copied' : 'Copy link'}
+            </button>
+            <a
+              href={publicUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 shrink-0"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Open site
+            </a>
+          </>
         ) : null}
       </div>
 

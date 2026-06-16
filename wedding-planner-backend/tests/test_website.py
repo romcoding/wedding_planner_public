@@ -282,7 +282,7 @@ def test_get_site_lazily_creates_seeded_draft():
     assert site["has_password"] is False
     hero = next(b for b in site["content"]["blocks"] if b["type"] == "hero")
     assert hero["data"]["coupleNames"] == "Alex & Sam"
-    assert site["public_path"] == "/w/alex-sam"
+    assert site["public_path"] == "/s/alex-sam"
 
 
 def test_update_content_validates_and_persists():

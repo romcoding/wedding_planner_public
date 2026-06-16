@@ -14,3 +14,9 @@ export const restoreRevision = (id) => api.post(`/website/revisions/${id}/restor
 export const generateContent = (prompt, mode = 'full') =>
   api.post('/website/generate', { prompt, mode }).then((r) => r.data)
 export const getGenerationStatus = () => api.get('/website/generation-status').then((r) => r.data)
+
+// Public-site RSVP inbox.
+export const getRsvps = (params = {}) =>
+  api.get('/website/rsvps', { params }).then((r) => r.data)
+export const addRsvpToGuests = (id) =>
+  api.post(`/website/rsvps/${id}/add-guest`).then((r) => r.data)
