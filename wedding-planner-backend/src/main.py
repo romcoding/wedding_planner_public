@@ -34,6 +34,7 @@ from routes.subscription_routes import router as subscription_router
 from routes.image_routes import router as image_router
 from routes.demo_routes import router as demo_router
 from routes.website_routes import router as website_router
+from routes.public_site_routes import router as public_site_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -49,6 +50,9 @@ class Default(WorkerEntrypoint):
             "STRIPE_MONTHLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID",
             "ADMIN_EMAILS",
             "ANTHROPIC_API_KEY",
+            # Public site hosting (P4): the shareable /s/{slug} origin, the
+            # optional RSVP-cookie HMAC secret, and the "Made with Wedi" link.
+            "PUBLIC_SITE_BASE_URL", "RSVP_COOKIE_SECRET", "WEDI_LANDING_URL",
         ):
             value = getattr(self.env, key, None)
             if value is not None:
@@ -154,3 +158,7 @@ app.include_router(subscription_router, prefix="/api/subscriptions")
 app.include_router(image_router)  # Has own /api/images prefix in routes
 app.include_router(demo_router, prefix="/api/demo")
 app.include_router(website_router, prefix="/api/website")
+
+# Public, unauthenticated hosting: GET /s/{slug} (server-rendered published
+# sites) and POST /api/public/rsvp/{slug}. Full paths live on the router.
+app.include_router(public_site_router)
