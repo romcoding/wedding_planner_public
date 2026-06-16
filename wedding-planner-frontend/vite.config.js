@@ -32,6 +32,9 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
+        // Single source of truth for the wedding-website theme tokens, shared
+        // with the Python server renderer (see scripts/check-themes.mjs).
+        '@shared': path.resolve(__dirname, '../shared'),
       },
     },
     build: {
@@ -42,6 +45,9 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      // Allow importing shared/themes.json from the repo root (outside the
+      // frontend project root) during dev.
+      fs: { allow: [path.resolve(__dirname, '..')] },
       proxy: {
         '/api': {
           target: 'http://localhost:5000',
