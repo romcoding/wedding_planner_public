@@ -12,6 +12,7 @@ import EmptyStateCard from './components/EmptyStateCard'
 import RevisionHistory from './components/RevisionHistory'
 import GuestAccess from './components/GuestAccess'
 import WediGenerateSheet from './components/WediGenerateSheet'
+import RsvpInbox from './components/RsvpInbox'
 import { BLOCK_LABELS } from './siteSchema'
 import { ROSE_GOLD, formatResetDate, isAtLimit } from './wedi'
 
@@ -34,6 +35,7 @@ function wediError(err, fallback) {
 export default function WebsiteBuilder() {
   const site = useWebsite()
   const toast = useToast()
+  const [tab, setTab] = useState('website') // 'website' | 'responses'
   const [selected, setSelected] = useState('hero')
   const [showIntro, setShowIntro] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -140,6 +142,30 @@ export default function WebsiteBuilder() {
         <p className="text-sm text-gray-500">Build a beautiful page to share with your guests.</p>
       </header>
 
+      <div className="flex items-center gap-1 mb-4 border-b border-gray-200">
+        {[
+          { key: 'website', label: 'Website' },
+          { key: 'responses', label: 'Responses' },
+        ].map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setTab(t.key)}
+            className={`-mb-px px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === t.key
+                ? 'border-gray-800 text-gray-900'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'responses' ? (
+        <RsvpInbox />
+      ) : (
+        <>
       <div className="rounded-xl border border-gray-200 bg-white p-4 mb-4">
         <PublishBar
           status={site.status}
@@ -239,6 +265,8 @@ export default function WebsiteBuilder() {
         onClose={closeSheet}
         onSubmit={onGenerate}
       />
+        </>
+      )}
     </div>
   )
 }

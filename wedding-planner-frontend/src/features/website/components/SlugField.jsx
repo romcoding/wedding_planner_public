@@ -54,7 +54,7 @@ export default function SlugField({ value, onSave, checkSlug }) {
       <label className="block text-xs font-medium text-gray-500 mb-1">Public address</label>
       <div className="flex items-stretch gap-2">
         <div className="flex items-center rounded-lg border border-gray-200 bg-white overflow-hidden flex-1 min-w-0">
-          <span className="px-2.5 text-sm text-gray-400 bg-gray-50 border-r border-gray-200 py-2">/w/</span>
+          <span className="px-2.5 text-sm text-gray-400 bg-gray-50 border-r border-gray-200 py-2">/s/</span>
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}

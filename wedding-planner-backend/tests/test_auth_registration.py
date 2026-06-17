@@ -59,6 +59,12 @@ _SRC = os.path.join(os.path.dirname(__file__), "..", "src")
 if _SRC not in sys.path:
     sys.path.insert(0, os.path.abspath(_SRC))
 
+# Give the stubbed `services` package a real __path__ so genuine submodules
+# (services.site_cache, services.site_schema, …) still import in later test
+# modules sharing this process, while the explicitly-stubbed submodules
+# (email_service, rate_limit) registered in sys.modules stay overridden.
+services_stub.__path__ = [os.path.abspath(os.path.join(_SRC, "services"))]
+
 # Load the real durable rate limiter and expose it on the stubbed services
 # package so auth_routes' lazy `from services import rate_limit` resolves to it.
 import importlib.util as _ilu

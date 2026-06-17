@@ -107,6 +107,61 @@ npx wrangler secret delete WEDI_GENERATION_DISABLED --name wedding-planner-api
 > It can also be set as a plain `[vars]` entry in `wrangler.jsonc` if you prefer
 > a non-secret toggle; a secret is recommended so flipping it needs no redeploy.
 
+### 5. Public wedding sites — `/s/{slug}`
+
+Published couple websites are **server-rendered static HTML by the backend
+worker** from `wedding_sites.published_snapshot` (never the SPA, never the
+draft). They are served, unauthenticated, at:
+
+- `GET  /s/{slug}` — the published site (optional guest-password gate).
+- `POST /s/{slug}` — guest-password verification (sets a signed, 7-day cookie).
+- `POST /api/public/rsvp/{slug}` — the open RSVP form's submit endpoint.
+
+> The guest portal `/w/:slug` is a **different** feature (the existing
+> WeddingPortal SPA route) — public couple sites intentionally live under `/s/`.
+
+**Apply the website-tables migration once** (fresh databases get these from
+`schema.sql`):
+
+```bash
+npx wrangler d1 execute wedding-planner-db --remote --file=wedding-planner-backend/migrations/004_website.sql
+```
+
+**Set the public-site origin.** `PUBLIC_SITE_BASE_URL` is the absolute origin
+`/s/{slug}` links are built from (shareable URL, OpenGraph `og:url`, the RSVP
+endpoint, and the edge-cache key). For launch, point it at the **backend API
+worker origin** so links resolve with zero extra DNS:
+
+```bash
+# e.g. https://wedding-planner-api.<subdomain>.workers.dev  (NO trailing slash, NO /api)
+npx wrangler secret put PUBLIC_SITE_BASE_URL --name wedding-planner-api
+```
+
+The frontend editor builds the same link from `VITE_PUBLIC_SITE_BASE_URL`
+(optional — it defaults to the `VITE_API_URL` origin, which is this same worker).
+Keep the two values in agreement when you set them explicitly.
+
+**RSVP cookie secret (optional).** The guest-password cookie is HMAC-signed. It
+reuses `JWT_SECRET_KEY` by default (already fail-closed); set a dedicated secret
+only if you want to rotate it independently:
+
+```bash
+npx wrangler secret put RSVP_COOKIE_SECRET --name wedding-planner-api   # optional
+```
+
+**Caching behavior.**
+
+- Password-less published sites respond with `Cache-Control: public, max-age=300`
+  and are stored in the Workers Cache API (`caches.default`) keyed on
+  `{PUBLIC_SITE_BASE_URL}/s/{slug}`.
+- The cache is **purged** automatically on publish, unpublish, slug change, and a
+  premium→free downgrade (the same `purge_site_cache(slug)` seam in all paths).
+- Password-protected sites and the password form are served `no-store` and are
+  **never** cached.
+- Manual caching/purge are active only when `PUBLIC_SITE_BASE_URL` is set (store
+  and purge derive the key from it, so they stay symmetric). With it unset, sites
+  still render — just uncached.
+
 ---
 
 ## Deploy Backend API Worker
@@ -169,6 +224,34 @@ In Cloudflare Dashboard → Workers & Pages → your Worker → Settings → Cus
 - Frontend: `app.yourdomain.com` or `yourdomain.com` → `wedding-planner-frontend`
 
 Then update `VITE_API_URL` and `FRONTEND_URL` accordingly.
+
+### Point `/s/*` at a pretty domain (no code change)
+
+`/s/{slug}` is served by the **backend** worker, so a nicer public-site URL is
+just a routing + config change:
+
+1. Add a custom domain (or route) for the path to `wedding-planner-api`, e.g.
+   `sites.yourdomain.com` → `wedding-planner-api`. Couple sites are then reachable
+   at `https://sites.yourdomain.com/s/{slug}`.
+2. Set `PUBLIC_SITE_BASE_URL=https://sites.yourdomain.com` (and, if set
+   explicitly, `VITE_PUBLIC_SITE_BASE_URL` to match). Links, OpenGraph, the RSVP
+   endpoint and the cache key all follow automatically. No redeploy of code is
+   needed — just the secret update + the route.
+
+### Per-couple subdomains / wildcard domains (future)
+
+The `wedding_sites.custom_host` column already exists (unused today) and
+`resolve_site()` checks the `Host` header against it **before** the `/s/{slug}`
+path. To activate true `name.weddings.yourdomain.com` per-couple hosting later:
+
+1. **DNS:** add a wildcard record `*.weddings.yourdomain.com` (Cloudflare proxied).
+2. **Route:** add a Worker route `*.weddings.yourdomain.com/*` → `wedding-planner-api`
+   (a wildcard custom domain / route; SSL for SaaS / a wildcard cert is required).
+3. **Data:** populate `wedding_sites.custom_host` for the couples opting in (the
+   column is `UNIQUE`), and serve their published site at the host root.
+
+No schema change is required for steps 1–3; only the wildcard route + cert and a
+small root-path handler (`GET /`) need wiring when that phase is scheduled.
 
 ---
 

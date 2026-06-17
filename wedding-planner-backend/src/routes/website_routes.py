@@ -45,9 +45,10 @@ _gate = require_feature("website_builder")
 # website-builder user (there is none today) could never reach the model path.
 _wedi_gate = require_feature("wedi_site_generation")
 
-# Slugs that can never be claimed (collide with product/app routes).
+# Slugs that can never be claimed (collide with product/app routes). 's' is the
+# public-site path prefix (/s/{slug}); 'w' is the guest portal (/w/:slug).
 RESERVED_SLUGS = {
-    "api", "www", "admin", "app", "auth", "wedi", "billing", "w", "static",
+    "api", "www", "admin", "app", "auth", "wedi", "billing", "w", "s", "static",
     "assets", "login", "register", "help", "mail", "blog", "demo", "venue",
     "venues",
 }
@@ -152,8 +153,8 @@ def _site_dict(site: dict) -> dict:
         "published_at": site.get("published_at"),
         "created_at": site.get("created_at"),
         "updated_at": site.get("updated_at"),
-        # Where the published site will live once P4 ships (display only here).
-        "public_path": f"/w/{site.get('slug')}",
+        # Path of the live public site (served at PUBLIC_SITE_BASE_URL + this).
+        "public_path": f"/s/{site.get('slug')}",
     }
 
 
@@ -509,3 +510,101 @@ async def generation_status(
     db = await get_db(request)
     status = await usage.get_status(db, wedding["id"], get_plan(wedding))
     return {"used": status["used"], "limit": status["limit"], "resetsOn": status["resetsOn"]}
+
+
+# ---------------------------------------------------------------------------
+# Public-site RSVP inbox (responses from the open /s/{slug} form)
+# ---------------------------------------------------------------------------
+
+def _rsvp_dict(r: dict) -> dict:
+    """Tenant-safe shape of a public RSVP response (never leaks wedding_id)."""
+    return {
+        "id": r.get("id"),
+        "guest_name": r.get("guest_name"),
+        "email": r.get("email"),
+        "attending": bool(r.get("attending")),
+        "party_size": r.get("party_size") or 1,
+        "dietary": r.get("dietary"),
+        "message": r.get("message"),
+        "matched": bool(r.get("matched_guest_id")),
+        "created_at": r.get("created_at"),
+    }
+
+
+@router.get("/rsvps")
+async def list_rsvps(
+    wedding: dict = Depends(_gate),
+    request: Request = None,
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+):
+    """Paginated public-website RSVP responses for THIS wedding (tenant-scoped)."""
+    db = await get_db(request)
+    wid = wedding["id"]
+    total_row = await db.prepare(
+        "SELECT COUNT(*) AS n FROM site_rsvp_responses WHERE wedding_id = ?"
+    ).bind(wid).first()
+    total = (row_to_dict(total_row) or {}).get("n", 0)
+    result = await db.prepare(
+        "SELECT * FROM site_rsvp_responses WHERE wedding_id = ? "
+        "ORDER BY id DESC LIMIT ? OFFSET ?"
+    ).bind(wid, limit, offset).all()
+    return {
+        "responses": [_rsvp_dict(r) for r in rows_to_list(result)],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.post("/rsvps/{response_id}/add-guest")
+async def add_rsvp_to_guests(
+    response_id: int,
+    wedding: dict = Depends(_gate),
+    request: Request = None,
+):
+    """Create a guest from an unmatched RSVP response (reuses the guest schema).
+
+    Tenant-scoped: the response must belong to THIS wedding. Idempotent-ish — if
+    the response is already matched, returns the existing match without creating
+    a duplicate.
+    """
+    import secrets
+    import uuid
+
+    db = await get_db(request)
+    wid = wedding["id"]
+    raw = await db.prepare(
+        "SELECT * FROM site_rsvp_responses WHERE id = ? AND wedding_id = ?"
+    ).bind(response_id, wid).first()
+    resp = row_to_dict(raw)
+    if not resp:
+        raise HTTPException(404, {"code": "not_found", "error": "Response not found"})
+    if resp.get("matched_guest_id"):
+        return {"created": False, "guest_id": resp["matched_guest_id"],
+                "rsvp": _rsvp_dict(resp)}
+
+    name = (resp.get("guest_name") or "").strip()
+    parts = name.split()
+    first = parts[0] if parts else "Guest"
+    last = " ".join(parts[1:]) if len(parts) > 1 else ""
+    attending = bool(resp.get("attending"))
+
+    guest_id = str(uuid.uuid4())
+    token = secrets.token_urlsafe(32)
+    await db.prepare(
+        "INSERT INTO guests (id, wedding_id, first_name, last_name, email, unique_token, "
+        "rsvp_status, number_of_guests, dietary_restrictions, registered_at, updated_at) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))"
+    ).bind(
+        guest_id, wid, first, last, (resp.get("email") or ""), token,
+        "attending" if attending else "declined",
+        resp.get("party_size") or 1, resp.get("dietary") or None,
+    ).run()
+
+    # Link the response to the new guest so it no longer shows as unmatched.
+    await db.prepare(
+        "UPDATE site_rsvp_responses SET matched_guest_id = ? WHERE id = ? AND wedding_id = ?"
+    ).bind(guest_id, response_id, wid).run()
+    resp["matched_guest_id"] = guest_id
+    return {"created": True, "guest_id": guest_id, "rsvp": _rsvp_dict(resp)}

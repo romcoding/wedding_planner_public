@@ -32,7 +32,7 @@ export default function PreviewPane({ content, theme, slug, status, generating =
           <span className="w-2.5 h-2.5 rounded-full bg-amber-300" />
           <span className="w-2.5 h-2.5 rounded-full bg-green-300" />
         </span>
-        <span className="text-xs text-gray-500 truncate ml-1">/w/{slug}</span>
+        <span className="text-xs text-gray-500 truncate ml-1">/s/{slug}</span>
         <span
           className={`ml-auto text-[10px] uppercase tracking-wide font-medium px-2 py-0.5 rounded-full ${
             STATUS_STYLE[status] || STATUS_STYLE.draft

@@ -34,6 +34,7 @@ from routes.subscription_routes import router as subscription_router
 from routes.image_routes import router as image_router
 from routes.demo_routes import router as demo_router
 from routes.website_routes import router as website_router
+from routes.public_site_routes import router as public_site_router
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -49,6 +50,9 @@ class Default(WorkerEntrypoint):
             "STRIPE_MONTHLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID",
             "ADMIN_EMAILS",
             "ANTHROPIC_API_KEY",
+            # Public site hosting (P4): the shareable /s/{slug} origin, the
+            # optional RSVP-cookie HMAC secret, and the "Made with Wedi" link.
+            "PUBLIC_SITE_BASE_URL", "RSVP_COOKIE_SECRET", "WEDI_LANDING_URL",
         ):
             value = getattr(self.env, key, None)
             if value is not None:
@@ -74,6 +78,27 @@ class Default(WorkerEntrypoint):
                 h.set("access-control-max-age", "86400")
             return Response.new("", status=204, headers=h)
 
+        # Edge cache for password-less public sites (GET /s/{slug}). Keyed on the
+        # canonical {PUBLIC_SITE_BASE_URL}/s/{slug} URL so it stays symmetric with
+        # services.site_cache.purge_site_cache. All of this is best-effort: any
+        # failure falls through to serving the page uncached.
+        site_cache_key = None
+        edge_cache = None
+        if request.method == "GET":
+            try:
+                from js import URL, caches
+                path = URL.new(request.url).pathname
+                base = (os.environ.get("PUBLIC_SITE_BASE_URL") or "").rstrip("/")
+                if base and path.startswith("/s/"):
+                    site_cache_key = base + path
+                    edge_cache = caches.default
+                    cached = await edge_cache.match(site_cache_key)
+                    if cached is not None:
+                        return cached
+            except Exception:
+                site_cache_key = None
+                edge_cache = None
+
         try:
             resp = await asgi.fetch(app, request, self.env)
         except Exception:
@@ -83,6 +108,15 @@ class Default(WorkerEntrypoint):
                 h.set("access-control-allow-origin", cors_origin)
                 h.set("access-control-allow-credentials", "true")
             return Response.new('{"error":"Internal server error"}', status=500, headers=h)
+
+        # Store cacheable public-site responses (Cache-Control public, max-age).
+        if edge_cache is not None and site_cache_key:
+            try:
+                cc = resp.headers.get("cache-control") or ""
+                if getattr(resp, "status", 0) == 200 and "public" in cc and "max-age" in cc:
+                    await edge_cache.put(site_cache_key, resp.clone())
+            except Exception:
+                pass
 
         # Always patch CORS headers at the worker level. The Cloudflare Python
         # Workers ASGI bridge may drop the Origin header from the ASGI scope,
@@ -154,3 +188,7 @@ app.include_router(subscription_router, prefix="/api/subscriptions")
 app.include_router(image_router)  # Has own /api/images prefix in routes
 app.include_router(demo_router, prefix="/api/demo")
 app.include_router(website_router, prefix="/api/website")
+
+# Public, unauthenticated hosting: GET /s/{slug} (server-rendered published
+# sites) and POST /api/public/rsvp/{slug}. Full paths live on the router.
+app.include_router(public_site_router)
