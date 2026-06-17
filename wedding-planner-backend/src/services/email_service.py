@@ -405,11 +405,14 @@ async def send_invitation_email(
     """Send RSVP invitation email to a guest."""
     invitation_link = f"{frontend_url}/rsvp/{token}"
     subject = "You're Invited to Our Wedding! 💍✨"
+    # guest_name is couple-controlled free text; escape before it lands in HTML.
+    # The subject is a plain-text header, so it uses the raw name.
+    safe_name = _html.escape(guest_name or "Guest")
 
     if template:
         subject = getattr(template, "subject", subject).replace("{guest_name}", guest_name or "Guest")
-        html = getattr(template, "html_content", "").replace("{guest_name}", guest_name or "Guest")
-        html = html.replace("{invitation_link}", invitation_link)
+        html = getattr(template, "html_content", "").replace("{guest_name}", safe_name)
+        html = html.replace("{invitation_link}", _html.escape(invitation_link))
     else:
         html = f"""
         <!DOCTYPE html>
@@ -420,7 +423,7 @@ async def send_invitation_email(
             <h1 style="color: #d63384; margin: 0; font-size: 36px;">You're Invited!</h1>
             <p style="color: #764ba2; font-size: 18px; margin-top: 8px;">Join us for our special celebration</p>
           </div>
-          <p style="color: #333; font-size: 16px; line-height: 1.6;">Dear {guest_name or "Guest"},</p>
+          <p style="color: #333; font-size: 16px; line-height: 1.6;">Dear {safe_name},</p>
           <p style="color: #555; font-size: 16px; line-height: 1.6;">
             We're thrilled to invite you to celebrate our wedding! Please click below to RSVP.
           </p>
