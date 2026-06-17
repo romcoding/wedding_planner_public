@@ -25,6 +25,7 @@ from pydantic import BaseModel
 
 from middleware import get_db, get_wedding
 from entitlements import get_limits
+from obs import log_event
 from services.site_cache import purge_site_cache
 
 logger = logging.getLogger(__name__)
@@ -310,6 +311,7 @@ async def stripe_webhook(request: Request):
 
     try:
         if await _seen_event(db, event_id):
+            log_event("stripe_webhook", event_id=event_id, type=event_type, duplicate=True)
             return {"received": True, "duplicate": True}
     except _StripeEventsMissing:
         # Idempotency is mandatory — never silently process without it.
@@ -331,6 +333,7 @@ async def stripe_webhook(request: Request):
     finally:
         await _mark_event_seen(db, event_id, event_type)
 
+    log_event("stripe_webhook", event_id=event_id, type=event_type)
     return {"received": True}
 
 
@@ -380,6 +383,7 @@ async def _downgrade_to_free(db, wedding_id: str, reason: str = "") -> None:
         "is_active = 1, updated_at = datetime('now') WHERE id = ?"
     ).bind(wedding_id).run()
     logger.info(f"[stripe] wedding {wedding_id} downgraded to free ({reason})")
+    log_event("plan_transition", wedding_id=wedding_id, to_plan="free", reason=reason)
     await _unpublish_sites(db, wedding_id)
 
 
@@ -426,6 +430,7 @@ async def _handle_checkout_completed(db, session: dict) -> None:
         ).bind(customer_id, subscription_id, wedding_id).run()
 
     logger.info(f"[stripe] wedding {wedding_id} -> {plan} (checkout, mode={mode})")
+    log_event("plan_transition", wedding_id=wedding_id, to_plan=plan, reason="checkout")
 
     # Fire-and-forget welcome-to-premium email
     try:
@@ -485,6 +490,7 @@ async def _handle_subscription_updated(db, subscription: dict) -> None:
         "plan_updated_at = datetime('now'), is_active = 1, updated_at = datetime('now') WHERE id = ?"
     ).bind(plan, sub_id, expires_at, wedding_id).run()
     logger.info(f"[stripe] wedding {wedding_id} -> {plan} (subscription status={status})")
+    log_event("plan_transition", wedding_id=wedding_id, to_plan=plan, reason="subscription")
 
 
 async def _handle_subscription_deleted(db, subscription: dict) -> None:

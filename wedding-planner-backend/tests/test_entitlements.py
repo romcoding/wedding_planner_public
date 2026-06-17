@@ -271,3 +271,36 @@ def test_seen_event_raises_loud_when_table_missing():
             return S()
     with pytest.raises(billing_routes._StripeEventsMissing):
         run(billing_routes._seen_event(_NoTableDB(), "evt_x"))
+
+
+# ---------------------------------------------------------------------------
+# Price-id -> plan mapping reads from env (sandbox ids as defaults)
+# ---------------------------------------------------------------------------
+
+def test_price_plan_map_reads_premium_and_lifetime_from_env(monkeypatch):
+    # Live ids configured purely via env — no code change vs. sandbox.
+    monkeypatch.setenv("STRIPE_PREMIUM_PRICE_ID", "price_live_premium")
+    monkeypatch.setenv("STRIPE_LIFETIME_PRICE_ID", "price_live_lifetime")
+    monkeypatch.delenv("STRIPE_MONTHLY_PRICE_ID", raising=False)
+    monkeypatch.delenv("STRIPE_STARTER_PRICE_ID", raising=False)
+    assert billing_routes._plan_for_price("price_live_premium") == "premium"
+    assert billing_routes._plan_for_price("price_live_lifetime") == "lifetime"
+    # Sandbox defaults still resolve (env extends the map, never replaces it).
+    assert billing_routes._plan_for_price(billing_routes._PREMIUM_PRICE_ID) == "premium"
+    assert billing_routes._plan_for_price(billing_routes._LIFETIME_PRICE_ID) == "lifetime"
+    # An unknown price id is never guessed.
+    assert billing_routes._plan_for_price("price_who_knows") is None
+
+
+def test_checkout_price_prefers_env_over_default(monkeypatch):
+    monkeypatch.setenv("STRIPE_PREMIUM_PRICE_ID", "price_live_premium")
+    monkeypatch.setenv("STRIPE_LIFETIME_PRICE_ID", "price_live_lifetime")
+    assert billing_routes._checkout_price("premium") == ("price_live_premium", "subscription")
+    assert billing_routes._checkout_price("lifetime") == ("price_live_lifetime", "payment")
+
+
+def test_checkout_price_falls_back_to_sandbox_default(monkeypatch):
+    monkeypatch.delenv("STRIPE_PREMIUM_PRICE_ID", raising=False)
+    monkeypatch.delenv("STRIPE_LIFETIME_PRICE_ID", raising=False)
+    assert billing_routes._checkout_price("premium") == (billing_routes._PREMIUM_PRICE_ID, "subscription")
+    assert billing_routes._checkout_price("lifetime") == (billing_routes._LIFETIME_PRICE_ID, "payment")

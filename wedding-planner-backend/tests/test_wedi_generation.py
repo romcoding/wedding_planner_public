@@ -238,6 +238,26 @@ def test_records_usage_from_actuals_and_returns_remaining(monkeypatch):
     assert json.loads(site["draft_content"]) == out["content"]
 
 
+def test_generation_logs_tokens_and_status_but_never_the_prompt(monkeypatch, capsys):
+    db = FakeD1()
+    fake, _ = _fake_caller(_valid_doc("Save the date"),
+                           usage_actuals={"input_tokens": 123, "output_tokens": 456})
+    monkeypatch.setattr(ai_service, "call_claude_json", fake)
+    secret_prompt = "SECRET_WISH_lakeside_vineyard_at_sunset_42"
+
+    run(wr.generate(wr.GenerateBody(prompt=secret_prompt, mode="full"),
+                    wedding=_wedding(), request=_req(db)))
+
+    out = capsys.readouterr().out
+    # The ops line carries ids + counts + status...
+    line = next(l for l in out.splitlines() if '"event":"wedi_generation"' in l)
+    parsed = json.loads(line)
+    assert parsed["status"] == "ok" and parsed["wedding_id"] == "wA"
+    assert parsed["input_tokens"] == 123 and parsed["output_tokens"] == 456
+    # ...and the couple's prompt is NEVER logged anywhere on stdout.
+    assert secret_prompt not in out
+
+
 def test_strips_code_fences_from_model_output(monkeypatch):
     db = FakeD1()
     fenced = "```json\n" + _valid_doc("Fenced") + "\n```"

@@ -9,7 +9,66 @@ Cloudflare Edge
   ├── wedding-planner-frontend.workers.dev  → Workers Static Assets (React SPA)
   └── wedding-planner-api.workers.dev       → Python Worker (FastAPI + D1)
                                                 └── D1 Database (SQLite, edge)
+                                                └── RATE_LIMIT KV namespace
 ```
+
+`/s/*` (public couple sites) and `/api/public/*` (the open RSVP form) are served
+by the **backend** worker. `/w/:slug` is the **separate** guest portal (the React
+SPA). See "Routing & caching" below.
+
+---
+
+## Secrets & vars checklist
+
+Set on the **backend** worker (`--name wedding-planner-api`). Secrets are set with
+`npx wrangler secret put <NAME>`; plain vars can go in `wrangler.jsonc` `[vars]` or
+be passed at deploy with `--var NAME:VALUE`.
+
+| Name | Kind | Required | Purpose / notes |
+|------|------|----------|-----------------|
+| `JWT_SECRET_KEY` | secret | **yes — fail-closed** | Signs/verifies all auth tokens. If missing, the worker raises on the first request (`main.py`) and `auth.py` refuses to sign — there is **no** default secret. `openssl rand -hex 32`. |
+| `STRIPE_SECRET_KEY` | secret | yes (billing) | Stripe API calls (checkout/customer/portal). Live key for production. |
+| `STRIPE_WEBHOOK_SECRET` | secret | yes (billing) | HMAC-verifies the webhook. **Must be the signing secret of the endpoint that carries all five events** (sandbox: the `charismatic-harmony-snapshot` endpoint). Wrong secret → every event is rejected `400`. |
+| `STRIPE_PREMIUM_PRICE_ID` | secret/var | yes (billing) | Price id mapped to `premium`. Defaults to the sandbox id baked in `billing_routes.py` if unset. |
+| `STRIPE_LIFETIME_PRICE_ID` | secret/var | yes (billing) | Price id mapped to `lifetime`. Defaults to the sandbox id if unset. |
+| `STRIPE_MONTHLY_PRICE_ID` / `STRIPE_STARTER_PRICE_ID` | secret/var | optional | Extra ids that also map to `premium` (legacy/aliases). |
+| `ANTHROPIC_API_KEY` | secret | yes (Wedi) | Wedi generation + planning assistant. Mirrored into env per-request and read per-call. |
+| `RESEND_API_KEY` | secret | yes (email) | Transactional email (verification, welcome, billing, RSVP). |
+| `FROM_EMAIL` / `RESEND_SENDER_DOMAIN` | secret/var | recommended | Sender address / domain for Resend. |
+| `FRONTEND_URL` | secret/var | yes | Absolute SPA origin (links in emails, checkout return URLs). |
+| `PUBLIC_SITE_BASE_URL` | secret/var | yes (hosting) | Absolute origin `/s/{slug}` links, OG `og:url`, the RSVP endpoint, and the **edge-cache key** are built from. No trailing slash, no `/api`. Point at the API worker origin for launch. |
+| `WEDI_GENERATION_DISABLED` | secret/var | optional | Kill switch — `"1"` pauses all Wedi generation (`503 wedi_paused`) before any model call. |
+| `RSVP_COOKIE_SECRET` | secret | optional | HMAC secret for the guest-password cookie; defaults to `JWT_SECRET_KEY`. |
+| `CORS_EXTRA_ORIGINS` | var | optional | Comma-separated extra **credentialed** allow-list origins (in addition to the built-in list). Never includes `*`. |
+| `GIT_SHA` | var (deploy) | auto | Injected by the deploy workflow (`--var GIT_SHA:<sha>`); surfaced at `GET /api/health`. |
+| `RATE_LIMIT` | **KV binding** | yes | KV namespace id in `wrangler.jsonc`. Backs the durable rate limiter (auth, `/track`, public RSVP, Wedi velocity). If missing, the limiter fails **open** and logs — configure before launch. |
+
+> The frontend worker needs only `VITE_API_URL` (build-time, in `.env.production`)
+> and optionally `VITE_PUBLIC_SITE_BASE_URL` (defaults to the `VITE_API_URL` origin).
+
+---
+
+## Migrations — run order 003 → 004 → 005
+
+A **fresh** database gets everything from `schema.sql` (it is the single source of
+truth and includes the plans, website, Wedi-usage, and `stripe_events` tables).
+When **upgrading an existing** database, apply the migrations **in order**, against
+the **remote** D1:
+
+```bash
+npx wrangler d1 execute wedding-planner-db --remote --file=wedding-planner-backend/migrations/003_plans.sql
+npx wrangler d1 execute wedding-planner-db --remote --file=wedding-planner-backend/migrations/004_website.sql
+npx wrangler d1 execute wedding-planner-db --remote --file=wedding-planner-backend/migrations/005_wedi_usage.sql
+```
+
+- `003_plans.sql` — `weddings.plan` / `plan_expires_at` / `plan_updated_at`, `stripe_events` idempotency table.
+- `004_website.sql` — `wedding_sites`, `site_revisions`, `site_rsvp_responses` (+ `custom_host`).
+- `005_wedi_usage.sql` — `wedi_site_usage`, `wedi_generation_log` (the budget ledger).
+
+> ⚠️ **The deploy workflow (`.github/workflows/deploy.yml`) does NOT run
+> migrations.** It only deploys code. Run the commands above by hand (once) when
+> the schema changes, before/after the relevant deploy. Re-running is safe
+> (`CREATE TABLE IF NOT EXISTS` / `ADD COLUMN` guarded).
 
 ---
 
@@ -73,11 +132,15 @@ npx wrangler secret put ANTHROPIC_API_KEY --name wedding-planner-api
 npx wrangler secret put RESEND_API_KEY --name wedding-planner-api
 npx wrangler secret put STRIPE_SECRET_KEY --name wedding-planner-api
 npx wrangler secret put STRIPE_WEBHOOK_SECRET --name wedding-planner-api
-npx wrangler secret put STRIPE_STARTER_PRICE_ID --name wedding-planner-api
 npx wrangler secret put STRIPE_PREMIUM_PRICE_ID --name wedding-planner-api
+npx wrangler secret put STRIPE_LIFETIME_PRICE_ID --name wedding-planner-api
+npx wrangler secret put PUBLIC_SITE_BASE_URL --name wedding-planner-api
 npx wrangler secret put FRONTEND_URL --name wedding-planner-api
 npx wrangler secret put FROM_EMAIL --name wedding-planner-api
 ```
+
+See the **Secrets & vars checklist** above for the full list and what each one
+does (and for the fail-closed `JWT_SECRET_KEY` and the `RATE_LIMIT` KV binding).
 
 ### 4. Wedi website generation — budget & kill switch
 
@@ -195,25 +258,105 @@ npm run deploy      # builds + wrangler deploy
 
 ---
 
-## Register Stripe Webhook
+## Stripe — webhook & billing
 
-In Stripe Dashboard → Developers → Webhooks, add endpoint:
+There is **one** webhook endpoint and **one** plan-sync code path
+(`/api/billing/webhook` in `billing_routes.py`). Price-id → plan is resolved from
+env vars (sandbox ids as defaults), so **sandbox and live differ by config, not
+code** (locked by a test in `tests/test_entitlements.py`).
+
+### Webhook endpoint + the five events
+
+In Stripe Dashboard → Developers → Webhooks, add the endpoint:
 
 ```
-https://wedding-planner-api.romcoding.workers.dev/api/billing/webhook
+https://wedding-planner-api.<subdomain>.workers.dev/api/billing/webhook
 ```
 
-Events to listen for:
+Subscribe it to **all five** events (the sandbox endpoint is
+`charismatic-harmony-snapshot`):
+
 - `checkout.session.completed`
-- `customer.subscription.updated`
 - `customer.subscription.created`
+- `customer.subscription.updated`
 - `customer.subscription.deleted`
+- `invoice.payment_failed`
 
-Copy the webhook signing secret and run:
+Copy that endpoint's signing secret into `STRIPE_WEBHOOK_SECRET`:
 
 ```bash
 npx wrangler secret put STRIPE_WEBHOOK_SECRET --name wedding-planner-api
 ```
+
+> The secret is **per endpoint**. If `STRIPE_WEBHOOK_SECRET` is not the secret of
+> the endpoint carrying these five events, every delivery fails signature
+> verification (`400`) and no plan ever changes.
+
+### Going LIVE (mirror the sandbox by config)
+
+1. **Create live products/prices** mirroring the sandbox:
+   - **Premium** — recurring **CHF 9 / month**.
+   - **Lifetime** — one-time **CHF 149**.
+2. **Create the live webhook** at `/api/billing/webhook` subscribed to the same
+   five events; copy its signing secret to `STRIPE_WEBHOOK_SECRET` (live).
+3. **Set the live price-id → plan mapping via env** (no code change):
+   ```bash
+   npx wrangler secret put STRIPE_PREMIUM_PRICE_ID  --name wedding-planner-api   # live premium price id
+   npx wrangler secret put STRIPE_LIFETIME_PRICE_ID --name wedding-planner-api   # live lifetime price id
+   ```
+   `_price_plan_map()` resolves these first; an unknown price id maps to `None`
+   and is **never guessed**. Lifetime is **never** downgraded by a
+   `subscription.deleted`/`updated`/`payment_failed` event.
+4. Set `STRIPE_SECRET_KEY` to the live key and redeploy.
+
+---
+
+## Observability, health & cost backstop
+
+### Structured logs — `wrangler tail`
+
+The worker emits one **compact JSON line per notable event** to the console
+(`observability.enabled` is on in `wrangler.jsonc`). Lines carry only ids, types,
+counts, and statuses — **never** prompt text, couple PII, or secrets. Stream them:
+
+```bash
+# all events, human format
+npx wrangler tail wedding-planner-api --format pretty
+
+# JSON, filtered to a specific event with jq
+npx wrangler tail wedding-planner-api --format json \
+  | jq 'select(.event=="wedi_generation")'
+```
+
+Events you can filter on (the `event` field):
+
+| `event` | Fields | When |
+|---------|--------|------|
+| `stripe_webhook` | `event_id`, `type`, `duplicate?` | every webhook delivery processed (incl. dedup hits) |
+| `plan_transition` | `wedding_id`, `to_plan`, `reason` | every plan write (checkout / subscription / downgrade) |
+| `wedi_generation` | `wedding_id`, `status`, `mode`, `input_tokens?`, `output_tokens?` | each generation — `ok` / `paused` / `rate_limited` / `over_limit` / `error` |
+| `public_site_404` | `slug`, `host`, `reason` | a `/s/{slug}` miss (no site / no snapshot) |
+
+### Health check & version
+
+```bash
+curl -s https://wedding-planner-api.<subdomain>.workers.dev/api/health
+# → {"status":"ok","version":"<git-sha>"}
+```
+
+`version` is the commit sha, injected at deploy time as the `GIT_SHA` Worker var
+by the deploy workflow (`uv run pywrangler deploy --var GIT_SHA:${{ github.sha }}`).
+Off-platform it reports `"dev"`. The deploy workflow's smoke step asserts
+`"status":"ok"`.
+
+### Anthropic spend cap (financial backstop)
+
+The app already caps Wedi cost in several layers (monthly generation + token
+budgets, per-minute velocity, a 4000-token/request ceiling, and the
+`WEDI_GENERATION_DISABLED` kill switch). As a final backstop **set a monthly spend
+limit in the Anthropic Console** (Billing → usage limits) on the key used for
+`ANTHROPIC_API_KEY`, so a logic error or abuse spike can never exceed a hard
+dollar ceiling regardless of the app-level controls.
 
 ---
 
@@ -255,19 +398,20 @@ small root-path handler (`GET /`) need wiring when that phase is scheduled.
 
 ---
 
-## Tighten CORS After Deploy
+## CORS model
 
-Once both Workers are deployed, update `allow_origins` in `wedding-planner-backend/src/main.py`:
-
-```python
-allow_origins=["https://wedding-planner-frontend.romanhess1994.workers.dev"],
-```
-
-Redeploy the backend:
-
-```bash
-cd wedding-planner-backend && uv run pywrangler deploy
-```
+- **Credentialed routes** (everything authenticated) use a strict, explicit
+  allow-list: the built-in origins in `main.py` plus any `CORS_EXTRA_ORIGINS`
+  (comma-separated). Never `*`, always `allow-credentials: true`. To add a new
+  frontend origin, set `CORS_EXTRA_ORIGINS` rather than editing code:
+  ```bash
+  npx wrangler secret put CORS_EXTRA_ORIGINS --name wedding-planner-api   # https://app.example.com,https://...
+  ```
+- **The one public endpoint** `POST /api/public/rsvp/{slug}` (and its OPTIONS
+  preflight) is served `Access-Control-Allow-Origin: *` with **no** credentials,
+  because the rendered couple site POSTs to it cross-origin from the `/s/` origin.
+  This is scoped to that path only (`public_cors.py` + the worker fetch) and never
+  widens CORS on any authenticated route.
 
 ---
 
@@ -299,34 +443,9 @@ cd wedding-planner-backend && uv run pywrangler deploy
 
 ---
 
-## Schema Migrations
+## Schema migrations
 
-The `schema.sql` file uses `CREATE TABLE IF NOT EXISTS` so it is safe to re-run.
-
-If you are upgrading an existing D1 database (rather than creating fresh), run
-the migration statements below **once**:
-
-```sql
--- Add email verification columns to users (if upgrading from earlier schema)
-ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0;
-ALTER TABLE users ADD COLUMN email_verified_at TEXT;
-
--- Create email verifications table
-CREATE TABLE IF NOT EXISTS email_verifications (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  token TEXT UNIQUE NOT NULL,
-  expires_at TEXT NOT NULL,
-  used_at TEXT,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (user_id) REFERENCES users(id)
-);
-CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
-CREATE INDEX IF NOT EXISTS idx_email_verifications_user ON email_verifications(user_id);
-```
-
-```bash
-npx wrangler d1 execute wedding-planner-db --command="ALTER TABLE users ADD COLUMN email_verified INTEGER NOT NULL DEFAULT 0"
-npx wrangler d1 execute wedding-planner-db --command="ALTER TABLE users ADD COLUMN email_verified_at TEXT"
-npx wrangler d1 execute wedding-planner-db --file=wedding-planner-backend/schema.sql
-```
+See **"Migrations — run order 003 → 004 → 005"** at the top of this guide. Fresh
+databases get everything from `schema.sql` (idempotent — `CREATE TABLE IF NOT
+EXISTS`); existing databases apply the ordered `--remote` migrations. The deploy
+workflow does **not** run migrations.
