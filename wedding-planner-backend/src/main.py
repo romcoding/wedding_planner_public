@@ -37,6 +37,7 @@ from routes.website_routes import router as website_router
 from routes.public_site_routes import router as public_site_router
 
 from errors import register_exception_handlers
+from public_cors import PublicRsvpCORSMiddleware
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -68,11 +69,29 @@ class Default(WorkerEntrypoint):
         origin = request.headers.get("origin") or ""
         cors_origin = origin if origin in _allowed_origins else ""
 
+        # The public RSVP endpoint is uncredentialed and called cross-origin from
+        # any couple-site origin, so it (and its preflight) get
+        # Access-Control-Allow-Origin:* with NO credentials. This must never apply
+        # to any authenticated route.
+        req_path = ""
+        try:
+            from js import URL
+            req_path = URL.new(request.url).pathname or ""
+        except Exception:
+            req_path = ""
+        is_public_rsvp = req_path.startswith("/api/public/rsvp/")
+
         # Handle OPTIONS preflight at the worker level — always works regardless
         # of whether the ASGI bridge passes the Origin header through correctly.
         if request.method == "OPTIONS":
             h = Headers.new()
-            if cors_origin:
+            if is_public_rsvp:
+                h.set("access-control-allow-origin", "*")
+                h.set("access-control-allow-methods", "POST, OPTIONS")
+                h.set("access-control-allow-headers", "content-type")
+                h.set("access-control-max-age", "86400")
+                # NB: no access-control-allow-credentials — wildcard is uncredentialed.
+            elif cors_origin:
                 h.set("access-control-allow-origin", cors_origin)
                 h.set("access-control-allow-methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS")
                 h.set("access-control-allow-headers", "content-type, authorization")
@@ -88,8 +107,8 @@ class Default(WorkerEntrypoint):
         edge_cache = None
         if request.method == "GET":
             try:
-                from js import URL, caches
-                path = URL.new(request.url).pathname
+                from js import caches
+                path = req_path
                 base = (os.environ.get("PUBLIC_SITE_BASE_URL") or "").rstrip("/")
                 if base and path.startswith("/s/"):
                     site_cache_key = base + path
@@ -119,6 +138,13 @@ class Default(WorkerEntrypoint):
                     await edge_cache.put(site_cache_key, resp.clone())
             except Exception:
                 pass
+
+        # Uncredentialed public RSVP: force Access-Control-Allow-Origin:* and
+        # never emit credentials, regardless of the request Origin.
+        if is_public_rsvp:
+            h = Headers.new(resp.headers)
+            h.set("access-control-allow-origin", "*")
+            return Response.new(resp.body, status=resp.status, headers=h)
 
         # Always patch CORS headers at the worker level. The Cloudflare Python
         # Workers ASGI bridge may drop the Origin header from the ASGI scope,
@@ -151,6 +177,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Installed AFTER (i.e. OUTSIDE) CORSMiddleware so it runs first on the request
+# and last on the response: it serves ONLY /api/public/rsvp/* with a permissive,
+# UNcredentialed CORS policy without widening CORS on any authenticated route.
+app.add_middleware(PublicRsvpCORSMiddleware)
 
 # Consolidated {"code","detail"} error envelope + generic 500 (no traceback leak).
 register_exception_handlers(app)
