@@ -103,29 +103,79 @@ python -m compileall src
 
 ### Run backend unit tests
 
-The `tests/test_auth_registration.py` suite tests registration, email-verification,
-and rate-limiting logic without the Cloudflare Workers runtime:
+The suite runs the FastAPI handlers directly (a real in-memory SQLite stands in
+for D1), so no Cloudflare Workers runtime is needed. `conftest.py` puts `src/` on
+the path and stubs the Pyodide-only `workers`/`asgi`/`js` modules.
 
 ```bash
 cd wedding-planner-backend
-pip install pytest fastapi pyjwt httpx
-pytest tests/test_auth_registration.py -v
+pip install pytest fastapi passlib pyjwt httpx
+python -m pytest          # entitlements, billing webhook, tenant isolation,
+                          # website + Wedi, public site + RSVP CORS, XSS escaping,
+                          # error envelope, abuse matrix, observability, health
 ```
 
 ## Deployment
 
-Use `DEPLOY.md` for production deploy instructions (D1 setup, secrets, deploy commands, Stripe webhook).
+Use `DEPLOY.md` for production deploy instructions (D1 setup, secrets, deploy
+commands, Stripe live-mode setup, migration order, `wrangler tail`). `MANUAL-QA.md`
+holds the pre-launch end-to-end click-paths.
 
-## Important Caveat about Legacy Files
+## Plans & Website Hosting
 
-This repository still includes some legacy Flask-era migration and test files that reference `create_app()` and SQLAlchemy models. Those are not part of the active Cloudflare Workers runtime path.
+### Plans (`free | premium | lifetime`)
 
-Primary Cloudflare runtime files are in:
-- `wedding-planner-backend/src/main.py`
-- `wedding-planner-backend/src/middleware.py`
-- `wedding-planner-backend/schema.sql`
-- `wedding-planner-backend/wrangler.jsonc`
-- `wedding-planner-frontend/wrangler.jsonc`
+`src/entitlements.py` is the single source of truth; the **backend** enforces
+every gate via `require_feature(...)`, and frontend gating is UX only. Legacy
+`starter` rows normalize to `premium`.
+
+| Plan | Price | What you get |
+|------|-------|--------------|
+| **free** | — | Guest list, tasks, basic budget, basic agenda. Caps: 30 guests, 10 tasks. No website. |
+| **premium** | CHF 9 / month (subscription) | Everything: invitations, events, seating, messaging, gift registry, venue tools, RSVP reminders, full budget, planning assistant, **website builder + Wedi generation + public `/s/` hosting**. |
+| **lifetime** | CHF 149 (one-time) | Same as premium, forever. **Never downgraded** by any subscription webhook. |
+
+Plan changes are driven by the single Stripe webhook (`/api/billing/webhook`);
+price-id → plan is read from env vars (sandbox ids as defaults), so sandbox and
+live differ by config, not code.
+
+### Public website hosting at `/s/{slug}`
+
+Published couple sites are **server-rendered** (`services/site_renderer.py`) from
+`wedding_sites.published_snapshot` and served by the API Worker at **`GET /s/{slug}`**
+— never the SPA, and never `/w/` (that path is the existing guest portal,
+`WeddingPortal`). Notes:
+
+- Password-protected sites sit behind a signed, site-scoped cookie and are never cached.
+- Password-less published sites are edge-cached (`public, max-age=300`) and the
+  cache is purged on publish / unpublish / downgrade / delete.
+- The `custom_host` column + `resolve_site` already support the future
+  wildcard-domain phase (see DEPLOY.md appendix).
+
+### Wedi generation limits
+
+Wedi turns a couple's note into the same validated block document the manual
+editor produces (drafts only — it never auto-publishes). Limits (premium/lifetime;
+free = 0), all in `entitlements.py` / `services/usage.py`:
+
+- **30 generations per month** and a **monthly token budget** (checked before any
+  model call, so an over-limit account makes zero requests),
+- **5 generations per minute** velocity guard,
+- a hard **4000 output-token** ceiling per request,
+- a global **kill switch** (`WEDI_GENERATION_DISABLED=1` → `503`).
+
+### Two RSVP channels
+
+RSVPs arrive through two **separate** paths that never cross tenants:
+
+1. **Guest-token channel** — an invited guest opens `/rsvp/{token}` (guest portal,
+   authenticated by their unique token) and updates their own row in the `guests`
+   table.
+2. **Public-site form channel** — anyone visiting `/s/{slug}` submits the open RSVP
+   form, which POSTs to **`/api/public/rsvp/{slug}`** (unauthenticated; tenancy is
+   derived from the slug, never the body). Submissions land in
+   `site_rsvp_responses`, are best-effort matched to a guest, and surface in the
+   website **RSVP inbox** with an **"Add to guest list"** action.
 
 ## License
 
