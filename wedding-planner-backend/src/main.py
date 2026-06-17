@@ -36,6 +36,8 @@ from routes.demo_routes import router as demo_router
 from routes.website_routes import router as website_router
 from routes.public_site_routes import router as public_site_router
 
+from errors import register_exception_handlers
+
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         from js import Response, Headers
@@ -149,6 +151,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Consolidated {"code","detail"} error envelope + generic 500 (no traceback leak).
+register_exception_handlers(app)
 
 
 # Health check
