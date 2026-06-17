@@ -28,6 +28,7 @@ from pydantic import BaseModel
 from middleware import get_db, get_env
 from entitlements import require_feature, get_plan
 from db import row_to_dict, rows_to_list
+from obs import log_event
 from services import site_schema, rate_limit, usage, wedi_site, ai_service
 from services.site_cache import purge_site_cache
 # Reuse the SAME PBKDF2 hashing as user auth (passlib pbkdf2_sha256) for the
@@ -442,6 +443,7 @@ async def generate(
 
     # 1. Kill switch — before any work, so a paused feature costs nothing.
     if usage.generation_disabled(env):
+        log_event("wedi_generation", wedding_id=wedding_id, status="paused")
         raise HTTPException(503, {
             "code": "wedi_paused",
             "detail": "Wedi is taking a short break — please try again soon.",
@@ -457,6 +459,7 @@ async def generate(
 
     # 2. Per-minute velocity (KV-backed; fails open if unconfigured).
     if not await usage.within_velocity(env, wedding_id):
+        log_event("wedi_generation", wedding_id=wedding_id, status="rate_limited", mode=mode)
         raise HTTPException(429, {
             "code": "slow_down",
             "detail": "Wedi is still working — give it a moment.",
@@ -468,6 +471,7 @@ async def generate(
         await usage.check_budget(db, wedding_id, plan)
     except usage.BudgetExceeded as exc:
         await usage.log_generation(db, wedding_id, ai_service.DEFAULT_MODEL, "over_limit", purpose=mode)
+        log_event("wedi_generation", wedding_id=wedding_id, status="over_limit", mode=mode)
         raise HTTPException(429, {
             "code": "wedi_limit",
             "detail": f"Wedi has reached this month's design limit. It resets on {exc.resets_on}.",
@@ -485,6 +489,7 @@ async def generate(
     except (wedi_site.GenerationError, RuntimeError) as exc:
         logger.warning(f"wedi generation failed for wedding {wedding_id}: {exc}")
         await usage.log_generation(db, wedding_id, ai_service.DEFAULT_MODEL, "error", purpose=mode)
+        log_event("wedi_generation", wedding_id=wedding_id, status="error", mode=mode)
         raise HTTPException(502, _WEDI_FAILED_DETAIL)
 
     doc = result["content"]
@@ -496,6 +501,11 @@ async def generate(
 
     # 7. Record usage from the model's ACTUAL token counts (+ an 'ok' audit row).
     await usage.record_usage(db, wedding_id, result["model"], result["usage"], purpose=mode)
+
+    # Structured ops log — ids + counts + status only, NEVER the prompt or PII.
+    _u = result.get("usage") or {}
+    log_event("wedi_generation", wedding_id=wedding_id, status="ok", mode=mode,
+              input_tokens=_u.get("input_tokens"), output_tokens=_u.get("output_tokens"))
 
     status = await usage.get_status(db, wedding_id, plan)
     return {"content": doc, "remaining_generations": status["remaining"]}

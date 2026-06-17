@@ -67,7 +67,10 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: uv run pywrangler deploy
+        # Inject the commit sha as a plain Worker var so GET /api/health can
+        # report {"version": <sha>}. This deploy workflow does NOT run D1
+        # migrations — see DEPLOY.md for the manual migration step.
+        run: uv run pywrangler deploy --var GIT_SHA:${{ github.sha }}
 
       - name: Set JWT_SECRET_KEY
         working-directory: wedding-planner-backend

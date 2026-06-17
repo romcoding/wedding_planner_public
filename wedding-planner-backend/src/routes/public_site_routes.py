@@ -30,6 +30,7 @@ from pydantic import BaseModel
 
 from middleware import get_db, get_env
 from db import row_to_dict
+from obs import log_event
 from services import rate_limit, site_renderer
 # Reuse the SAME PBKDF2 verify as user auth for the optional guest password.
 from routes.auth_routes import _check_password
@@ -207,10 +208,12 @@ async def serve_site(slug: str, request: Request = None):
     base_url = _base_url(request)
     site = await resolve_site(db, request, slug)
     if not site:
+        log_event("public_site_404", slug=slug, host=_host(request), reason="no_site")
         return _not_found(base_url)
 
     snapshot = _snapshot(site)
     if snapshot is None:
+        log_event("public_site_404", slug=slug, host=_host(request), reason="no_snapshot")
         return _not_found(base_url)
 
     real_slug = site.get("slug") or slug

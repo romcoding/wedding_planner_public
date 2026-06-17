@@ -56,6 +56,8 @@ class Default(WorkerEntrypoint):
             # Public site hosting (P4): the shareable /s/{slug} origin, the
             # optional RSVP-cookie HMAC secret, and the "Made with Wedi" link.
             "PUBLIC_SITE_BASE_URL", "RSVP_COOKIE_SECRET", "WEDI_LANDING_URL",
+            # Wedi kill switch + the git sha surfaced by /api/health.
+            "WEDI_GENERATION_DISABLED", "GIT_SHA",
         ):
             value = getattr(self.env, key, None)
             if value is not None:
@@ -187,10 +189,11 @@ app.add_middleware(PublicRsvpCORSMiddleware)
 register_exception_handlers(app)
 
 
-# Health check
+# Health check. `version` is the git sha injected at deploy time as the GIT_SHA
+# Worker var (see the deploy workflow / DEPLOY.md); "dev" off-platform.
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "version": os.environ.get("GIT_SHA", "dev")}
 
 
 # Auth
