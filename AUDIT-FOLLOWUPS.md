@@ -64,3 +64,24 @@ ledger/field names.
 agreed wording (neutral "Smart"/"assistant", or fold them under "Wedi"), refresh
 any affected vitest snapshots, and re-run the final grep so the user-facing
 surface is clean of "AI"/"LLM"/"chatbot"/"token"/"quota".
+
+## Legacy "Webpage Builder" ("Clawed Bot") removed (go-live QA)
+
+**Status:** done. Two website builders shipped side by side: the legacy
+"Webpage Builder" (off-brand "Clawed Bot" copy, a user-facing "Tokens used"
+counter, and an empty page) and the P2 "Wedding Website" structured-block
+builder. The legacy surface was dead/confusing and leaked an off-brand assistant
+name, so it was removed: its sidebar entry, its `/admin/webpage` route, the
+`pages/admin/WebpageBuilderPage.jsx` component, and the orphaned
+`assets/tutorials/webpage-builder.json` tour. "Wedding Website"
+(`/admin/website`, premium-gated, server-enforced via
+`require_feature("website_builder")`) is now the single website surface.
+
+**Backend:** nothing was exclusive to the legacy builder, so no backend route was
+removed. `/api/events/guest-portal-settings` is shared with `ImagesPage` and is
+retained. The legacy page also POSTed to `/api/ai/webpage-command`, which has
+**no** server-side route (it was already a dead call), so there was nothing to
+delete there.
+
+This closes the "Clawed Bot" off-brand name leak and its "Tokens used" string
+noted in the brand sweep above.

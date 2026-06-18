@@ -12,7 +12,6 @@ import {
   FileText,
   BarChart3,
   Heart,
-  Image as ImageIcon,
   Mail,
   Calendar,
   LogOut,
@@ -69,7 +68,6 @@ export default function AdminLayout() {
         { path: '/admin/events', icon: Calendar, label: 'Timeline', featureKey: 'events' },
         { path: '/admin/venues', icon: MapPin, label: 'Venues', featureKey: 'venue' },
         { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks', featureKey: 'tasks' },
-        { path: '/admin/webpage', icon: ImageIcon, label: 'Guest Website Builder', featureKey: 'content_basic' },
         { path: '/admin/billing', icon: CreditCard, label: 'Billing', featureKey: 'dashboard' },
       ]
     : [
@@ -82,7 +80,6 @@ export default function AdminLayout() {
         { path: '/admin/invitations', icon: Mail, label: 'Invitations', featureKey: 'invitations' },
         { path: '/admin/events', icon: Calendar, label: 'Timeline', featureKey: 'events' },
         { path: '/admin/venues', icon: MapPin, label: 'Venues', featureKey: 'venue' },
-        { path: '/admin/webpage', icon: ImageIcon, label: 'Webpage Builder', featureKey: 'content_basic' },
         { path: '/admin/website', icon: Globe, label: 'Wedding Website', featureKey: 'website' },
         { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks', featureKey: 'tasks' },
         { path: '/admin/costs', icon: DollarSign, label: 'Costs', featureKey: 'budget_basic' },
