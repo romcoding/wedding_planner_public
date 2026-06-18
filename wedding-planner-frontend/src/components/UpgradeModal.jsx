@@ -1,5 +1,6 @@
 import { X, Zap, Crown, Check, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { usePricing } from '../hooks/usePricing'
 
 /**
  * UpgradeModal — shown when a user hits a plan limit.
@@ -8,39 +9,50 @@ import { useNavigate } from 'react-router-dom'
  *   isOpen       — boolean
  *   onClose      — function
  *   reason       — string description of what was blocked
- *   currentPlan  — 'free' | 'starter' | 'premium'
- *   suggestPlan  — 'starter' | 'premium' (which plan to suggest)
+ *   currentPlan  — 'free' | 'premium' | 'lifetime'
+ *   suggestPlan  — 'premium' | 'lifetime' (which plan to suggest)
  */
-export default function UpgradeModal({ isOpen, onClose, reason, currentPlan = 'free', suggestPlan = 'starter' }) {
+export default function UpgradeModal({ isOpen, onClose, reason, currentPlan = 'free', suggestPlan = 'premium' }) {
   const navigate = useNavigate()
+  const { pricing, format } = usePricing()
 
   if (!isOpen) return null
 
-  const plans = [
-    {
-      id: 'starter',
-      name: 'Starter',
-      price: '$9/mo',
-      icon: Zap,
-      color: 'text-blue-600 bg-blue-50',
-      features: ['Up to 150 guests', '3 AI uses/day', 'Custom URL slug', 'Full budget tracking'],
-    },
-    {
-      id: 'premium',
-      name: 'Premium',
-      price: '$29/mo',
-      icon: Crown,
-      color: 'text-amber-600 bg-amber-50',
-      features: ['Unlimited guests', 'Unlimited AI', 'Custom branding', 'Priority support'],
-    },
-  ]
-
-  const suggested = plans.find((p) => p.id === suggestPlan) || plans[0]
+  const suggested =
+    suggestPlan === 'lifetime'
+      ? {
+          id: 'lifetime',
+          name: 'Lifetime',
+          priceLabel: format(pricing.lifetime),
+          periodLabel: 'one-time',
+          icon: Zap,
+          color: 'text-emerald-600 bg-emerald-50',
+          features: [
+            'Everything in Premium',
+            'No recurring fees — ever',
+            'Lifetime feature updates',
+            'Wedding-day priority support',
+          ],
+        }
+      : {
+          id: 'premium',
+          name: 'Premium',
+          priceLabel: format(pricing.monthly),
+          periodLabel: '/month',
+          icon: Crown,
+          color: 'text-amber-600 bg-amber-50',
+          features: [
+            'Unlimited guests, tasks & RSVPs',
+            'Full Wedi planning assistant',
+            'Custom slug + branded portal',
+            'Exports & advanced budget',
+          ],
+        }
   const SuggestedIcon = suggested.icon
 
   const handleUpgrade = () => {
     onClose()
-    navigate(`/admin/billing?upgrade=${suggestPlan}`)
+    navigate(`/admin/billing?upgrade=${suggested.id}`)
   }
 
   return (
@@ -64,8 +76,8 @@ export default function UpgradeModal({ isOpen, onClose, reason, currentPlan = 'f
         {/* Body */}
         <div className="p-6">
           <div className="flex items-baseline gap-1 mb-4">
-            <span className="text-3xl font-bold text-gray-900">{suggested.price.split('/')[0]}</span>
-            <span className="text-gray-500 text-sm">/month</span>
+            <span className="text-3xl font-bold text-gray-900">{suggested.priceLabel}</span>
+            <span className="text-gray-500 text-sm">{suggested.periodLabel}</span>
           </div>
 
           <ul className="space-y-2.5 mb-6">

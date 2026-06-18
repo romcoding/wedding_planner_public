@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useWedding } from '../contexts/WeddingContext'
 import api from '../lib/api'
 
-const PREMIUM_PLANS = new Set(['premium', 'starter'])
+const PREMIUM_PLANS = new Set(['premium', 'lifetime'])
 
 /**
  * usePlan — single source of truth for "what plan is this wedding on?"
@@ -13,8 +13,8 @@ const PREMIUM_PLANS = new Set(['premium', 'starter'])
  * "useQuery with 5min stale time" semantics without pulling in React Query.
  *
  * Returns:
- *   - plan         ('free' | 'starter' | 'premium' | …)
- *   - isPremium    (boolean — true for starter/premium/lifetime)
+ *   - plan         ('free' | 'premium' | 'lifetime')
+ *   - isPremium    (boolean — true for premium/lifetime)
  *   - isFree       (boolean)
  *   - limits       (object — from /billing/status)
  *   - expiresAt    (string | null — for lifetime plans)

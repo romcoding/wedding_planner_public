@@ -15,9 +15,9 @@ export function WeddingProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // 'lifetime' is the top tier; include it so lifetime/admin-override accounts
-  // clear premium gates (planMeets) instead of being treated as plan 0.
-  const PLAN_ORDER = { free: 0, starter: 1, premium: 2, lifetime: 3 }
+  // Plan vocabulary: free < premium < lifetime (lifetime = full entitlements,
+  // so it clears every premium gate). Mirrors lib/planFeatures.PLAN_ORDER.
+  const PLAN_ORDER = { free: 0, premium: 1, lifetime: 2 }
 
   const fetchWedding = useCallback(async () => {
     const token = sessionStorage.getItem('access_token')

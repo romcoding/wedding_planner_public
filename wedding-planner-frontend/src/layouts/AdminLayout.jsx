@@ -26,7 +26,6 @@ import {
   Sparkles,
   CreditCard,
   ExternalLink,
-  Zap,
   Crown,
   Lock,
   Globe,
@@ -34,7 +33,6 @@ import {
 
 const PLAN_BADGE = {
   free: { label: 'Free', className: 'bg-gray-100 text-gray-600' },
-  starter: { label: 'Starter', className: 'bg-blue-100 text-blue-700', icon: Zap },
   premium: { label: 'Premium', className: 'bg-amber-100 text-amber-700', icon: Crown },
   lifetime: { label: 'Lifetime', className: 'bg-amber-100 text-amber-700', icon: Crown },
 }
