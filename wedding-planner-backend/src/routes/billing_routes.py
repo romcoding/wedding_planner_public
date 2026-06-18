@@ -132,23 +132,47 @@ def _verify_stripe_signature(payload: bytes, sig_header: str, secret: str, toler
 # ---------- Helpers ----------
 
 
-# Known production price ids for the consolidated tiers. Env vars (if set)
-# extend/override this map; an unknown price id maps to None (never guessed).
-_PREMIUM_PRICE_ID = "price_1TXkacDTUwCAfgW5yZgz8fwC"   # CHF 9/mo subscription
-_LIFETIME_PRICE_ID = "price_1TXkahDTUwCAfgW5KURJ4UN4"  # one-time lifetime
+# Known production price ids for the consolidated tiers, per presentment
+# currency. Every monthly id maps to 'premium' and every lifetime id to
+# 'lifetime', so a EUR/USD checkout upgrades the plan exactly like CHF. Env vars
+# (if set) extend/override this map; an unknown price id maps to None (never
+# guessed). Live-mode ids are swapped in via env at go-live (P5).
+_PRICE_IDS: dict[str, dict[str, str]] = {
+    "premium": {
+        "CHF": "price_1TXkacDTUwCAfgW5yZgz8fwC",   # CHF 9/mo
+        "EUR": "price_1Tjb2hDTUwCAfgW527cebZO5",   # EUR 9/mo
+        "USD": "price_1Tjb2kDTUwCAfgW5ZhFN6saU",   # USD 9/mo
+    },
+    "lifetime": {
+        "CHF": "price_1TXkahDTUwCAfgW5KURJ4UN4",   # CHF 149 one-time
+        "EUR": "price_1Tjb2nDTUwCAfgW5DE1GIcuy",   # EUR 149 one-time
+        "USD": "price_1Tjb2qDTUwCAfgW5rwvV997E",   # USD 149 one-time
+    },
+}
+
+_DEFAULT_CURRENCY = "CHF"
+
+# CHF defaults kept as named back-compat aliases (checkout fallback + tests).
+_PREMIUM_PRICE_ID = _PRICE_IDS["premium"][_DEFAULT_CURRENCY]
+_LIFETIME_PRICE_ID = _PRICE_IDS["lifetime"][_DEFAULT_CURRENCY]
 
 
 def _price_plan_map() -> dict[str, str]:
     """Map known price ids -> plan. Built per-call so env mirroring is visible."""
-    mapping: dict[str, str] = {
-        _PREMIUM_PRICE_ID: "premium",
-        _LIFETIME_PRICE_ID: "lifetime",
-    }
+    mapping: dict[str, str] = {}
+    for pid in _PRICE_IDS["premium"].values():
+        mapping[pid] = "premium"
+    for pid in _PRICE_IDS["lifetime"].values():
+        mapping[pid] = "lifetime"
     for env_key, plan in (
         ("STRIPE_PREMIUM_PRICE_ID", "premium"),
         ("STRIPE_MONTHLY_PRICE_ID", "premium"),
         ("STRIPE_STARTER_PRICE_ID", "premium"),  # retired starter collapses to premium
+        ("STRIPE_PREMIUM_PRICE_ID_EUR", "premium"),
+        ("STRIPE_PREMIUM_PRICE_ID_USD", "premium"),
         ("STRIPE_LIFETIME_PRICE_ID", "lifetime"),
+        ("STRIPE_LIFETIME_PRICE_ID_EUR", "lifetime"),
+        ("STRIPE_LIFETIME_PRICE_ID_USD", "lifetime"),
     ):
         pid = _env(env_key)
         if pid:
@@ -163,11 +187,20 @@ def _plan_for_price(price_id: str | None) -> str | None:
     return _price_plan_map().get(price_id)
 
 
-def _checkout_price(plan: str) -> tuple[str, str]:
-    """Return (price_id, checkout_mode) for a requested plan."""
-    if plan == "premium":
-        return (_env("STRIPE_PREMIUM_PRICE_ID") or _PREMIUM_PRICE_ID, "subscription")
-    return (_env("STRIPE_LIFETIME_PRICE_ID") or _LIFETIME_PRICE_ID, "payment")
+def _checkout_price(plan: str, currency: str = _DEFAULT_CURRENCY) -> tuple[str, str]:
+    """Return (price_id, checkout_mode) for a requested plan + presentment currency.
+
+    The currency selects the matching price id so the charged currency always
+    equals the displayed one; an unknown currency falls back to CHF. A
+    plan-level env override (currency-agnostic) still wins for CHF/back-compat.
+    """
+    cur = (currency or _DEFAULT_CURRENCY).upper()
+    table = _PRICE_IDS["premium"] if plan == "premium" else _PRICE_IDS["lifetime"]
+    env_key = "STRIPE_PREMIUM_PRICE_ID" if plan == "premium" else "STRIPE_LIFETIME_PRICE_ID"
+    env_override = _env(env_key) if cur == _DEFAULT_CURRENCY else ""
+    price_id = env_override or table.get(cur) or table[_DEFAULT_CURRENCY]
+    mode = "subscription" if plan == "premium" else "payment"
+    return (price_id, mode)
 
 
 class _StripeEventsMissing(Exception):
@@ -209,6 +242,7 @@ async def _mark_event_seen(db, event_id: str, event_type: str) -> None:
 
 class CheckoutBody(BaseModel):
     plan: str = "premium"  # "premium" | "lifetime"
+    currency: str | None = None  # presentment currency (CHF | EUR | USD)
     success_url: str | None = None
     cancel_url: str | None = None
 
@@ -230,7 +264,12 @@ async def create_checkout_session(
     if plan not in ("premium", "lifetime"):
         raise HTTPException(400, 'plan must be "premium" or "lifetime"')
 
-    price_id, mode = _checkout_price(plan)
+    # Charge in the currency the frontend displayed (CHF/EUR/USD) so the price
+    # the customer saw is the price they pay. Unknown currency falls back to CHF.
+    currency = (body.currency or _DEFAULT_CURRENCY).upper()
+    if currency not in _PRICE_IDS["premium"]:
+        currency = _DEFAULT_CURRENCY
+    price_id, mode = _checkout_price(plan, currency)
     if not price_id:
         raise HTTPException(503, f"Price ID for {plan} plan is not configured")
 
@@ -271,7 +310,7 @@ async def create_checkout_session(
         "success_url": success_url,
         "cancel_url": cancel_url,
         "client_reference_id": wedding_id,
-        "metadata": {"wedding_id": wedding_id, "plan": plan, "price_id": price_id},
+        "metadata": {"wedding_id": wedding_id, "plan": plan, "price_id": price_id, "currency": currency},
     }
     if mode == "subscription":
         session_form["subscription_data"] = {"metadata": {"wedding_id": wedding_id, "plan": plan}}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { ASSISTANT_NAME } from '../lib/brand'
+import { usePricing } from '../hooks/usePricing'
 import {
   Heart,
   Sparkles,
@@ -384,6 +385,7 @@ function HeroCTAs() {
 
 // ── Main page ──
 export default function PublicLandingPage() {
+  const { pricing, format } = usePricing()
   return (
     <main
       className="min-h-screen overflow-x-hidden"
@@ -572,7 +574,7 @@ export default function PublicLandingPage() {
         <div className="mt-12 grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
           <PricingCard
             name="Free"
-            price="€0"
+            price={format(0)}
             period="forever"
             ctaLabel="Start free"
             ctaTo="/auth?tab=register"
@@ -588,8 +590,8 @@ export default function PublicLandingPage() {
             accent
             badge="Most popular"
             name="Premium"
-            price="€19"
-            period="/month · or €149 lifetime"
+            price={format(pricing.monthly)}
+            period={`/month · or ${format(pricing.lifetime)} lifetime`}
             ctaLabel="Upgrade to Premium"
             ctaTo="/auth?tab=register"
             perks={[
