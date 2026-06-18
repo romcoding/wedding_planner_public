@@ -213,6 +213,42 @@ def test_webhook_lifetime_price_id_sets_lifetime():
     assert db.weddings["wB"]["plan"] == "lifetime"
 
 
+def test_webhook_eur_monthly_price_id_upgrades_to_premium():
+    # A EUR checkout must upgrade the plan just like CHF (the EUR id is mapped).
+    db = BillingFakeDB([{"id": "wEUR", "plan": "free", "owner_id": "u"}])
+    eur_monthly = billing_routes._PRICE_IDS["premium"]["EUR"]
+    ev = _checkout_event("evt_eur", "wEUR", "subscription", eur_monthly, sub="sub_eur")
+    run(billing_routes.stripe_webhook(_make_webhook_request(ev, db)))
+    assert db.weddings["wEUR"]["plan"] == "premium"
+    assert db.weddings["wEUR"]["stripe_subscription_id"] == "sub_eur"
+
+
+def test_webhook_usd_lifetime_price_id_sets_lifetime():
+    db = BillingFakeDB([{"id": "wUSD", "plan": "free", "owner_id": "u"}])
+    usd_lifetime = billing_routes._PRICE_IDS["lifetime"]["USD"]
+    ev = _checkout_event("evt_usd", "wUSD", "payment", usd_lifetime)
+    run(billing_routes.stripe_webhook(_make_webhook_request(ev, db)))
+    assert db.weddings["wUSD"]["plan"] == "lifetime"
+
+
+def test_all_six_price_ids_map_to_a_plan():
+    # Every currency's monthly id -> premium, every lifetime id -> lifetime.
+    for cur in ("CHF", "EUR", "USD"):
+        assert billing_routes._plan_for_price(billing_routes._PRICE_IDS["premium"][cur]) == "premium"
+        assert billing_routes._plan_for_price(billing_routes._PRICE_IDS["lifetime"][cur]) == "lifetime"
+
+
+def test_checkout_price_selects_currency_specific_id():
+    # The displayed currency selects the matching price id (no mismatch).
+    assert billing_routes._checkout_price("premium", "EUR") == (
+        billing_routes._PRICE_IDS["premium"]["EUR"], "subscription")
+    assert billing_routes._checkout_price("lifetime", "USD") == (
+        billing_routes._PRICE_IDS["lifetime"]["USD"], "payment")
+    # Unknown currency falls back to CHF.
+    assert billing_routes._checkout_price("premium", "ZZZ") == (
+        billing_routes._PRICE_IDS["premium"]["CHF"], "subscription")
+
+
 def test_webhook_subscription_deleted_downgrades_premium():
     db = BillingFakeDB([{"id": "wC", "plan": "premium", "owner_id": "u", "stripe_subscription_id": "sub_c"}])
     ev = {"id": "evt_3", "type": "customer.subscription.deleted",

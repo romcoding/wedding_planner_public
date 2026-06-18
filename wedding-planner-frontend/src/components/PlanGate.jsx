@@ -1,38 +1,35 @@
 import { useNavigate } from 'react-router-dom'
-import { Lock, Zap, Crown, ArrowRight } from 'lucide-react'
+import { Lock, Crown, ArrowRight } from 'lucide-react'
 import { useWedding } from '../contexts/WeddingContext'
+import { usePricing } from '../hooks/usePricing'
 
 const PLAN_ICONS = {
-  starter: Zap,
   premium: Crown,
+  lifetime: Crown,
 }
 
 const PLAN_LABELS = {
-  starter: 'Starter',
   premium: 'Premium',
-}
-
-const PLAN_PRICES = {
-  starter: '$9/mo',
-  premium: '$29/mo',
+  lifetime: 'Lifetime',
 }
 
 /**
  * PlanGate — wraps content that requires a minimum plan.
  *
  * Usage:
- *   <PlanGate plan="starter">
+ *   <PlanGate plan="premium">
  *     <MyPremiumFeature />
  *   </PlanGate>
  *
  * Props:
- *   plan         — 'starter' | 'premium' — minimum required plan
+ *   plan         — 'premium' | 'lifetime' — minimum required plan
  *   children     — content to render when plan is sufficient
  *   fallback     — optional custom fallback element (instead of default upgrade prompt)
  *   inline       — if true, renders a compact inline badge instead of a full card
  */
 export default function PlanGate({ plan, children, fallback, inline = false }) {
   const { planMeets, wedding } = useWedding()
+  const { pricing, format } = usePricing()
   const navigate = useNavigate()
 
   // If no wedding context yet (loading), render nothing to avoid flicker
@@ -46,7 +43,8 @@ export default function PlanGate({ plan, children, fallback, inline = false }) {
 
   const Icon = PLAN_ICONS[plan] || Lock
   const label = PLAN_LABELS[plan] || plan
-  const price = PLAN_PRICES[plan] || ''
+  const price =
+    plan === 'lifetime' ? `${format(pricing.lifetime)} one-time` : `${format(pricing.monthly)}/mo`
 
   if (inline) {
     return (

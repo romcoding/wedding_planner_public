@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Request, Depends, HTTPException
 from auth import require_couple_auth
-from middleware import get_db, get_wedding
+from middleware import get_db, get_or_create_wedding
 from pydantic import BaseModel
 
 from db import row_to_dict, rows_to_list
@@ -136,11 +136,18 @@ async def complete_onboarding(
 async def quick_setup(
     body: QuickSetupBody,
     payload: dict = Depends(require_couple_auth),
-    wedding: dict = Depends(get_wedding),
     request: Request = None,
 ):
-    """Seed a starter set of wedding content/events/tasks for the current tenant."""
+    """Seed a starter set of wedding content/events/tasks for the current tenant.
+
+    Resolves — and CREATES if necessary — the caller's wedding via
+    ``get_or_create_wedding`` instead of the strict ``get_wedding``. This is the
+    whole point of quick-setup: a brand-new or orphaned account (dead
+    ``current_wedding_id`` and no owned wedding) must be able to recover here
+    rather than deadlocking on the very wedding it is meant to create.
+    """
     db = await get_db(request)
+    wedding = await get_or_create_wedding(payload=payload, request=request)
 
     wedding_date = _parse_wedding_date(body.wedding_date)
     wedding_location = _clean_text(body.wedding_location, fallback=DEFAULTS["wedding_location"])

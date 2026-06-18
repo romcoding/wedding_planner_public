@@ -1,3 +1,7 @@
+// Frontend feature-gate map. UX ONLY — the backend (src/entitlements.py PLANS)
+// is the source of truth and enforces every gate. This mirrors the server's
+// tier assignment: the consolidated paid tier is "premium" (the retired
+// "starter" tier was merged into it server-side; migrations/003_plans.sql).
 export const FEATURE_MIN_PLAN = {
   dashboard: "free",
   guests: "free",
@@ -5,15 +9,15 @@ export const FEATURE_MIN_PLAN = {
   budget_basic: "free",
   content_basic: "free",
   analytics_basic: "free",
-  // Starter unlocks
-  budget_full: "starter",
-  custom_slug: "starter",
-  wedi: "starter",
-  invitations: "starter",
-  events: "starter",
-  moodboard: "starter",
-  guest_photos: "starter",
-  agenda: "starter",
+  // Premium unlocks (consolidated tier — previously "starter")
+  budget_full: "premium",
+  custom_slug: "premium",
+  wedi: "premium",
+  invitations: "premium",
+  events: "premium",
+  moodboard: "premium",
+  guest_photos: "premium",
+  agenda: "premium",
   // Premium unlocks
   seating: "premium",
   messages: "premium",
@@ -23,10 +27,8 @@ export const FEATURE_MIN_PLAN = {
   website: "premium",
 };
 
-// 'lifetime' is the top tier (full entitlements server-side). It was missing
-// here, which wrongly gated lifetime/admin-override accounts out of premium
-// features — include it so they correctly clear every premium gate.
-export const PLAN_ORDER = { free: 0, starter: 1, premium: 2, lifetime: 3 };
+// Plan vocabulary: free < premium < lifetime (lifetime = full entitlements).
+export const PLAN_ORDER = { free: 0, premium: 1, lifetime: 2 };
 
 export function hasFeature(currentPlan, feature) {
   const required = FEATURE_MIN_PLAN[feature] || "free";
@@ -35,7 +37,6 @@ export function hasFeature(currentPlan, feature) {
 
 export const PLAN_NAMES = {
   free: "Free",
-  starter: "Starter",
   premium: "Premium",
   lifetime: "Lifetime",
 };

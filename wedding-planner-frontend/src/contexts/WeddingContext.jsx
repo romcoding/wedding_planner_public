@@ -15,9 +15,9 @@ export function WeddingProvider({ children }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // 'lifetime' is the top tier; include it so lifetime/admin-override accounts
-  // clear premium gates (planMeets) instead of being treated as plan 0.
-  const PLAN_ORDER = { free: 0, starter: 1, premium: 2, lifetime: 3 }
+  // Plan vocabulary: free < premium < lifetime (lifetime = full entitlements,
+  // so it clears every premium gate). Mirrors lib/planFeatures.PLAN_ORDER.
+  const PLAN_ORDER = { free: 0, premium: 1, lifetime: 2 }
 
   const fetchWedding = useCallback(async () => {
     const token = sessionStorage.getItem('access_token')
@@ -31,11 +31,16 @@ export function WeddingProvider({ children }) {
       setWedding(res.data)
       setError(null)
     } catch (err) {
-      if (err.response?.status === 403 && err.response?.data?.needs_onboarding) {
+      const status = err.response?.status
+      const code = err.response?.data?.code
+      // 409 {code:"no_wedding"} = authenticated but no wedding yet → finish
+      // onboarding (NOT a paywall). Kept tolerant of the legacy 403 shape.
+      if ((status === 409 && code === 'no_wedding') ||
+          (status === 403 && err.response?.data?.needs_onboarding)) {
         setWedding(null)
         setError('needs_onboarding')
-      } else if (err.response?.status !== 401) {
-        setError(err.response?.data?.error || 'Failed to load wedding')
+      } else if (status !== 401) {
+        setError(err.response?.data?.detail || err.response?.data?.error || 'Failed to load wedding')
       } else {
         setWedding(null)
       }

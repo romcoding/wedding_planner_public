@@ -51,7 +51,11 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status
+    const code = error.response?.data?.code
+    const url = error.config?.url || ''
+
+    if (status === 401) {
       const isAdmin = sessionStorage.getItem('access_token')
       const isGuest = sessionStorage.getItem('guest_token')
 
@@ -63,6 +67,17 @@ api.interceptors.response.use(
         sessionStorage.removeItem('guest_token')
         sessionStorage.removeItem('guest')
         window.location.href = '/login'
+      }
+    } else if (status === 409 && code === 'no_wedding') {
+      // Authenticated, but the account has no wedding yet. Every wedding-scoped
+      // route 409s this until onboarding runs — route the user into the
+      // quick-setup flow instead of surfacing a generic error or paywall.
+      // /weddings/current is handled softly by WeddingContext, so skip it here.
+      const isAdmin =
+        typeof window !== 'undefined' && sessionStorage.getItem('access_token')
+      const path = typeof window !== 'undefined' ? window.location.pathname : ''
+      if (isAdmin && !url.includes('/weddings/current') && !path.startsWith('/onboarding')) {
+        window.location.href = '/onboarding'
       }
     }
     return Promise.reject(error)

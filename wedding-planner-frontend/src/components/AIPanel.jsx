@@ -4,6 +4,7 @@ import { useWedding } from '../contexts/WeddingContext'
 import UpgradeModal from './UpgradeModal'
 import api from '../lib/api'
 import { ASSISTANT_NAME, ASSISTANT_INTRO } from '../lib/brand'
+import { usePricing } from '../hooks/usePricing'
 
 // ── Skeleton loader ──────────────────────────────────────────────────────────
 function Skeleton({ className = '' }) {
@@ -403,12 +404,13 @@ const TOOLS = [
 
 export default function AIPanel({ isOpen, onClose }) {
   const { wedding, planMeets, getAiUsage } = useWedding()
+  const { pricing, format } = usePricing()
   const [activeTool, setActiveTool] = useState('timeline')
   const [usage, setUsage] = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
 
   const fetchUsage = useCallback(async () => {
-    if (!planMeets('starter')) return
+    if (!planMeets('premium')) return
     const u = await getAiUsage()
     if (u) setUsage(u)
   }, [planMeets, getAiUsage])
@@ -422,7 +424,7 @@ export default function AIPanel({ isOpen, onClose }) {
     console.log('Apply AI output:', type, data)
   }
 
-  const isLocked = !planMeets('starter')
+  const isLocked = !planMeets('premium')
 
   return (
     <>
@@ -456,7 +458,7 @@ export default function AIPanel({ isOpen, onClose }) {
           </button>
         </div>
 
-        {/* Usage Counter (Starter plan) */}
+        {/* Usage Counter */}
         {usage && !usage.unlimited && (
           <div className="mx-4 mt-3 flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
             <span className="text-xs text-amber-700 font-medium">
@@ -479,7 +481,7 @@ export default function AIPanel({ isOpen, onClose }) {
             <div className="w-14 h-14 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <Sparkles className="w-7 h-7 text-gray-400" />
             </div>
-            <h3 className="font-semibold text-gray-900 mb-2">{ASSISTANT_NAME} requires Starter</h3>
+            <h3 className="font-semibold text-gray-900 mb-2">{ASSISTANT_NAME} requires Premium</h3>
             <p className="text-sm text-gray-500 mb-5">
               Upgrade to unlock {ASSISTANT_NAME}'s planning tools: Timeline, Vendor Suggestions, Website Copy, and Smart Seating.
             </p>
@@ -487,7 +489,7 @@ export default function AIPanel({ isOpen, onClose }) {
               onClick={() => setShowUpgrade(true)}
               className="bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors"
             >
-              Upgrade to Starter — $9/mo
+              Upgrade to Premium — {format(pricing.monthly)}/mo
             </button>
           </div>
         ) : (
@@ -531,9 +533,9 @@ export default function AIPanel({ isOpen, onClose }) {
       <UpgradeModal
         isOpen={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        reason="Upgrade to Starter to unlock all AI features."
+        reason="Upgrade to Premium to unlock all AI features."
         currentPlan={wedding?.plan || 'free'}
-        suggestPlan="starter"
+        suggestPlan="premium"
       />
     </>
   )

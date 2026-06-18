@@ -2,14 +2,15 @@ import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { CreditCard, Check, Zap, Crown, Heart, ExternalLink, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useWedding } from '../../contexts/WeddingContext'
+import { usePricing } from '../../hooks/usePricing'
 import api from '../../lib/api'
 
-const PLANS = [
+// Plan metadata only — all amounts/period come from pricing.js (the single
+// source of truth) so the displayed currency always matches what Stripe charges.
+const PLAN_META = [
   {
     id: 'free',
     name: 'Free',
-    price: '€0',
-    period: 'forever',
     icon: Heart,
     color: 'text-gray-600',
     bg: 'bg-gray-50 border-gray-200',
@@ -25,8 +26,6 @@ const PLANS = [
   {
     id: 'premium',
     name: 'Premium · Monthly',
-    price: '€19',
-    period: 'month',
     icon: Crown,
     color: 'text-amber-600',
     bg: 'bg-amber-50 border-amber-300',
@@ -44,8 +43,6 @@ const PLANS = [
   {
     id: 'lifetime',
     name: 'Premium · Lifetime',
-    price: '€149',
-    period: 'one-time',
     icon: Zap,
     color: 'text-emerald-600',
     bg: 'bg-emerald-50 border-emerald-300',
@@ -62,7 +59,16 @@ const PLANS = [
 
 export default function BillingPage() {
   const { wedding, refreshWedding } = useWedding()
+  const { currency, pricing, format } = usePricing()
   const [searchParams] = useSearchParams()
+
+  // Inject locale-aware price + period from pricing.js.
+  const PRICE_BY_ID = {
+    free: { price: format(0), period: 'forever' },
+    premium: { price: format(pricing.monthly), period: 'month' },
+    lifetime: { price: format(pricing.lifetime), period: 'one-time' },
+  }
+  const PLANS = PLAN_META.map((p) => ({ ...p, ...PRICE_BY_ID[p.id] }))
   const [loading, setLoading] = useState(false)
   const [portalLoading, setPortalLoading] = useState(false)
   const [error, setError] = useState('')
@@ -86,7 +92,8 @@ export default function BillingPage() {
     setLoading(true)
     setError('')
     try {
-      const res = await api.post('/billing/create-checkout-session', { plan: planId })
+      // Charge in the currency we displayed → no currency mismatch.
+      const res = await api.post('/billing/create-checkout-session', { plan: planId, currency })
       window.location.href = res.data.checkout_url
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to start checkout. Please try again.')

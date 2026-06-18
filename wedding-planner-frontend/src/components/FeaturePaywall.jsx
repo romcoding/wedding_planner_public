@@ -2,20 +2,16 @@ import { Lock, ArrowRight, LayoutDashboard } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 const PLAN_BENEFITS = {
-  starter: [
-    "Unlimited task management & timeline",
-    "Moodboard, invitations & guest portal customization",
-    "Ask Wedi — your personal planning helper (3 uses/day)",
-  ],
   premium: [
-    "Smart seating chart with Wedi suggestions",
-    "Guest messaging & gift registry management",
-    "RSVP reminders, venue management & unlimited Wedi access",
+    "Unlimited guests, tasks, timeline & RSVPs",
+    "Wedding website, moodboard & invitations",
+    "Smart seating, gift registry & guest messaging",
+    "Full Wedi planning assistant",
   ],
 };
 
 export default function FeaturePaywall({ featureName, featureDescription, requiredPlan, previewImage }) {
-  const planLabel = requiredPlan === "premium" ? "Premium" : "Starter";
+  const planLabel = requiredPlan === "lifetime" ? "Lifetime" : "Premium";
   const benefits = PLAN_BENEFITS[requiredPlan] || PLAN_BENEFITS.premium;
 
   return (

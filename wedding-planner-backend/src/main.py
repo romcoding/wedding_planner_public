@@ -35,6 +35,7 @@ from routes.image_routes import router as image_router
 from routes.demo_routes import router as demo_router
 from routes.website_routes import router as website_router
 from routes.public_site_routes import router as public_site_router
+from routes.geo_routes import router as geo_router
 
 from errors import register_exception_handlers
 from public_cors import PublicRsvpCORSMiddleware
@@ -227,6 +228,9 @@ app.include_router(subscription_router, prefix="/api/subscriptions")
 app.include_router(image_router)  # Has own /api/images prefix in routes
 app.include_router(demo_router, prefix="/api/demo")
 app.include_router(website_router, prefix="/api/website")
+
+# Visitor geo → presentment currency (public, no auth).
+app.include_router(geo_router, prefix="/api/geo")
 
 # Public, unauthenticated hosting: GET /s/{slug} (server-rendered published
 # sites) and POST /api/public/rsvp/{slug}. Full paths live on the router.
