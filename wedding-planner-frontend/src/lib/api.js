@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ROUTES } from './routes'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api'
 
@@ -66,7 +67,7 @@ api.interceptors.response.use(
       } else if (isGuest) {
         sessionStorage.removeItem('guest_token')
         sessionStorage.removeItem('guest')
-        window.location.href = '/login'
+        window.location.href = ROUTES.GUEST_LOGIN
       }
     } else if (status === 409 && code === 'no_wedding') {
       // Authenticated, but the account has no wedding yet. Every wedding-scoped

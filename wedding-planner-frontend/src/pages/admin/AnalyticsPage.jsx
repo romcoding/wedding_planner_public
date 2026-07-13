@@ -1,12 +1,14 @@
 import React, { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import api from '../../lib/api'
+import { useAuth } from '../../contexts/AuthContext'
 import { Activity, Eye, Shield, AlertTriangle, TrendingUp, Users, Globe, Clock, Calendar } from 'lucide-react'
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const AnalyticsPage = () => {
+  const { user } = useAuth()
   const [daysRange, setDaysRange] = useState(30)
-  
+
   const { data: siteStats, isLoading: isLoadingStats } = useQuery({
     queryKey: ['analytics', 'site-stats', daysRange],
     queryFn: async () => {
@@ -15,12 +17,16 @@ const AnalyticsPage = () => {
     },
   })
 
+  // /analytics/security is platform-admin only (require_platform_admin on
+  // the backend) — only fire it for real platform admins so normal couples
+  // don't get a guaranteed 403 on every page load.
   const { data: securityEvents, isLoading: isLoadingSecurity } = useQuery({
     queryKey: ['analytics', 'security', daysRange],
     queryFn: async () => {
       const res = await api.get(`/analytics/security?days=${daysRange}`)
       return res.data
     },
+    enabled: !!user?.is_platform_admin,
   })
 
   const chartData = siteStats?.daily_visits?.map(item => ({

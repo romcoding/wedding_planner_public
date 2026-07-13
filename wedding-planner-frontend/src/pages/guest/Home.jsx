@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import api from '../../lib/api'
+import { ROUTES } from '../../lib/routes'
 import { Heart, Camera, Music, Edit } from 'lucide-react'
 import GlitterAnimation from '../../components/GlitterAnimation'
 
 export default function GuestHome() {
-  const { guest } = useGuestAuth()
+  const { guest, loginWithToken } = useGuestAuth()
   const navigate = useNavigate()
   
   const [formData, setFormData] = useState({
@@ -79,7 +80,7 @@ export default function GuestHome() {
       setShowGlitter(true)
       setSubmitted(true)
       setTimeout(() => {
-        navigate('/info')
+        navigate(ROUTES.GUEST_INFO)
       }, 3000)
     },
     onError: (err) => {
@@ -91,13 +92,12 @@ export default function GuestHome() {
   const registerMutation = useMutation({
     mutationFn: (data) => api.post('/guest-auth/register', data),
     onSuccess: (response) => {
-      const { access_token, guest } = response.data
-      localStorage.setItem('guest_token', access_token)
-      localStorage.setItem('guest', JSON.stringify(guest))
+      const { access_token, guest: guestInfo } = response.data
+      loginWithToken(access_token, guestInfo)
       setShowGlitter(true)
       setSubmitted(true)
       setTimeout(() => {
-        navigate('/info')
+        navigate(ROUTES.GUEST_INFO)
       }, 3000)
     },
     onError: (err) => {

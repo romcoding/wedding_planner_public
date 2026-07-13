@@ -5,6 +5,8 @@ import os
 import html as _html
 import logging
 
+from services.urls import rsvp_link
+
 logger = logging.getLogger(__name__)
 
 
@@ -403,7 +405,7 @@ async def send_invitation_email(
     template=None,
 ) -> bool:
     """Send RSVP invitation email to a guest."""
-    invitation_link = f"{frontend_url}/rsvp/{token}"
+    invitation_link = rsvp_link(frontend_url, token)
     subject = "You're Invited to Our Wedding! 💍✨"
     # guest_name is couple-controlled free text; escape before it lands in HTML.
     # The subject is a plain-text header, so it uses the raw name.

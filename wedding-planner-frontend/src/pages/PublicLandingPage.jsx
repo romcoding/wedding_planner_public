@@ -580,7 +580,7 @@ export default function PublicLandingPage() {
             ctaTo="/auth?tab=register"
             perks={[
               'Up to 30 guests',
-              'Up to 20 tasks',
+              'Up to 10 tasks',
               'Basic budget tracking',
               'Public guest portal',
               'RSVP collection',

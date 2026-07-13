@@ -5,6 +5,7 @@ import { Heart, Loader } from 'lucide-react'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
 import api from '../../lib/api'
+import { ROUTES } from '../../lib/routes'
 
 /**
  * GuestEntry - Handles guest authentication via invite token and redirects to /info
@@ -53,7 +54,7 @@ export default function GuestEntry() {
       // Redirect to the main guest page (Info) - wizard will popup there for first-time guests
       // Use setTimeout to ensure state update has propagated before navigation
       setTimeout(() => {
-        navigate('/info', { replace: true })
+        navigate(ROUTES.GUEST_INFO, { replace: true })
       }, 50)
     },
     onError: (err) => {
@@ -64,25 +65,13 @@ export default function GuestEntry() {
   // Auto-authenticate when guest data is loaded
   useEffect(() => {
     if (!guestData) return
-    
-    // Check if already authenticated as this guest
-    const storedGuestRaw = localStorage.getItem('guest')
-    let storedGuestId = null
-    try {
-      storedGuestId = storedGuestRaw ? JSON.parse(storedGuestRaw)?.id : null
-    } catch {
-      storedGuestId = null
-    }
-    
-    const guestToken = localStorage.getItem('guest_token')
-    const isAlreadyAuthenticated = guestToken && storedGuestId === guestData.id
-    
-    if (isAlreadyAuthenticated) {
-      // Already authenticated as this guest, redirect directly
-      navigate('/info', { replace: true })
+
+    // Already authenticated as this guest (session persisted via GuestAuthContext)?
+    if (guest && guest.id === guestData.id) {
+      navigate(ROUTES.GUEST_INFO, { replace: true })
       return
     }
-    
+
     // Need to authenticate
     authMutation.mutate()
   }, [guestData])

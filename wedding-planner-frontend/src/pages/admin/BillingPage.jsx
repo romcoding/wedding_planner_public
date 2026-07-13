@@ -16,7 +16,7 @@ const PLAN_META = [
     bg: 'bg-gray-50 border-gray-200',
     features: [
       'Up to 30 guests',
-      'Up to 20 tasks',
+      'Up to 10 tasks',
       'Basic budget tracking',
       'Guest portal',
       'RSVP management',

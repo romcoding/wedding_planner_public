@@ -1,10 +1,11 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useEffect } from 'react'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { GuestAuthProvider, useGuestAuth } from './contexts/GuestAuthContext'
 import { WeddingProvider } from './contexts/WeddingContext'
 import { LanguageProvider } from './contexts/LanguageContext'
 import { trackRouteChange } from './utils/analytics'
+import { ROUTES } from './lib/routes'
 import AdminLayout from './layouts/AdminLayout'
 import GuestLayout from './layouts/GuestLayout'
 import GuestThemeShell from './layouts/GuestThemeShell'
@@ -44,6 +45,7 @@ import PublicLandingPage from './pages/PublicLandingPage'
 import DemoPage from './pages/Demo'
 import VerifyEmailPage from './pages/VerifyEmailPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import NotFoundPage from './pages/NotFound'
 
 // Moodboard loads in isolated iframe
 function MoodboardFrame() {
@@ -59,6 +61,16 @@ function MoodboardFrame() {
   )
 }
 
+// The backend/email service emails top-level `/rsvp/:token` links (see
+// services/urls.py:rsvp_link). The actual guest flow lives under /guest/*
+// so it can access GuestAuthContext/LanguageProvider — redirect into it
+// rather than duplicating GuestEntry here.
+// Exported for the route-link contract test (see __tests__/routes.test.jsx).
+export function RsvpRedirect() {
+  const { token } = useParams()
+  return <Navigate to={ROUTES.GUEST_RSVP(token)} replace />
+}
+
 function AuthGuard({ children }) {
   const { user, loading } = useAuth()
   if (loading) return null
@@ -66,8 +78,14 @@ function AuthGuard({ children }) {
   return children
 }
 
-function AdminRouteGuard({ allowRoles, user, element, fallbackTo = '/admin/guests' }) {
+function AdminRouteGuard({ allowRoles, user, element, fallbackTo = '/admin/guests', platformAdminOnly = false }) {
   if (!user) return <Navigate to="/auth?tab=login" replace />
+  // Platform-only screens (backed entirely by require_platform_admin on the
+  // backend) are gated on the real capability, not the wedding-owner role —
+  // every couple has role 'admin' but is never a platform admin.
+  if (platformAdminOnly) {
+    return user.is_platform_admin ? element : <Navigate to={fallbackTo} replace />
+  }
   if (!allowRoles || allowRoles.length === 0) return element
   if (allowRoles.includes(user.role)) return element
   return <Navigate to={fallbackTo} replace />
@@ -97,6 +115,7 @@ function GuestRoutes() {
             <Route path="home" element={guest ? <GuestHome /> : <Navigate to="/guest/login" replace />} />
             <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/guest/login" replace />} />
           </Route>
+          <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
     </LanguageProvider>
@@ -159,6 +178,9 @@ function AppRoutes() {
       {/* ── Guest Routes (existing RSVP portal) ── */}
       <Route path="/guest/*" element={<GuestRoutes />} />
 
+      {/* ── Canonical invitation link emailed by the backend ── */}
+      <Route path="/rsvp/:token" element={<RsvpRedirect />} />
+
       {/* ── Admin Routes ── */}
       <Route
         path="/admin"
@@ -186,9 +208,9 @@ function AppRoutes() {
         <Route path="invitations" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<InvitationsPage />} fallbackTo="/admin/guests" />} />
         <Route path="rsvp-reminders" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<RSVPRemindersPage />} fallbackTo="/admin/guests" />} />
         <Route path="costs" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<CostsPage />} fallbackTo="/admin/guests" />} />
-        <Route path="content" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<ContentPage />} fallbackTo="/admin/guests" />} />
+        <Route path="content" element={<AdminRouteGuard user={user} platformAdminOnly element={<ContentPage />} fallbackTo="/admin/guests" />} />
         <Route path="analytics" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<AnalyticsPage />} fallbackTo="/admin/guests" />} />
-        <Route path="users" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<UsersPage />} fallbackTo="/admin/guests" />} />
+        <Route path="users" element={<AdminRouteGuard user={user} platformAdminOnly element={<UsersPage />} fallbackTo="/admin/guests" />} />
         <Route path="billing" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<BillingPage />} fallbackTo="/admin/guests" />} />
         <Route path="setup" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin', 'planner']} element={<QuickSetupPage />} fallbackTo="/admin/guests" />} />
       </Route>
@@ -202,6 +224,9 @@ function AppRoutes() {
         path="/admin/register"
         element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth?tab=register" replace />}
       />
+
+      {/* ── Not found ── */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   )
 }

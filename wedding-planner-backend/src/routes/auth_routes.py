@@ -10,6 +10,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from auth import create_token, create_guest_token, require_couple_auth, decode_token
 from middleware import get_db
+from entitlements import is_admin_email
 
 from db import row_to_dict, rows_to_list
 
@@ -217,6 +218,7 @@ async def login(body: LoginBody, request: Request):
             "current_wedding_id": user.get("current_wedding_id"),
             "created_at": user.get("created_at"),
             "updated_at": user.get("updated_at"),
+            "is_platform_admin": is_admin_email(user["email"]),
         },
     }
 
@@ -319,6 +321,7 @@ async def register_couple(body: RegisterBody, request: Request):
             "name": couple_name,
             "role": "admin",
             "current_wedding_id": wedding_id,
+            "is_platform_admin": is_admin_email(email),
         },
         "wedding": {
             "id": wedding_id,
@@ -542,6 +545,7 @@ async def get_profile(payload: dict = Depends(require_couple_auth), request: Req
         "current_wedding_id": user.get("current_wedding_id"),
         "created_at": user.get("created_at"),
         "updated_at": user.get("updated_at"),
+        "is_platform_admin": is_admin_email(user["email"]),
     }
 
 
