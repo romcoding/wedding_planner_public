@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from auth import create_guest_token
 from middleware import get_db, get_wedding
+from services.urls import rsvp_link as _rsvp_link
 
 from db import row_to_dict, rows_to_list
 
@@ -185,7 +186,7 @@ async def create_guest(
 
     guest = await db.prepare("SELECT * FROM guests WHERE id = ?").bind(guest_id).first()
     guest_dict = _guest_dict(row_to_dict(guest), include_token=True)
-    rsvp_link = f"{frontend_url}/rsvp/{token}"
+    rsvp_link = _rsvp_link(frontend_url, token)
     guest_dict["rsvp_link"] = rsvp_link
     return {"message": "Guest created successfully", "guest": guest_dict, "rsvp_link": rsvp_link}
 
@@ -215,7 +216,7 @@ async def get_guests(
     guests = []
     for g in rows_to_list(result):
         gd = _guest_dict(g, include_token=True)
-        gd["rsvp_link"] = f"{frontend_url}/rsvp/{g.get('unique_token')}"
+        gd["rsvp_link"] = _rsvp_link(frontend_url, g.get('unique_token'))
         guests.append(gd)
     return guests
 
@@ -450,7 +451,7 @@ async def get_guest(
         raise HTTPException(404, "Guest not found")
     guest = row_to_dict(guest_raw)
     gd = _guest_dict(guest, include_token=True)
-    gd["rsvp_link"] = f"{frontend_url}/rsvp/{guest.get('unique_token')}"
+    gd["rsvp_link"] = _rsvp_link(frontend_url, guest.get('unique_token'))
     return gd
 
 

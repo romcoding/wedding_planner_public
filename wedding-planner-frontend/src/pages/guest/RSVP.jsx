@@ -18,6 +18,7 @@ import LanguageSwitcher from '../../components/LanguageSwitcher'
 import SavePageBlock from '../../components/SavePageBlock'
 import StyledTitle from '../../components/StyledTitle'
 import api from '../../lib/api'
+import { ROUTES } from '../../lib/routes'
 
 function PassCard({ children }) {
   return <div className="bg-white rounded-2xl shadow-xl p-6 sm:p-8">{children}</div>
@@ -1119,7 +1120,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
                             </p>
                           </div>
 
-                          <PrimaryButton variant="secondary" onClick={() => navigate('/info')}>
+                          <PrimaryButton variant="secondary" onClick={() => navigate(ROUTES.GUEST_INFO)}>
                             {t('openFullInfo')}
                           </PrimaryButton>
                         </>

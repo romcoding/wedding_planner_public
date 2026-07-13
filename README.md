@@ -109,10 +109,17 @@ the path and stubs the Pyodide-only `workers`/`asgi`/`js` modules.
 
 ```bash
 cd wedding-planner-backend
-pip install pytest fastapi passlib pyjwt httpx
-python -m pytest          # entitlements, billing webhook, tenant isolation,
+uv sync --all-groups
+uv run pytest             # entitlements, billing webhook, tenant isolation,
                           # website + Wedi, public site + RSVP CORS, XSS escaping,
                           # error envelope, abuse matrix, observability, health
+```
+
+Without `uv`, install the same dependencies manually instead:
+
+```bash
+pip install pytest fastapi passlib pyjwt httpx
+python -m pytest
 ```
 
 ## Deployment

@@ -4,10 +4,13 @@ import { useQuery, useMutation } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { Heart, Mail, User, Lock, Phone } from 'lucide-react'
 import { useLanguage } from '../../contexts/LanguageContext'
+import { useGuestAuth } from '../../contexts/GuestAuthContext'
+import { ROUTES } from '../../lib/routes'
 
 export default function GuestRegister() {
   const navigate = useNavigate()
   const { language, t } = useLanguage()
+  const { loginWithToken } = useGuestAuth()
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token')
   
@@ -35,9 +38,8 @@ export default function GuestRegister() {
     mutationFn: (data) => api.post('/invitations/register', { ...data, token }),
     onSuccess: (response) => {
       const { access_token, guest } = response.data
-      localStorage.setItem('guest_token', access_token)
-      localStorage.setItem('guest', JSON.stringify(guest))
-      navigate('/')
+      loginWithToken(access_token, guest)
+      navigate(ROUTES.GUEST_INFO)
     },
     onError: (error) => {
       const msg = error.response?.data?.error || 'Registration failed. Please try again.'
@@ -104,7 +106,7 @@ export default function GuestRegister() {
               {t('guestRegisterInvalidInvitationBody')}
             </p>
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => navigate(ROUTES.GUEST_LOGIN)}
               className="px-6 py-2 text-white rounded-lg hover:opacity-90"
               style={{ backgroundColor: 'var(--wp-primary)' }}
             >

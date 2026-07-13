@@ -53,6 +53,7 @@ export default function AdminLayout() {
   }, [needsOnboarding, location.pathname, navigate])
 
   const isPlanner = user?.role === 'planner'
+  const isPlatformAdmin = !!user?.is_platform_admin
 
   const planBadge = PLAN_BADGE[wedding?.plan] || PLAN_BADGE.free
   const PlanIcon = planBadge.icon
@@ -81,12 +82,17 @@ export default function AdminLayout() {
         { path: '/admin/website', icon: Globe, label: 'Wedding Website', featureKey: 'website' },
         { path: '/admin/tasks', icon: CheckSquare, label: 'Tasks', featureKey: 'tasks' },
         { path: '/admin/costs', icon: DollarSign, label: 'Costs', featureKey: 'budget_basic' },
-        { path: '/admin/content', icon: FileText, label: 'Content', featureKey: 'content_basic' },
+        // Content and User Management are backed entirely by platform-admin-only
+        // endpoints (see require_platform_admin in the backend) — a normal
+        // couple can never use them, so they're hidden rather than shown and 403ing.
+        ...(isPlatformAdmin
+          ? [{ path: '/admin/content', icon: FileText, label: 'Content', featureKey: 'content_basic' }]
+          : []),
         { path: '/admin/analytics', icon: BarChart3, label: 'Analytics', featureKey: 'analytics_basic' },
-        { path: '/admin/users', icon: Shield, label: 'User Management', featureKey: 'dashboard' },
+        ...(isPlatformAdmin
+          ? [{ path: '/admin/users', icon: Shield, label: 'User Management', featureKey: 'dashboard' }]
+          : []),
         { path: '/admin/billing', icon: CreditCard, label: 'Billing', featureKey: 'dashboard' },
-        { path: '/admin/messages', icon: Mail, label: 'Messages', featureKey: 'messages' },
-        { path: '/admin/gift-registry', icon: Heart, label: 'Gift Registry', featureKey: 'gift_registry' },
       ]
 
   return (
@@ -209,8 +215,8 @@ export default function AdminLayout() {
             <div className="mb-3 px-3">
               <p className="text-sm font-medium text-gray-800 truncate">{user?.name}</p>
               <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-              {wedding?.is_admin_override && (
-                <p className="text-xs text-gray-400 mt-1">[ADMIN]</p>
+              {(isPlatformAdmin || wedding?.is_admin_override) && (
+                <p className="text-xs text-gray-400 mt-1">[Platform Admin]</p>
               )}
             </div>
             <button

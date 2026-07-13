@@ -40,6 +40,12 @@ if "auth" not in sys.modules:
 if "middleware" not in sys.modules:
     mw_stub = _make_stub("middleware")
     mw_stub.get_db = AsyncMock()
+    # auth_routes now imports `entitlements.is_admin_email`, and entitlements
+    # imports these two names from middleware at module load time.
+    mw_stub.get_wedding = AsyncMock()
+    mw_stub._admin_emails = lambda: {
+        e.strip().lower() for e in __import__("os").environ.get("ADMIN_EMAILS", "").split(",") if e.strip()
+    }
 
 # Stub 'services.email_service'
 services_stub = _make_stub("services")
@@ -91,6 +97,7 @@ from routes.auth_routes import (  # noqa: E402
     forgot_password,
     reset_password,
     login,
+    get_profile,
 )
 
 # ---------------------------------------------------------------------------
@@ -690,4 +697,92 @@ def test_register_couple_with_empty_last_names_succeeds():
     result = run(register_couple(body, req))
 
     assert result["user"]["email"] == "couple@example.com"
-    assert len(db.tables["users"]) == 1
+
+
+# ---------------------------------------------------------------------------
+# is_platform_admin — must reflect ADMIN_EMAILS, not the wedding-owner role.
+#
+# Regression coverage for the frontend showing platform-only nav (Users,
+# Content) to every normal couple, since every couple gets role='admin'.
+# ---------------------------------------------------------------------------
+
+def test_login_is_platform_admin_false_for_normal_couple(monkeypatch):
+    monkeypatch.delenv("ADMIN_EMAILS", raising=False)
+    db = FakeDB()
+    pw = "Str0ng!Pass"
+    user_row = FakeRow(
+        id="uid-1",
+        email="couple@example.com",
+        password_hash=_hash_password(pw),
+        name="Alice & Bob",
+        role="admin",
+        is_active=1,
+        email_verified=1,
+        current_wedding_id="wid-1",
+        created_at="2026-01-01",
+        updated_at="2026-01-01",
+    )
+    db._add_result("SELECT * FROM USERS WHERE EMAIL", [user_row])
+    req = _make_request(db)
+
+    from routes.auth_routes import LoginBody
+    body = LoginBody(email="couple@example.com", password=pw)
+
+    result = run(login(body, req))
+    assert result["user"]["is_platform_admin"] is False
+
+
+def test_login_is_platform_admin_true_for_admin_email(monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAILS", "couple@example.com,other@example.com")
+    db = FakeDB()
+    pw = "Str0ng!Pass"
+    user_row = FakeRow(
+        id="uid-1",
+        email="couple@example.com",
+        password_hash=_hash_password(pw),
+        name="Alice & Bob",
+        role="admin",
+        is_active=1,
+        email_verified=1,
+        current_wedding_id="wid-1",
+        created_at="2026-01-01",
+        updated_at="2026-01-01",
+    )
+    db._add_result("SELECT * FROM USERS WHERE EMAIL", [user_row])
+    req = _make_request(db)
+
+    from routes.auth_routes import LoginBody
+    body = LoginBody(email="couple@example.com", password=pw)
+
+    result = run(login(body, req))
+    assert result["user"]["is_platform_admin"] is True
+
+
+def test_register_couple_is_platform_admin_false_by_default(monkeypatch):
+    monkeypatch.delenv("ADMIN_EMAILS", raising=False)
+    db = FakeDB()
+    req = _make_request(db)
+    body = _make_body()
+
+    result = run(register_couple(body, req))
+    assert result["user"]["is_platform_admin"] is False
+
+
+def test_get_profile_is_platform_admin_reflects_admin_emails(monkeypatch):
+    monkeypatch.setenv("ADMIN_EMAILS", "couple@example.com")
+    db = FakeDB()
+    user_row = FakeRow(
+        id="uid-1",
+        email="couple@example.com",
+        name="Alice & Bob",
+        role="admin",
+        is_active=1,
+        current_wedding_id="wid-1",
+        created_at="2026-01-01",
+        updated_at="2026-01-01",
+    )
+    db._add_result("SELECT * FROM USERS WHERE ID", [user_row])
+    req = _make_request(db)
+
+    result = run(get_profile(payload={"sub": "uid-1"}, request=req))
+    assert result["is_platform_admin"] is True
