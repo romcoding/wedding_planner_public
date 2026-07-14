@@ -37,33 +37,35 @@ of deletion, so a deleted site stops serving from the Workers cache immediately
 
 ## Brand sweep: user-facing "AI" remains on the legacy assistant surface (P5)
 
-**Status:** open — deliberately deferred during the P5 go-live pass (scope:
-"new surface only; flag the rest"). The NEW Wedi / website-builder / public-RSVP
-surface is already brand-clean (no "AI"/"LLM"/"chatbot"/"token"/"quota"; it uses
-"Wedi" and "design limit").
+**Status:** partially done. `AIPanel.jsx` and `BillingPage.jsx` — both backed by
+real, working `/ai/*` routes — are now Wedi-branded ("Wedi couldn't complete
+that — please try again.", "unlock Wedi's planning tools", "Full Wedi planning
+assistant"). `UpgradeModal.jsx`'s claimed "AI" strings were already gone (stale
+note in a prior pass of this doc — no change needed).
 
-**Gap:** the pre-existing AI-assistant feature still shows user-facing **"AI"**:
+**Deliberately NOT touched — two dead AI features, discovered while doing this
+sweep, not a wording problem:**
 
-- `wedding-planner-frontend/src/components/AIPanel.jsx` — "AI request failed",
-  "Apply AI output", "unlock all AI features" (panel still mounted in
-  `layouts/AdminLayout.jsx`).
-- `wedding-planner-frontend/src/components/UpgradeModal.jsx` — "3 AI uses/day",
-  "Unlimited AI".
-- `wedding-planner-frontend/src/pages/admin/BillingPage.jsx` — "AI features",
-  "Full AI planning assistant".
-- `wedding-planner-frontend/src/pages/admin/VenuesPage.jsx` — "AI Search",
-  "AI venue search failed".
-- `wedding-planner-frontend/src/pages/admin/ImagesPage.jsx` — "Generate site
-  content (AI)", "AI draft generated", etc.
+- `wedding-planner-frontend/src/pages/admin/VenuesPage.jsx`'s "AI Venue
+  Assistant" ("Use AI (ChatGPT)", "AI Search") posts to
+  `/venues/search-ai`, which **does not exist** anywhere in
+  `wedding-planner-backend/src/routes/venue_routes.py` — the button 404s
+  unconditionally for every user, always has.
+- `wedding-planner-frontend/src/pages/admin/ImagesPage.jsx`'s "Generate site
+  content (AI)" button posts to `/events/guest-portal-ai-draft`, which also
+  **does not exist** anywhere in the backend — same unconditional 404.
+
+Renaming either to "Wedi" would misleadingly imply Wedi powers them. Leaving the
+old "AI"/"ChatGPT" copy is also wrong (advertises a feature that has never
+worked). **Remediation:** pick one — implement the missing backend routes (real
+scope: an OpenAI-style venue search + a guest-portal-copy draft endpoint,
+neither of which exists in `ai_service.py` today), or remove the two dead
+buttons/sections outright (same treatment as the "Webpage Builder" removal
+above). This needs a product decision, not a copy fix.
 
 No user-facing "LLM"/"chatbot"/"quota" remain (only code comments). "token"
 appears only in legitimate non-LLM contexts (auth/invitation tokens) and internal
 ledger/field names.
-
-**Remediation:** when the brand sweep is taken up, replace these labels with the
-agreed wording (neutral "Smart"/"assistant", or fold them under "Wedi"), refresh
-any affected vitest snapshots, and re-run the final grep so the user-facing
-surface is clean of "AI"/"LLM"/"chatbot"/"token"/"quota".
 
 ## Legacy "Webpage Builder" ("Clawed Bot") removed (go-live QA)
 

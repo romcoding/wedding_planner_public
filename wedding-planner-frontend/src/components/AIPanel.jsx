@@ -45,7 +45,7 @@ function TimelineTool({ wedding, onApply }) {
       const res = await api.post('/ai/timeline', form)
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || 'AI request failed')
+      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
     } finally {
       setLoading(false)
     }
@@ -145,7 +145,7 @@ function VendorTool({ wedding }) {
       const res = await api.post('/ai/vendor-suggestions', form)
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || 'AI request failed')
+      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
     } finally {
       setLoading(false)
     }
@@ -232,7 +232,7 @@ function CopyTool({ wedding }) {
       const res = await api.post('/ai/copy-generator', form)
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || 'AI request failed')
+      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
     } finally {
       setLoading(false)
     }
@@ -343,7 +343,7 @@ function SeatingTool() {
       const res = await api.post('/ai/seating', { guests })
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || 'AI request failed')
+      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
     } finally {
       setLoading(false)
     }
@@ -420,8 +420,8 @@ export default function AIPanel({ isOpen, onClose }) {
   }, [isOpen, activeTool, fetchUsage])
 
   const handleApply = (type, data) => {
-    // Future: push AI results into relevant feature pages
-    console.log('Apply AI output:', type, data)
+    // Future: push Wedi's results into relevant feature pages
+    console.log('Apply Wedi output:', type, data)
   }
 
   const isLocked = !planMeets('premium')
@@ -533,7 +533,7 @@ export default function AIPanel({ isOpen, onClose }) {
       <UpgradeModal
         isOpen={showUpgrade}
         onClose={() => setShowUpgrade(false)}
-        reason="Upgrade to Premium to unlock all AI features."
+        reason="Upgrade to Premium to unlock Wedi's planning tools."
         currentPlan={wedding?.plan || 'free'}
         suggestPlan="premium"
       />
