@@ -2,7 +2,8 @@
 import api from '../../lib/api'
 
 export const getSite = () => api.get('/website').then((r) => r.data)
-export const saveContent = (content) => api.put('/website/content', { content }).then((r) => r.data)
+export const saveContent = (content, expectedVersion) =>
+  api.put('/website/content', { content, expected_version: expectedVersion ?? null }).then((r) => r.data)
 export const saveSettings = (patch) => api.put('/website/settings', patch).then((r) => r.data)
 export const checkSlug = (slug) => api.get('/website/slug-check', { params: { slug } }).then((r) => r.data)
 export const publishSite = () => api.post('/website/publish').then((r) => r.data)

@@ -1,0 +1,15 @@
+-- Migration 006: optimistic-concurrency version for wedding_sites.draft_content
+-- Apply with:
+--   npx wrangler d1 execute wedding-planner-db --file=wedding-planner-backend/migrations/006_site_versioning.sql
+--
+-- Idempotent-ish: the ALTER raises "duplicate column name" if content_version
+-- already exists — that is safe, treat it as success (same pattern as
+-- 003_plans.sql).
+--
+-- Guards against a silent last-write-wins clobber when the SAME site is open
+-- in two tabs/devices at once — the client-side save queue in useWebsite.js
+-- only serializes PUT /website/content calls within a single tab.
+--
+-- Incremented on every successful write to draft_content: autosave
+-- (update_content), Wedi generate, publish's re-freeze, and revision restore.
+ALTER TABLE wedding_sites ADD COLUMN content_version INTEGER NOT NULL DEFAULT 1;

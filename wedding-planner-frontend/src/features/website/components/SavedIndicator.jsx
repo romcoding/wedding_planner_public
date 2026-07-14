@@ -26,6 +26,14 @@ export default function SavedIndicator({ state }) {
       </span>
     )
   }
+  if (state === 'conflict') {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs text-red-500 font-medium">
+        <AlertCircle className="w-3.5 h-3.5" />
+        This site was edited elsewhere — reload to continue
+      </span>
+    )
+  }
   return (
     <span className="inline-flex items-center gap-1.5 text-xs text-gray-400">
       <Check className="w-3.5 h-3.5 text-green-500" />

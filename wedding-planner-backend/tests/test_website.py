@@ -301,6 +301,41 @@ def test_update_content_validates_and_persists():
     assert exc.value.status_code == 400
 
 
+def test_update_content_version_conflict_returns_409():
+    """Optimistic concurrency: a stale expected_version is rejected with 409;
+    the correct (server-reported) version always succeeds and advances."""
+    db = FakeD1()
+    site = run(wr.get_site(wedding=_wedding(), request=_req(db)))
+    assert site["content_version"] == 1
+
+    doc = site_schema.default_document(_wedding())
+    out = run(wr.update_content(
+        wr.ContentBody(content=doc, expected_version=1), wedding=_wedding(), request=_req(db)
+    ))
+    assert out["content_version"] == 2
+
+    # Stale version (still 1) is rejected — the row already moved to 2.
+    with pytest.raises(HTTPException) as exc:
+        run(wr.update_content(
+            wr.ContentBody(content=doc, expected_version=1), wedding=_wedding(), request=_req(db)
+        ))
+    assert exc.value.status_code == 409
+    assert exc.value.detail["code"] == "version_conflict"
+    assert exc.value.detail["current_version"] == 2
+
+    # The correct (current) version succeeds and advances again.
+    out2 = run(wr.update_content(
+        wr.ContentBody(content=doc, expected_version=2), wedding=_wedding(), request=_req(db)
+    ))
+    assert out2["content_version"] == 3
+
+    # Omitting expected_version entirely (e.g. an older client) is not
+    # version-checked — it always succeeds, matching the pre-versioning
+    # behavior for any caller that doesn't opt in.
+    out3 = run(wr.update_content(wr.ContentBody(content=doc), wedding=_wedding(), request=_req(db)))
+    assert out3["content_version"] == 4
+
+
 def test_update_settings_theme_password_and_invalid_theme():
     db = FakeD1()
     run(wr.get_site(wedding=_wedding(), request=_req(db)))
@@ -349,6 +384,24 @@ def test_publish_freezes_snapshot_creates_revision_and_prunes_to_10():
     ).fetchall()
     assert len(revs) == 10                 # pruned
     assert [r["id"] for r in revs] == list(range(12, 2, -1))  # the 10 newest (ids 3..12)
+
+
+def test_has_unpublished_changes_reflects_draft_vs_published():
+    db = FakeD1()
+    site = run(wr.get_site(wedding=_wedding(), request=_req(db)))
+    # Fresh, never-published site: no published_snapshot to diverge from.
+    assert site["has_unpublished_changes"] is False
+
+    published = run(wr.publish(wedding=_wedding(), request=_req(db)))
+    assert published["has_unpublished_changes"] is False
+
+    doc = site_schema.default_document(_wedding())
+    next(b for b in doc["blocks"] if b["type"] == "hero")["data"]["tagline"] = "New tagline"
+    edited = run(wr.update_content(wr.ContentBody(content=doc), wedding=_wedding(), request=_req(db)))
+    assert edited["has_unpublished_changes"] is True
+
+    republished = run(wr.publish(wedding=_wedding(), request=_req(db)))
+    assert republished["has_unpublished_changes"] is False
 
 
 def test_restore_round_trip():

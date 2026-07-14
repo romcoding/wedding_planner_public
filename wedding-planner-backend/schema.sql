@@ -594,6 +594,7 @@ CREATE TABLE IF NOT EXISTS wedding_sites (
   published_at TEXT,
   rsvp_enabled INTEGER NOT NULL DEFAULT 1,
   password_hash TEXT,                      -- optional guest password (PBKDF2 via the auth helper)
+  content_version INTEGER NOT NULL DEFAULT 1, -- optimistic concurrency for draft_content (migrations/006)
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

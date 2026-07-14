@@ -12,7 +12,7 @@ const STATUS_STYLE = {
 // Live preview, framed like a browser window. Renders with the exact same pure
 // components the public site will use. While Wedi is generating, a calm skeleton
 // shimmer + rotating status line cover the preview.
-export default function PreviewPane({ content, theme, slug, status, generating = false }) {
+export default function PreviewPane({ content, theme, slug, status, rsvpEnabled = true, generating = false }) {
   const [lineIdx, setLineIdx] = useState(0)
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function PreviewPane({ content, theme, slug, status, generating =
         </span>
       </div>
       <div className="relative h-[72vh] overflow-y-auto">
-        <SiteRenderer content={content} theme={theme} />
+        <SiteRenderer content={content} theme={theme} rsvpEnabled={rsvpEnabled} />
         {generating ? (
           <div className="absolute inset-0 bg-white/75 backdrop-blur-[1px] flex flex-col items-center justify-center gap-5">
             <div className="w-full max-w-sm px-8 space-y-3" aria-hidden="true">
