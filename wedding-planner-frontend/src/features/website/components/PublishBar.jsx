@@ -5,7 +5,7 @@ import SavedIndicator from './SavedIndicator'
 import { publicSiteUrl } from '../publicSite'
 
 // Status line + copy-link + open-site + publish/unpublish (with confirmation).
-export default function PublishBar({ status, slug, saveState, onPublish, onUnpublish, busy }) {
+export default function PublishBar({ status, slug, saveState, hasUnpublishedChanges, onPublish, onUnpublish, busy }) {
   const [confirm, setConfirm] = useState(null) // 'publish' | 'unpublish'
   const [copied, setCopied] = useState(false)
   const publicUrl = publicSiteUrl(slug)
@@ -57,6 +57,11 @@ export default function PublishBar({ status, slug, saveState, onPublish, onUnpub
               <ExternalLink className="w-3.5 h-3.5" />
               Open site
             </a>
+            {hasUnpublishedChanges ? (
+              <span className="text-xs text-amber-600 font-medium shrink-0">
+                Draft changes not live
+              </span>
+            ) : null}
           </>
         ) : null}
       </div>

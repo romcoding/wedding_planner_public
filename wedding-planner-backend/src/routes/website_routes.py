@@ -64,6 +64,7 @@ SLUG_MIN, SLUG_MAX = 3, 40
 
 class ContentBody(BaseModel):
     content: dict
+    expected_version: int | None = None
 
 
 class SettingsBody(BaseModel):
@@ -142,6 +143,7 @@ def _parse_doc(raw) -> dict:
 
 def _site_dict(site: dict) -> dict:
     """Public-facing shape of a site row. NEVER exposes password_hash."""
+    published_snapshot = site.get("published_snapshot")
     return {
         "id": site.get("id"),
         "slug": site.get("slug"),
@@ -151,6 +153,13 @@ def _site_dict(site: dict) -> dict:
         "rsvp_enabled": bool(site.get("rsvp_enabled", 1)),
         "has_password": bool(site.get("password_hash")),
         "content": _parse_doc(site.get("draft_content")),
+        "content_version": site.get("content_version") or 1,
+        # Derived, not stored: does the draft differ from what's actually live?
+        # Compared as parsed dicts (not raw JSON text) so incidental
+        # key-ordering never produces a false positive.
+        "has_unpublished_changes": bool(published_snapshot) and (
+            _parse_doc(site.get("draft_content")) != _parse_doc(published_snapshot)
+        ),
         "published_at": site.get("published_at"),
         "created_at": site.get("created_at"),
         "updated_at": site.get("updated_at"),
@@ -202,16 +211,33 @@ async def update_content(
     wedding: dict = Depends(_gate),
     request: Request = None,
 ):
-    """Validate + save the draft content document."""
+    """Validate + save the draft content document.
+
+    Optimistic concurrency: if the caller supplies ``expected_version``, it
+    must match the row's current ``content_version`` or the write is rejected
+    with 409. This guards against a silent last-write-wins clobber when the
+    same site is open in two tabs/devices — the client-side save queue
+    (useWebsite.js) only serializes requests within a single tab.
+    """
     db = await get_db(request)
     site = await _get_or_create_site(db, wedding)
     try:
         doc = site_schema.validate_document(body.content)
     except site_schema.ValidationError as exc:
         raise HTTPException(400, {"code": "content_invalid", "error": str(exc)})
+
+    current_version = site.get("content_version") or 1
+    if body.expected_version is not None and body.expected_version != current_version:
+        raise HTTPException(409, {
+            "code": "version_conflict",
+            "error": "This site was edited elsewhere — reload to see the latest changes.",
+            "current_version": current_version,
+        })
+
     await db.prepare(
-        "UPDATE wedding_sites SET draft_content = ?, updated_at = datetime('now') WHERE id = ?"
-    ).bind(json.dumps(doc), site["id"]).run()
+        "UPDATE wedding_sites SET draft_content = ?, content_version = ?, updated_at = datetime('now') "
+        "WHERE id = ?"
+    ).bind(json.dumps(doc), current_version + 1, site["id"]).run()
     raw = await db.prepare("SELECT * FROM wedding_sites WHERE id = ?").bind(site["id"]).first()
     return _site_dict(row_to_dict(raw))
 
@@ -308,12 +334,13 @@ async def publish(wedding: dict = Depends(_gate), request: Request = None):
     except site_schema.ValidationError as exc:
         raise HTTPException(400, {"code": "content_invalid", "error": str(exc)})
     snapshot = json.dumps(doc)
+    next_version = (site.get("content_version") or 1) + 1
 
     await db.prepare(
-        "UPDATE wedding_sites SET draft_content = ?, published_snapshot = ?, "
+        "UPDATE wedding_sites SET draft_content = ?, published_snapshot = ?, content_version = ?, "
         "status = 'published', published_at = datetime('now'), updated_at = datetime('now') "
         "WHERE id = ?"
-    ).bind(snapshot, snapshot, site["id"]).run()
+    ).bind(snapshot, snapshot, next_version, site["id"]).run()
 
     # One revision per publish, pruned to the 10 most recent (monotonic id order).
     await db.prepare(
@@ -375,9 +402,11 @@ async def restore_revision(
         raise HTTPException(404, {"code": "not_found", "error": "Revision not found"})
 
     # The snapshot was validated at publish time; copy it back to the draft.
+    next_version = (site.get("content_version") or 1) + 1
     await db.prepare(
-        "UPDATE wedding_sites SET draft_content = ?, updated_at = datetime('now') WHERE id = ?"
-    ).bind(rev["snapshot"], site["id"]).run()
+        "UPDATE wedding_sites SET draft_content = ?, content_version = ?, updated_at = datetime('now') "
+        "WHERE id = ?"
+    ).bind(rev["snapshot"], next_version, site["id"]).run()
     raw = await db.prepare("SELECT * FROM wedding_sites WHERE id = ?").bind(site["id"]).first()
     return _site_dict(row_to_dict(raw))
 
@@ -495,9 +524,11 @@ async def generate(
     doc = result["content"]
 
     # 6. Save to the DRAFT only — Wedi never publishes on the couple's behalf.
+    next_version = (site.get("content_version") or 1) + 1
     await db.prepare(
-        "UPDATE wedding_sites SET draft_content = ?, updated_at = datetime('now') WHERE id = ?"
-    ).bind(json.dumps(doc), site["id"]).run()
+        "UPDATE wedding_sites SET draft_content = ?, content_version = ?, updated_at = datetime('now') "
+        "WHERE id = ?"
+    ).bind(json.dumps(doc), next_version, site["id"]).run()
 
     # 7. Record usage from the model's ACTUAL token counts (+ an 'ok' audit row).
     await usage.record_usage(db, wedding_id, result["model"], result["usage"], purpose=mode)
@@ -508,7 +539,10 @@ async def generate(
               input_tokens=_u.get("input_tokens"), output_tokens=_u.get("output_tokens"))
 
     status = await usage.get_status(db, wedding_id, plan)
-    return {"content": doc, "remaining_generations": status["remaining"]}
+    # content_version is returned so the client's save-queue version tracking
+    # (useWebsite.js) stays in sync — otherwise the next autosave after a
+    # Wedi draft would spuriously 409 with a stale expected_version.
+    return {"content": doc, "content_version": next_version, "remaining_generations": status["remaining"]}
 
 
 @router.get("/generation-status")

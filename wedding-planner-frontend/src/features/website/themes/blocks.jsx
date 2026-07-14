@@ -270,7 +270,7 @@ function VenueBlock({ data, tokens }) {
   )
 }
 
-function RsvpBlock({ data, tokens }) {
+function RsvpBlock({ data, tokens, rsvpEnabled = true }) {
   return (
     <Section tokens={tokens}>
       <Title tokens={tokens}>{data.title || 'RSVP'}</Title>
@@ -282,9 +282,11 @@ function RsvpBlock({ data, tokens }) {
             {`Please respond by ${data.deadline}`}
           </p>
         ) : null}
-        <div style={{ marginTop: '18px' }}>
-          <span style={buttonStyle(tokens)}>RSVP</span>
-        </div>
+        {rsvpEnabled ? (
+          <div style={{ marginTop: '18px' }}>
+            <span style={buttonStyle(tokens)}>RSVP</span>
+          </div>
+        ) : null}
       </div>
     </Section>
   )

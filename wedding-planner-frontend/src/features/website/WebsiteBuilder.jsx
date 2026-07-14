@@ -171,6 +171,7 @@ export default function WebsiteBuilder() {
           status={site.status}
           slug={site.slug}
           saveState={site.saveState}
+          hasUnpublishedChanges={site.hasUnpublishedChanges}
           onPublish={onPublish}
           onUnpublish={onUnpublish}
           busy={busy}
@@ -244,6 +245,7 @@ export default function WebsiteBuilder() {
             theme={site.theme}
             slug={site.slug}
             status={site.status}
+            rsvpEnabled={site.rsvpEnabled}
             generating={generating}
           />
         </div>

@@ -6,7 +6,7 @@ import { ensureDocument } from '../siteSchema'
 import { getTheme } from './tokens'
 import { BLOCK_COMPONENTS } from './blocks'
 
-export default function SiteRenderer({ content, theme }) {
+export default function SiteRenderer({ content, theme, rsvpEnabled = true }) {
   const tokens = getTheme(theme)
   const doc = ensureDocument(content)
   return (
@@ -22,7 +22,11 @@ export default function SiteRenderer({ content, theme }) {
         .filter((block) => block.enabled)
         .map((block) => {
           const Component = BLOCK_COMPONENTS[block.type]
-          return Component ? <Component key={block.type} data={block.data} tokens={tokens} /> : null
+          if (!Component) return null
+          // Site-level rsvp_enabled only affects the rsvp block — don't leak
+          // an unused prop into the other 8 block components.
+          const extra = block.type === 'rsvp' ? { rsvpEnabled } : {}
+          return <Component key={block.type} data={block.data} tokens={tokens} {...extra} />
         })}
     </div>
   )
