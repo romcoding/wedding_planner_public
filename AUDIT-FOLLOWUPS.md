@@ -43,25 +43,30 @@ that — please try again.", "unlock Wedi's planning tools", "Full Wedi planning
 assistant"). `UpgradeModal.jsx`'s claimed "AI" strings were already gone (stale
 note in a prior pass of this doc — no change needed).
 
-**Deliberately NOT touched — two dead AI features, discovered while doing this
-sweep, not a wording problem:**
+**Two dead AI features found while doing this sweep — removed, not renamed
+(decision: remove rather than build, matching the "Webpage Builder" precedent
+below):**
 
 - `wedding-planner-frontend/src/pages/admin/VenuesPage.jsx`'s "AI Venue
-  Assistant" ("Use AI (ChatGPT)", "AI Search") posts to
-  `/venues/search-ai`, which **does not exist** anywhere in
-  `wedding-planner-backend/src/routes/venue_routes.py` — the button 404s
-  unconditionally for every user, always has.
+  Assistant" ("AI Search" box) posted to `/venues/search-ai`, which **did not
+  exist** anywhere in `wedding-planner-backend/src/routes/venue_routes.py` —
+  it 404'd unconditionally for every user, always had. Removed: the
+  `searchVenuesAI` mutation, the `aiSearchQuery`/`aiResults` state, and the
+  "AI Venue Assistant" panel.
 - `wedding-planner-frontend/src/pages/admin/ImagesPage.jsx`'s "Generate site
-  content (AI)" button posts to `/events/guest-portal-ai-draft`, which also
-  **does not exist** anywhere in the backend — same unconditional 404.
+  content (AI)" button posted to `/events/guest-portal-ai-draft`, which also
+  **did not exist** anywhere in the backend — same unconditional 404.
+  Removed: the `generateGuestPortalDraft` mutation and its button (the
+  legitimate "Save guest portal items" button next to it is untouched).
 
-Renaming either to "Wedi" would misleadingly imply Wedi powers them. Leaving the
-old "AI"/"ChatGPT" copy is also wrong (advertises a feature that has never
-worked). **Remediation:** pick one — implement the missing backend routes (real
-scope: an OpenAI-style venue search + a guest-portal-copy draft endpoint,
-neither of which exists in `ai_service.py` today), or remove the two dead
-buttons/sections outright (same treatment as the "Webpage Builder" removal
-above). This needs a product decision, not a copy fix.
+**Also found, NOT removed (bigger, separate scope):** `VenuesPage.jsx`'s
+"Scrape Venue from URL" tool (and its "Use AI (ChatGPT)" checkbox) posts to
+`/venues/scrape`, which **also does not exist** in the backend — same
+unconditional 404. Left alone because `scrapingUrl`/`isScraping`/`useLLM`/
+`scrapeVenue` are threaded into `VenueSetupWizard.jsx` too (a separate
+multi-step wizard component, which already has a `skipScrape` manual-entry
+path, suggesting removal is viable but needs its own pass rather than being
+folded into this cleanup).
 
 No user-facing "LLM"/"chatbot"/"quota" remain (only code comments). "token"
 appears only in legitimate non-LLM contexts (auth/invitation tokens) and internal
