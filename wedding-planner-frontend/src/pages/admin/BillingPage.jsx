@@ -21,7 +21,7 @@ const PLAN_META = [
       'Guest portal',
       'RSVP management',
     ],
-    missing: ['AI features', 'Custom URL slug', 'Unlimited guests'],
+    missing: ["Wedi's planning tools", 'Custom URL slug', 'Unlimited guests'],
   },
   {
     id: 'premium',
@@ -32,7 +32,7 @@ const PLAN_META = [
     highlight: true,
     features: [
       'Unlimited guests, tasks, RSVPs',
-      'Full AI planning assistant',
+      'Full Wedi planning assistant',
       'Custom slug + branded portal',
       'Exports & advanced budget',
       'Priority support',
