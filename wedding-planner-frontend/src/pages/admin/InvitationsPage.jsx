@@ -54,24 +54,13 @@ const InvitationsPage = () => {
   })
 
   const resendInvitation = useMutation({
-    mutationFn: (id) => api.post(`/invitations/${id}/resend`),
+    mutationFn: (id) => api.post(`/invitations/${id}/send`),
     onSuccess: () => {
       queryClient.invalidateQueries(['invitations'])
       alert('Invitation resent successfully!')
     },
     onError: (error) => {
       alert(error.response?.data?.error || 'Failed to resend invitation')
-    },
-  })
-
-  const revokeInvitation = useMutation({
-    mutationFn: (id) => api.post(`/invitations/${id}/revoke`),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['invitations'])
-      alert('Invitation revoked successfully')
-    },
-    onError: (error) => {
-      alert(error.response?.data?.error || 'Failed to revoke invitation')
     },
   })
 
@@ -357,26 +346,13 @@ const InvitationsPage = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
                         {invitation.status !== 'accepted' && invitation.status !== 'revoked' && (
-                          <>
-                            <button
-                              onClick={() => resendInvitation.mutate(invitation.id)}
-                              className="text-blue-600 hover:text-blue-800"
-                              title="Resend"
-                            >
-                              <Mail className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => {
-                                if (window.confirm('Are you sure you want to revoke this invitation?')) {
-                                  revokeInvitation.mutate(invitation.id)
-                                }
-                              }}
-                              className="text-red-600 hover:text-red-800"
-                              title="Revoke"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </>
+                          <button
+                            onClick={() => resendInvitation.mutate(invitation.id)}
+                            className="text-blue-600 hover:text-blue-800"
+                            title="Resend"
+                          >
+                            <Mail className="w-4 h-4" />
+                          </button>
                         )}
                       </div>
                     </td>

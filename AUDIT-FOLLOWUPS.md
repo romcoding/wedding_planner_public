@@ -4,6 +4,35 @@ Tracked deferrals surfaced during security/launch audits. Each item names the
 trigger, the gap, and the concrete remediation so it can be picked up later
 without re-deriving context. See `AUDIT.md` for the full go-live audit.
 
+## Invitation creation sends a payload the backend can't use (P5)
+
+**Status:** open — found while fixing `InvitationsPage.jsx`'s dead "Resend"/
+"Revoke" buttons (part of a larger dead-API-call sweep, see the other PRs in
+this cleanup wave). Not fixed here — this needs a product/UI decision, not a
+wiring fix.
+
+**Gap:** `POST /invitations` (`wedding-planner-backend/src/routes/
+invitation_routes.py`) requires `InvitationBody.guest_id` — an existing row in
+`guests`, since `invitations.guest_id` is a real foreign key. But
+`InvitationsPage.jsx`'s "Send Invitation" form collects `email`, `guest_name`,
+`plus_one_allowed`, `plus_one_count`, `expires_days`, `send_email` and submits
+that shape directly — it never collects or sends a `guest_id`. Every
+invitation created through this form is missing its one required field.
+
+There's also a working, independent invite path already in the product: every
+`guests` row gets a `unique_token`-based RSVP link (`{frontend_url}/rsvp/
+{token}`, fixed in the shell-repair PR) with no separate "invitation" object
+needed. `InvitationsPage.jsx`'s `invitations` table looks like a second,
+parallel, guest-linked invite-tracking system (open/sent/accepted status,
+resend, templates) that was never wired to the guest picker it needs.
+
+**Remediation — needs a decision, not a guess:** either (a) add a guest
+picker to the create form (select an existing `guests` row instead of typing
+a raw email), which makes the two invite systems coexist correctly, or (b)
+conclude this second system is redundant with the working token-based guest
+RSVP flow and retire `InvitationsPage.jsx` entirely (matching the "Webpage
+Builder" and legacy guest-account-flow removals elsewhere in this doc).
+
 ## Account / wedding deletion must cascade the website tables (P4)
 
 **Status:** open — there is no account- or wedding-deletion flow in the product
