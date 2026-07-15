@@ -35,10 +35,8 @@ import OnboardingWizard from './pages/admin/OnboardingWizard'
 import WebsiteBuilderPage from './features/website/WebsiteBuilderPage'
 
 // Guest pages
-import GuestHome from './pages/guest/Home'
 import GuestLogin from './pages/guest/GuestLogin'
 import GuestInfo from './pages/guest/Info'
-import GuestRegister from './pages/guest/Register'
 import GuestEntry from './pages/guest/GuestEntry'
 import WeddingPortal from './pages/guest/WeddingPortal'
 import PublicLandingPage from './pages/PublicLandingPage'
@@ -107,12 +105,10 @@ function GuestRoutes() {
       <Routes>
         <Route element={<GuestThemeShell />}>
           <Route path="login" element={guest ? <Navigate to="/guest" replace /> : <GuestLogin />} />
-          <Route path="register" element={<GuestRegister />} />
           {/* Guest entry point — authenticates with token and redirects to /info */}
           <Route path="rsvp/:token" element={<GuestEntry />} />
           <Route element={<GuestLayout />}>
             <Route index element={guest ? <GuestInfo /> : <Navigate to="/guest/login" replace />} />
-            <Route path="home" element={guest ? <GuestHome /> : <Navigate to="/guest/login" replace />} />
             <Route path="info" element={guest ? <GuestInfo /> : <Navigate to="/guest/login" replace />} />
           </Route>
           <Route path="*" element={<NotFoundPage />} />
