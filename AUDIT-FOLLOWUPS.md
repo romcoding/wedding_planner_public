@@ -38,6 +38,104 @@ undefined). List and Delete are untouched — both call real, working routes.
 create time using the wedding date) and add the missing `PUT`/`send`/
 `history` routes, or simplify the frontend form down to the fields the
 backend actually models.
+## Seating chart has no way to list unassigned guest "members" (P5)
+
+**Status:** open — found while fixing `SeatingChartPage.jsx`'s dead API calls
+(part of the larger dead-API-call sweep). Not fixed here; needs backend work,
+not a wiring fix.
+
+**Gap:** the "Unassigned People" panel called `GET /seating/guests/unassigned`,
+which doesn't exist. Fixing it isn't a simple rewiring like the invitation
+"Resend" button was — each rendered "person" needs a synthetic member id
+(`person-{id}`), a `guest_id`, an optional `attendee_name`, and a
+`display_name`, meaning the intended endpoint enumerates one seatable member
+per guest **plus** each of their named plus-ones (`guests.invitee_names`,
+already a JSON column), then subtracts whoever's already in
+`seat_assignments` (matched by `guest_id` + `attendee_name`). That logic
+doesn't exist anywhere server-side today.
+
+Also fixed in the same pass: `assignGuest` was POSTing to a flat
+`/seating/assignments` that doesn't exist — repointed to the real
+`POST /seating/tables/{table_id}/assign` (every call site already had
+`table_id` in its payload, so this restores "move a guest between seats"
+even though "drag from Unassigned" still can't populate its source list).
+`unassignGuest` was already correct. "Auto-assign" was removed (no backend
+equivalent, and was already permanently disabled in practice since it
+required a non-empty unassigned-guests list that never populated). CSV
+export was rewritten to generate client-side from the already-loaded table/
+assignment data instead of calling a nonexistent `GET /seating/export.csv`.
+
+**Remediation:** add a `GET /seating/guests/unassigned` route that expands
+guests × invitee_names into member rows and filters out anyone present in
+`seat_assignments`, matching the shape `assignGuest`/`GuestCard` already
+expect (`id`, `guest_id`, `attendee_name`, `display_name`).
+## Dead frontend→backend API calls — full sweep (2026-07)
+
+A systematic sweep (every `api.*` call site in the frontend cross-referenced
+against every `@router.*` route in the backend) found 30 frontend calls with
+**no matching backend route** — beyond the 4 already caught piecemeal
+(`/analytics/site-stats`, `/venues/search-ai` [removed], `/events/guest-portal-ai-draft`
+[removed], `/venues/scrape`). Working through these feature-by-feature, one PR
+each. Status:
+
+- [x] **Legacy guest username/password account flow** — `pages/guest/Register.jsx`
+  (`GET /invitations/validate/{token}`, `POST /invitations/register`),
+  `pages/guest/Home.jsx` (`PUT /guest-auth/profile`, `POST /guest-auth/register`),
+  and `GuestAuthContext.login()` (`POST /guest-auth/login`) all called
+  nonexistent routes. Verified unreachable from any live UI or backend email
+  template — the real guest flow is token-only (`GuestEntry.jsx` →
+  `Info.jsx`, which renders `RSVP.jsx` internally; `GuestLogin.jsx` at
+  `/guest/login` is a static "use your Wedding Pass link" message, not a
+  form). Removed `Register.jsx`, `Home.jsx`, their routes, and
+  `GuestAuthContext.login()`.
+- [x] `VenuesPage.jsx` / `VenuesPageComponents.jsx` — venue create/update/delete/
+  export/import, venue requests update/delete, and an entire categories/
+  offers/documents CRUD sub-feature (12 calls). Plus the already-flagged
+  `/venues/scrape` tool.
+- [x] `SeatingChartPage.jsx` — unassigned-guest list, manual assign, auto-assign,
+  CSV export.
+- [x] `InvitationsPage.jsx` — resend, revoke. "Resend" was pointed at the
+  wrong URL and repointed to the real `POST /invitations/{id}/send`;
+  "Revoke" had no backend route and was removed. Creation is separately
+  broken by a data-model mismatch, not a URL problem — see "Invitation
+  creation sends a payload the backend can't use" below.
+- [ ] `RSVPRemindersPage.jsx` — history, edit, send.
+- [ ] `UsersPage.jsx` (platform-admin only) — create, delete.
+- [ ] `ImagesPage.jsx` — guest-portal-settings GET/POST, admin agenda view,
+  image update (PUT).
+- [ ] `MoodboardPage.jsx` — single-image fetch, moodboard reset.
+- [ ] `WeddingManagement.jsx` — `/analytics/budget`, `/analytics/dietary`.
+- [ ] `pages/admin/PricingBillingPage.jsx` — orphaned, not routed anywhere in
+  `App.jsx`; lower priority since it's unreachable regardless of its dead
+  `/subscriptions/*` calls.
+
+## Invitation creation sends a payload the backend can't use (P5)
+
+**Status:** open — found while fixing `InvitationsPage.jsx`'s dead "Resend"/
+"Revoke" buttons (part of the sweep above). Not fixed here — this needs a
+product/UI decision, not a wiring fix.
+
+**Gap:** `POST /invitations` (`wedding-planner-backend/src/routes/
+invitation_routes.py`) requires `InvitationBody.guest_id` — an existing row in
+`guests`, since `invitations.guest_id` is a real foreign key. But
+`InvitationsPage.jsx`'s "Send Invitation" form collects `email`, `guest_name`,
+`plus_one_allowed`, `plus_one_count`, `expires_days`, `send_email` and submits
+that shape directly — it never collects or sends a `guest_id`. Every
+invitation created through this form is missing its one required field.
+
+There's also a working, independent invite path already in the product: every
+`guests` row gets a `unique_token`-based RSVP link (`{frontend_url}/rsvp/
+{token}`, fixed in the shell-repair PR) with no separate "invitation" object
+needed. `InvitationsPage.jsx`'s `invitations` table looks like a second,
+parallel, guest-linked invite-tracking system (open/sent/accepted status,
+resend, templates) that was never wired to the guest picker it needs.
+
+**Remediation — needs a decision, not a guess:** either (a) add a guest
+picker to the create form (select an existing `guests` row instead of typing
+a raw email), which makes the two invite systems coexist correctly, or (b)
+conclude this second system is redundant with the working token-based guest
+RSVP flow and retire `InvitationsPage.jsx` entirely (matching the "Webpage
+Builder" and legacy guest-account-flow removals elsewhere in this doc).
 
 ## Account / wedding deletion must cascade the website tables (P4)
 
