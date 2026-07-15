@@ -36,24 +36,6 @@ export function GuestAuthProvider({ children }) {
     }
   }, [])
 
-  const login = async (username, password) => {
-    try {
-      const response = await api.post('/guest-auth/login', { username, password })
-      const { access_token, guest } = response.data
-
-      sessionStorage.setItem('guest_token', access_token)
-      sessionStorage.setItem('guest', JSON.stringify(guest))
-      setGuest(guest)
-
-      return { success: true }
-    } catch (error) {
-      return {
-        success: false,
-        error: error.response?.data?.error || 'Login failed',
-      }
-    }
-  }
-
   const loginWithToken = (access_token, guestInfo) => {
     sessionStorage.setItem('guest_token', access_token)
     sessionStorage.setItem('guest', JSON.stringify(guestInfo))
@@ -67,7 +49,7 @@ export function GuestAuthProvider({ children }) {
   }
 
   return (
-    <GuestAuthContext.Provider value={{ guest, loading, login, loginWithToken, logout }}>
+    <GuestAuthContext.Provider value={{ guest, loading, loginWithToken, logout }}>
       {children}
     </GuestAuthContext.Provider>
   )
