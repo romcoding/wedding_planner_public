@@ -61,9 +61,15 @@ const SeatingChartPage = () => {
     queryFn: () => api.get('/seating/tables?include_assignments=true').then(res => res.data),
   })
 
-  const { data: unassignedGuests } = useQuery({
+  // NOTE: there is currently no backend endpoint that enumerates unassigned
+  // seatable "members" (a guest plus any named plus-ones from
+  // guests.invitee_names) minus who's already seated — see
+  // AUDIT-FOLLOWUPS.md. This always errors, so the panel below shows an
+  // explicit "not available" state rather than a misleading empty state.
+  const { data: unassignedGuests, isError: unassignedGuestsErrored } = useQuery({
     queryKey: ['unassigned-guests'],
     queryFn: () => api.get('/seating/guests/unassigned').then(res => res.data),
+    retry: false,
   })
 
   const createTable = useMutation({
@@ -93,7 +99,10 @@ const SeatingChartPage = () => {
   })
 
   const assignGuest = useMutation({
-    mutationFn: (data) => api.post('/seating/assignments', data),
+    // The real endpoint is nested under the table (POST /seating/tables/{table_id}/assign),
+    // not a flat POST /seating/assignments — every call site already includes
+    // table_id in its payload, so just route it correctly.
+    mutationFn: ({ table_id, ...data }) => api.post(`/seating/tables/${table_id}/assign`, data),
     onSuccess: () => {
       queryClient.invalidateQueries(['seating-tables'])
       queryClient.invalidateQueries(['unassigned-guests'])
@@ -102,14 +111,6 @@ const SeatingChartPage = () => {
 
   const unassignGuest = useMutation({
     mutationFn: (id) => api.delete(`/seating/assignments/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['seating-tables'])
-      queryClient.invalidateQueries(['unassigned-guests'])
-    },
-  })
-
-  const autoAssign = useMutation({
-    mutationFn: () => api.post('/seating/auto-assign'),
     onSuccess: () => {
       queryClient.invalidateQueries(['seating-tables'])
       queryClient.invalidateQueries(['unassigned-guests'])
@@ -392,19 +393,26 @@ const SeatingChartPage = () => {
     setIsPanning(false)
   }
 
-  const handleExportCsv = async () => {
-    try {
-      const response = await api.get('/seating/export.csv', { responseType: 'blob' })
-      const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = 'seating-plan.csv'
-      link.click()
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      alert(error?.response?.data?.error || 'Failed to export CSV')
+  const csvField = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`
+
+  // Generated client-side from the already-loaded table/assignment data —
+  // there is no GET /seating/export.csv route on the backend.
+  const handleExportCsv = () => {
+    const rows = [['Table', 'Seat', 'Guest']]
+    for (const table of tables || []) {
+      for (const a of table.assignments || []) {
+        const name = a.attendee_name || `${a.first_name || ''} ${a.last_name || ''}`.trim() || 'Unknown'
+        rows.push([table.name, a.seat_number ?? '', name])
+      }
     }
+    const csv = rows.map((row) => row.map(csvField).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'seating-plan.csv'
+    link.click()
+    window.URL.revokeObjectURL(url)
   }
 
   useEffect(() => {
@@ -460,21 +468,6 @@ const SeatingChartPage = () => {
           >
             <HelpCircle className="w-4 h-4" aria-hidden="true" />
             Help
-          </button>
-          <button
-            onClick={() => autoAssign.mutate()}
-            disabled={(tables?.length || 0) === 0 || (unassignedGuests?.length || 0) === 0 || autoAssign.isPending}
-            title={
-              (tables?.length || 0) === 0
-                ? 'Add at least one table before auto-assigning.'
-                : (unassignedGuests?.length || 0) === 0
-                  ? 'No unassigned guests to seat.'
-                  : 'Distribute unassigned guests across available seats.'
-            }
-            className="flex items-center gap-2 bg-emerald-600 text-white px-3 py-2 rounded-lg hover:bg-emerald-700 font-medium disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
-            aria-label="Auto-assign unassigned guests to available seats"
-          >
-            Auto-assign
           </button>
           <button
             onClick={handleExportCsv}
@@ -632,7 +625,7 @@ const SeatingChartPage = () => {
           >
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Unassigned Guests Sidebar */}
-        <UnassignedGuestsDropZone guests={unassignedGuests} activeId={activeId} />
+        <UnassignedGuestsDropZone guests={unassignedGuests} activeId={activeId} errored={unassignedGuestsErrored} />
 
         {/* Seating Chart Canvas */}
         <div className="lg:col-span-3">
@@ -1102,7 +1095,7 @@ function SeatComponent({ assignment, tableId }) {
 }
 
 // Unassigned Guests Drop Zone Component
-function UnassignedGuestsDropZone({ guests, activeId }) {
+function UnassignedGuestsDropZone({ guests, activeId, errored }) {
   const { setNodeRef, isOver } = useDroppable({
     id: 'unassigned-guests',
     data: { type: 'unassigned' }
@@ -1128,7 +1121,10 @@ function UnassignedGuestsDropZone({ guests, activeId }) {
               isDragging={activeId === `person-${guest.id}`}
             />
           ))}
-          {(!guests || guests.length === 0) && (
+          {errored && (
+            <p className="text-sm text-gray-500 text-center py-4">Unassigned guest list isn't available right now.</p>
+          )}
+          {!errored && (!guests || guests.length === 0) && (
             <p className="text-sm text-gray-500 text-center py-4">All guests assigned! Drag guests here to unassign.</p>
           )}
         </div>
