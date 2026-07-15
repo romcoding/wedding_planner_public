@@ -4,6 +4,42 @@ Tracked deferrals surfaced during security/launch audits. Each item names the
 trigger, the gap, and the concrete remediation so it can be picked up later
 without re-deriving context. See `AUDIT.md` for the full go-live audit.
 
+## Dead frontend→backend API calls — full sweep (2026-07)
+
+A systematic sweep (every `api.*` call site in the frontend cross-referenced
+against every `@router.*` route in the backend) found 30 frontend calls with
+**no matching backend route** — beyond the 4 already caught piecemeal
+(`/analytics/site-stats`, `/venues/search-ai` [removed], `/events/guest-portal-ai-draft`
+[removed], `/venues/scrape`). Working through these feature-by-feature, one PR
+each. Status:
+
+- [x] **Legacy guest username/password account flow** — `pages/guest/Register.jsx`
+  (`GET /invitations/validate/{token}`, `POST /invitations/register`),
+  `pages/guest/Home.jsx` (`PUT /guest-auth/profile`, `POST /guest-auth/register`),
+  and `GuestAuthContext.login()` (`POST /guest-auth/login`) all called
+  nonexistent routes. Verified unreachable from any live UI or backend email
+  template — the real guest flow is token-only (`GuestEntry.jsx` →
+  `Info.jsx`, which renders `RSVP.jsx` internally; `GuestLogin.jsx` at
+  `/guest/login` is a static "use your Wedding Pass link" message, not a
+  form). Removed `Register.jsx`, `Home.jsx`, their routes, and
+  `GuestAuthContext.login()`.
+- [ ] `VenuesPage.jsx` / `VenuesPageComponents.jsx` — venue create/update/delete/
+  export/import, venue requests update/delete, and an entire categories/
+  offers/documents CRUD sub-feature (12 calls). Plus the already-flagged
+  `/venues/scrape` tool.
+- [ ] `SeatingChartPage.jsx` — unassigned-guest list, manual assign, auto-assign,
+  CSV export.
+- [ ] `InvitationsPage.jsx` — resend, revoke.
+- [ ] `RSVPRemindersPage.jsx` — history, edit, send.
+- [ ] `UsersPage.jsx` (platform-admin only) — create, delete.
+- [ ] `ImagesPage.jsx` — guest-portal-settings GET/POST, admin agenda view,
+  image update (PUT).
+- [ ] `MoodboardPage.jsx` — single-image fetch, moodboard reset.
+- [ ] `WeddingManagement.jsx` — `/analytics/budget`, `/analytics/dietary`.
+- [ ] `pages/admin/PricingBillingPage.jsx` — orphaned, not routed anywhere in
+  `App.jsx`; lower priority since it's unreachable regardless of its dead
+  `/subscriptions/*` calls.
+
 ## Account / wedding deletion must cascade the website tables (P4)
 
 **Status:** open — there is no account- or wedding-deletion flow in the product
