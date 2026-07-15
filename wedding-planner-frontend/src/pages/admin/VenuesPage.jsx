@@ -1,30 +1,24 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
-import { 
-  PlusCircle, 
-  Trash, 
-  Edit, 
-  Search, 
-  MapPin, 
-  Users, 
+import {
+  PlusCircle,
+  Search,
+  MapPin,
+  Users,
   DollarSign,
   Star,
   Globe,
   Mail,
   Phone,
   Link as LinkIcon,
-  Download,
-  Upload,
   GitCompare,
   X,
   Loader,
   Image as ImageIcon,
   Calendar,
-  Check,
 } from 'lucide-react'
 import { RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
-import { VenueOffersTab, VenueDocumentsTab, VenueChatTab } from './VenuesPageComponents'
 import VenueSetupWizard from './VenueSetupWizard'
 
 function formatMoney(amount, currency = 'CHF') {
@@ -57,7 +51,6 @@ export default function VenuesPage() {
   const [useLLM, setUseLLM] = useState(false)
   const [skipScrape, setSkipScrape] = useState(false)
   const fileInputRef = useRef(null)
-  const csvFileInputRef = useRef(null)
   const [imagePreviews, setImagePreviews] = useState([])
   const [wizardData, setWizardData] = useState({
     // Step 1: Basic info (scraped or manual)
@@ -136,59 +129,11 @@ export default function VenuesPage() {
     },
   })
 
-  const updateVenue = useMutation({
-    mutationFn: ({ id, data }) => api.put(`/venues/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['venues'])
-      resetForm()
-      setShowForm(false)
-      setEditingId(null)
-    },
-  })
-
-  const deleteVenue = useMutation({
-    mutationFn: (id) => api.delete(`/venues/${id}`),
-    onSuccess: () => queryClient.invalidateQueries(['venues']),
-  })
-
   const scrapeVenue = useMutation({
     mutationFn: async ({ url, useLLM }) => {
       const response = await api.post('/venues/scrape', { url, use_llm: useLLM })
       return response.data
     },
-  })
-
-  const exportCSV = useMutation({
-    mutationFn: async () => {
-      const response = await api.get('/venues/export', { responseType: 'blob' })
-      const url = window.URL.createObjectURL(new Blob([response.data]))
-      const link = document.createElement('a')
-      link.href = url
-      link.setAttribute('download', `venues_export_${new Date().toISOString().split('T')[0]}.csv`)
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      window.URL.revokeObjectURL(url)
-    },
-  })
-
-  const importCSV = useMutation({
-    mutationFn: async (file) => {
-      const formData = new FormData()
-      formData.append('file', file)
-      const response = await api.post('/venues/import', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      return response.data
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(['venues'])
-      alert(`Successfully imported ${data.imported} venues. ${data.errors.length > 0 ? `Errors: ${data.errors.join(', ')}` : ''}`)
-      if (csvFileInputRef.current) csvFileInputRef.current.value = ''
-    },
-    onError: (error) => {
-      alert(error.response?.data?.error || 'Failed to import CSV')
-    }
   })
 
   const resetForm = () => {
@@ -340,43 +285,7 @@ export default function VenuesPage() {
       price_max: formData.price_max ? parseFloat(formData.price_max) : null,
       rating: formData.rating ? parseFloat(formData.rating) : null,
     }
-    
-    if (editingId) {
-      updateVenue.mutate({ id: editingId, data: payload })
-    } else {
-      createVenue.mutate(payload)
-    }
-  }
-
-  const handleEdit = (venue) => {
-    setEditingId(venue.id)
-    setFormData({
-      name: venue.name || '',
-      description: venue.description || '',
-      address: venue.address || '',
-      city: venue.city || '',
-      region: venue.region || '',
-      location: venue.location || '',
-      capacity_min: venue.capacity_min || '',
-      capacity_max: venue.capacity_max || '',
-      capacity: venue.capacity || '',
-      price_min: venue.price_min || '',
-      price_max: venue.price_max || '',
-      price_range: venue.price_range || '',
-      style: venue.style || '',
-      amenities: Array.isArray(venue.amenities) ? venue.amenities : [],
-      contact_name: venue.contact_name || '',
-      contact_email: venue.contact_email || '',
-      contact_phone: venue.contact_phone || '',
-      website: venue.website || '',
-      external_url: venue.external_url || '',
-      rating: venue.rating || '',
-      available_dates: Array.isArray(venue.available_dates) ? venue.available_dates : [],
-      images: Array.isArray(venue.images) ? venue.images : [],
-      notes: venue.notes || '',
-    })
-    setImagePreviews(Array.isArray(venue.images) ? venue.images : [])
-    setShowForm(true)
+    createVenue.mutate(payload)
   }
 
   const handleToggleSelect = (venueId) => {
@@ -393,15 +302,6 @@ export default function VenuesPage() {
       return
     }
     setShowCompare(true)
-  }
-
-  const handleCSVImport = (e) => {
-    const file = e.target.files[0]
-    if (file && file.name.endsWith('.csv')) {
-      importCSV.mutate(file)
-    } else {
-      alert('Please select a CSV file')
-    }
   }
 
   if (isLoading) {
@@ -425,25 +325,6 @@ export default function VenuesPage() {
               Compare ({selectedVenues.length})
             </button>
           )}
-          <label className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors cursor-pointer">
-            <Upload className="h-5 w-5" />
-            Import CSV
-            <input
-              ref={csvFileInputRef}
-              type="file"
-              accept=".csv"
-              onChange={handleCSVImport}
-              className="hidden"
-            />
-          </label>
-          <button
-            onClick={() => exportCSV.mutate()}
-            disabled={exportCSV.isPending}
-            className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
-          >
-            {exportCSV.isPending ? <Loader className="h-5 w-5 animate-spin" /> : <Download className="h-5 w-5" />}
-            Export CSV
-          </button>
           <button
             onClick={() => {
               resetForm()
@@ -1068,33 +949,13 @@ export default function VenuesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => setShowDetail(venue.id)}
-                          className="text-blue-600 hover:text-blue-800"
-                          title="View Details"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleEdit(venue)}
-                          className="text-green-600 hover:text-green-800"
-                          title="Edit"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (confirm('Are you sure you want to delete this venue?')) {
-                              deleteVenue.mutate(venue.id)
-                            }
-                          }}
-                          className="text-red-600 hover:text-red-800"
-                          title="Delete"
-                        >
-                          <Trash className="h-4 w-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setShowDetail(venue.id)}
+                        className="text-blue-600 hover:text-blue-800"
+                        title="View Details"
+                      >
+                        View
+                      </button>
                     </td>
                   </tr>
                 ))
@@ -1295,41 +1156,8 @@ function CompareVenuesModal({ venueIds, venues, onClose }) {
   )
 }
 
-// Venue Detail Component with Request Tracking
+// Venue Detail Component
 function VenueDetailModal({ venueId, onClose }) {
-  const queryClient = useQueryClient()
-  const [activeTab, setActiveTab] = useState('details')
-  const [showRequestForm, setShowRequestForm] = useState(false)
-  
-  // Handle tab switching from chat citations
-  useEffect(() => {
-    const handleSwitchTab = (event) => {
-      if (event.detail.documentId) {
-        setActiveTab('documents')
-        // Scroll to document after a brief delay
-        setTimeout(() => {
-          const element = document.getElementById(`document-${event.detail.documentId}`)
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth', block: 'center' })
-            element.classList.add('ring-4', 'ring-blue-500', 'ring-offset-2')
-            setTimeout(() => {
-              element.classList.remove('ring-4', 'ring-blue-500', 'ring-offset-2')
-            }, 2000)
-          }
-        }, 300)
-      }
-    }
-    window.addEventListener('switchToDocumentsTab', handleSwitchTab)
-    return () => window.removeEventListener('switchToDocumentsTab', handleSwitchTab)
-  }, [])
-  
-  const [requestFormData, setRequestFormData] = useState({
-    contact_date: new Date().toISOString().split('T')[0],
-    status: 'pending',
-    proposed_price: '',
-    notes: ''
-  })
-
   const { data: venue, isLoading } = useQuery({
     queryKey: ['venue', venueId],
     queryFn: async () => {
@@ -1337,35 +1165,6 @@ function VenueDetailModal({ venueId, onClose }) {
       return response.data
     },
     enabled: !!venueId,
-  })
-
-  const createRequest = useMutation({
-    mutationFn: (data) => api.post(`/venues/${venueId}/requests`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['venue', venueId])
-      setShowRequestForm(false)
-      setRequestFormData({
-        contact_date: new Date().toISOString().split('T')[0],
-        status: 'pending',
-        proposed_price: '',
-        currency: 'EUR',
-        notes: ''
-      })
-    },
-  })
-
-  const updateRequest = useMutation({
-    mutationFn: ({ id, data }) => api.put(`/venues/requests/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['venue', venueId])
-    },
-  })
-
-  const deleteRequest = useMutation({
-    mutationFn: (id) => api.delete(`/venues/requests/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['venue', venueId])
-    },
   })
 
   if (isLoading) {
@@ -1378,8 +1177,6 @@ function VenueDetailModal({ venueId, onClose }) {
 
   if (!venue) return null
 
-  const requests = venue.requests || []
-
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -1391,65 +1188,7 @@ function VenueDetailModal({ venueId, onClose }) {
             </button>
           </div>
 
-          {/* Tabs */}
-          <div className="border-b mb-4">
-            <div className="flex gap-4 overflow-x-auto">
-              <button
-                onClick={() => setActiveTab('details')}
-                className={`pb-2 px-4 font-medium whitespace-nowrap ${
-                  activeTab === 'details'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('offers')}
-                className={`pb-2 px-4 font-medium whitespace-nowrap ${
-                  activeTab === 'offers'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Offers
-              </button>
-              <button
-                onClick={() => setActiveTab('documents')}
-                className={`pb-2 px-4 font-medium whitespace-nowrap ${
-                  activeTab === 'documents'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Documents
-              </button>
-              <button
-                onClick={() => setActiveTab('chat')}
-                className={`pb-2 px-4 font-medium whitespace-nowrap ${
-                  activeTab === 'chat'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Chat
-              </button>
-              <button
-                onClick={() => setActiveTab('requests')}
-                className={`pb-2 px-4 font-medium whitespace-nowrap ${
-                  activeTab === 'requests'
-                    ? 'border-b-2 border-blue-600 text-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Communication History ({requests.length})
-              </button>
-            </div>
-          </div>
-
-          {/* Details Tab */}
-          {activeTab === 'details' && (
-            <div className="space-y-4">
+          <div className="space-y-4">
             {venue.description && (
               <div>
                 <h3 className="font-semibold mb-2">Description</h3>
@@ -1475,8 +1214,8 @@ function VenueDetailModal({ venueId, onClose }) {
                   Capacity
                 </h3>
                 <p className="text-gray-600">
-                  {venue.capacity_min && venue.capacity_max 
-                    ? `${venue.capacity_min}-${venue.capacity_max}` 
+                  {venue.capacity_min && venue.capacity_max
+                    ? `${venue.capacity_min}-${venue.capacity_max}`
                     : venue.capacity_max || venue.capacity || '-'}
                 </p>
               </div>
@@ -1486,8 +1225,8 @@ function VenueDetailModal({ venueId, onClose }) {
                   Price Range
                 </h3>
                 <p className="text-gray-600">
-                  {venue.price_min && venue.price_max 
-                    ? `${formatMoney(venue.price_min)} - ${formatMoney(venue.price_max)}` 
+                  {venue.price_min && venue.price_max
+                    ? `${formatMoney(venue.price_min)} - ${formatMoney(venue.price_max)}`
                     : venue.price_range || '-'}
                 </p>
               </div>
@@ -1561,186 +1300,6 @@ function VenueDetailModal({ venueId, onClose }) {
               </div>
             )}
           </div>
-          )}
-
-          {/* Offers Tab */}
-          {activeTab === 'offers' && (
-            <VenueOffersTab venueId={venueId} />
-          )}
-
-          {/* Documents Tab */}
-          {activeTab === 'documents' && (
-            <VenueDocumentsTab venueId={venueId} />
-          )}
-
-          {/* Chat Tab */}
-          {activeTab === 'chat' && (
-            <VenueChatTab venueId={venueId} />
-          )}
-
-          {/* Requests Tab */}
-          {activeTab === 'requests' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">Communication History</h3>
-                <button
-                  onClick={() => setShowRequestForm(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-                >
-                  <PlusCircle className="h-4 w-4" />
-                  Add Request
-                </button>
-              </div>
-
-              {/* Request Form Modal */}
-              {showRequestForm && (
-                <div className="fixed inset-0 bg-gray-200 bg-opacity-75 flex items-center justify-center z-50 p-4">
-                  <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-                    <div className="flex justify-between items-center mb-4">
-                      <h3 className="text-lg font-semibold">Add Venue Request</h3>
-                      <button onClick={() => setShowRequestForm(false)}>
-                        <X className="h-5 w-5" />
-                      </button>
-                    </div>
-                    <form onSubmit={(e) => {
-                      e.preventDefault()
-                      createRequest.mutate(requestFormData)
-                    }} className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Contact Date *</label>
-                        <input
-                          type="date"
-                          value={requestFormData.contact_date}
-                          onChange={(e) => setRequestFormData({ ...requestFormData, contact_date: e.target.value })}
-                          required
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Status</label>
-                        <select
-                          value={requestFormData.status}
-                          onChange={(e) => setRequestFormData({ ...requestFormData, status: e.target.value })}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        >
-                          <option value="pending">Pending</option>
-                          <option value="contacted">Contacted</option>
-                          <option value="proposal_received">Proposal Received</option>
-                          <option value="accepted">Accepted</option>
-                          <option value="rejected">Rejected</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Proposed Price (EUR)</label>
-                        <div className="flex gap-2">
-                          <select
-                            value={requestFormData.currency || 'EUR'}
-                            onChange={(e) => setRequestFormData({ ...requestFormData, currency: e.target.value })}
-                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                          >
-                            <option value="EUR">EUR</option>
-                            <option value="USD">USD</option>
-                            <option value="GBP">GBP</option>
-                            <option value="CHF">CHF</option>
-                          </select>
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={requestFormData.proposed_price}
-                            onChange={(e) => setRequestFormData({ ...requestFormData, proposed_price: e.target.value })}
-                            placeholder="0.00"
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                          />
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">Enter the proposed price from the venue</p>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium mb-1">Notes</label>
-                        <textarea
-                          value={requestFormData.notes}
-                          onChange={(e) => setRequestFormData({ ...requestFormData, notes: e.target.value })}
-                          rows="3"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white text-gray-900"
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setShowRequestForm(false)}
-                          className="px-4 py-2 border-2 border-gray-400 text-gray-900 rounded-lg hover:bg-gray-100 font-medium"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                          Add Request
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {/* Requests List */}
-              {requests.length === 0 ? (
-                <p className="text-gray-500 text-center py-8">No communication history yet. Add your first request!</p>
-              ) : (
-                <div className="space-y-3">
-                  {requests.map((request) => (
-                    <div key={request.id} className="border rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <div className="font-semibold">{new Date(request.contact_date).toLocaleDateString()}</div>
-                          <span className={`px-2 py-1 text-xs rounded-full ${
-                            request.status === 'accepted' ? 'bg-green-100 text-green-800' :
-                            request.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                            request.status === 'proposal_received' ? 'bg-blue-100 text-blue-800' :
-                            request.status === 'contacted' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-800'
-                          }`}>
-                            {request.status.replace('_', ' ').toUpperCase()}
-                          </span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => {
-                              const newStatus = prompt('Enter new status (pending, contacted, proposal_received, accepted, rejected):', request.status)
-                              if (newStatus) {
-                                updateRequest.mutate({ id: request.id, data: { status: newStatus } })
-                              }
-                            }}
-                            className="text-blue-600 hover:text-blue-800"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => {
-                              if (confirm('Delete this request?')) {
-                                deleteRequest.mutate(request.id)
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-800"
-                          >
-                            <Trash className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </div>
-                      {request.proposed_price && (
-                        <div className="text-sm text-gray-600 mb-1">
-                          Proposed Price: {(request.currency || 'CHF')} {parseFloat(request.proposed_price).toFixed(2)}
-                        </div>
-                      )}
-                      {request.notes && (
-                        <div className="text-sm text-gray-600">{request.notes}</div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
     </div>
