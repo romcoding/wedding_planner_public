@@ -4,6 +4,41 @@ Tracked deferrals surfaced during security/launch audits. Each item names the
 trigger, the gap, and the concrete remediation so it can be picked up later
 without re-deriving context. See `AUDIT.md` for the full go-live audit.
 
+## RSVP reminder creation is broken by a data-model mismatch, not just a bad URL (P5)
+
+**Status:** open — found while fixing `RSVPRemindersPage.jsx`'s dead API calls
+(part of the larger dead-API-call sweep). Not fixed here; needs a schema/
+product decision, not a wiring fix.
+
+**Gap:** `rsvp_reminder_routes.py`'s `ReminderBody` only models `name`,
+`message`, `send_at`, `target_rsvp_status`, and `POST ""` hard-requires
+`name`/`message`/`send_at` (400s otherwise). The frontend's create form is
+built around a materially richer model — relative-to-wedding-date scheduling
+(`days_before_event`) as an alternative to an absolute `scheduled_at`, plus
+`subject`, `target_status` (different key name from the backend's
+`target_rsvp_status`), `only_unassigned`, and `is_active` — none of which the
+backend has columns for. The frontend never sends a field literally named
+`send_at`, so **every reminder creation attempt 400s today**, regardless of
+what the couple fills in. There is also no `PUT /{id}` (update), no
+`/{id}/send`, and no `/history` route at all.
+
+This is bigger than a field-rename fix: silently renaming `scheduled_at` →
+`send_at` would make creation "succeed" while silently dropping the subject
+line, the relative-scheduling choice, and both filter toggles — a worse
+failure mode than the current clear 400. Removed instead (all had zero
+working backend regardless of payload shape): "Send now" button, "Edit"
+button/form-mode (no `PUT` route), and the "Recent Reminder History" section
+(no `/history` route — this one was already invisible, since its guard
+`history && history.length > 0` could never be true with `history` always
+undefined). List and Delete are untouched — both call real, working routes.
+
+**Remediation:** needs a decision — either extend `rsvp_reminders`
+(migration adding `subject`, `days_before_event`, `only_unassigned`,
+`is_active` columns, or resolving `days_before_event` into `send_at` at
+create time using the wedding date) and add the missing `PUT`/`send`/
+`history` routes, or simplify the frontend form down to the fields the
+backend actually models.
+
 ## Account / wedding deletion must cascade the website tables (P4)
 
 **Status:** open — there is no account- or wedding-deletion flow in the product

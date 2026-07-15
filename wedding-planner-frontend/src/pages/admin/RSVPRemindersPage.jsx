@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api from '../../lib/api'
 import { useToast } from '../../components/ui/Toast'
-import { PlusCircle, Trash, Edit, Mail, X, Clock, Send, CheckCircle, AlertCircle, Eye } from 'lucide-react'
+import { PlusCircle, Trash, Mail, X, Eye } from 'lucide-react'
 import EmptyState from '../../components/ui/EmptyState'
 import DateInput from '../../components/ui/DateInput'
 import { formatLocaleDateTime } from '../../utils/locale'
@@ -11,7 +11,6 @@ const RSVPRemindersPage = () => {
   const queryClient = useQueryClient()
   const toast = useToast()
   const [showForm, setShowForm] = useState(false)
-  const [editingId, setEditingId] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
   const [scheduleMode, setScheduleMode] = useState('relative') // relative | absolute
   const [formData, setFormData] = useState({
@@ -31,11 +30,6 @@ const RSVPRemindersPage = () => {
     queryFn: () => api.get('/rsvp-reminders').then((res) => res.data),
   })
 
-  const { data: history } = useQuery({
-    queryKey: ['reminder-history'],
-    queryFn: () => api.get('/rsvp-reminders/history').then((res) => res.data),
-  })
-
   const createReminder = useMutation({
     mutationFn: (data) => api.post('/rsvp-reminders', data),
     onSuccess: () => {
@@ -50,33 +44,10 @@ const RSVPRemindersPage = () => {
     },
   })
 
-  const updateReminder = useMutation({
-    mutationFn: ({ id, data }) => api.put(`/rsvp-reminders/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries(['rsvp-reminders'])
-      resetForm()
-      setShowForm(false)
-      toast.success('Reminder updated successfully!')
-    },
-    onError: (error) => {
-      console.error('Error updating reminder:', error)
-      toast.error(error.response?.data?.error || 'Failed to update reminder. Please check all required fields.')
-    },
-  })
-
   const deleteReminder = useMutation({
     mutationFn: (id) => api.delete(`/rsvp-reminders/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries(['rsvp-reminders'])
-    },
-  })
-
-  const sendReminder = useMutation({
-    mutationFn: (id) => api.post(`/rsvp-reminders/${id}/send`),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries(['rsvp-reminders'])
-      queryClient.invalidateQueries(['reminder-history'])
-      alert(`Reminder sent to ${data.data.sent} guests. ${data.data.skipped} skipped.`)
     },
   })
 
@@ -93,25 +64,6 @@ const RSVPRemindersPage = () => {
     })
     setScheduleMode('relative')
     setShowPreview(false)
-    setEditingId(null)
-  }
-
-  const handleEdit = (reminder) => {
-    setEditingId(reminder.id)
-    setFormData({
-      name: reminder.name,
-      days_before_event: reminder.days_before_event,
-      scheduled_at: reminder.scheduled_at
-        ? String(reminder.scheduled_at).replace(' ', 'T').slice(0, 16)
-        : '',
-      subject: reminder.subject,
-      message: reminder.message,
-      target_status: reminder.target_status,
-      only_unassigned: reminder.only_unassigned,
-      is_active: reminder.is_active,
-    })
-    setScheduleMode(reminder.scheduled_at ? 'absolute' : 'relative')
-    setShowForm(true)
   }
 
   const handleSubmit = (e) => {
@@ -152,11 +104,7 @@ const RSVPRemindersPage = () => {
       scheduled_at: scheduleMode === 'absolute' ? formData.scheduled_at : null,
     }
 
-    if (editingId) {
-      updateReminder.mutate({ id: editingId, data: payload })
-    } else {
-      createReminder.mutate(payload)
-    }
+    createReminder.mutate(payload)
   }
 
   // Live preview helper: replace personalization tokens with sample values.
@@ -205,7 +153,7 @@ const RSVPRemindersPage = () => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  {editingId ? 'Edit Reminder' : 'Create New Reminder'}
+                  Create New Reminder
                 </h2>
                 <button
                   onClick={() => {
@@ -419,7 +367,7 @@ const RSVPRemindersPage = () => {
                     type="submit"
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    {editingId ? 'Update' : 'Create'} Reminder
+                    Create Reminder
                   </button>
                 </div>
               </form>
@@ -477,24 +425,6 @@ const RSVPRemindersPage = () => {
                 <div className="flex gap-2 ml-4">
                   <button
                     onClick={() => {
-                      if (window.confirm(`Send reminder "${reminder.name}" to eligible guests now?`)) {
-                        sendReminder.mutate(reminder.id)
-                      }
-                    }}
-                    className="p-2 text-green-600 hover:bg-green-50 rounded"
-                    title="Send now"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => handleEdit(reminder)}
-                    className="p-2 text-blue-600 hover:bg-blue-50 rounded"
-                    title="Edit reminder"
-                  >
-                    <Edit className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => {
                       if (window.confirm('Are you sure you want to delete this reminder?')) {
                         deleteReminder.mutate(reminder.id)
                       }
@@ -526,38 +456,6 @@ const RSVPRemindersPage = () => {
           />
         )}
       </div>
-
-      {/* History Section */}
-      {history && history.length > 0 && (
-        <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Recent Reminder History
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-2 text-left">Reminder</th>
-                  <th className="px-4 py-2 text-left">Guest</th>
-                  <th className="px-4 py-2 text-left">Email</th>
-                  <th className="px-4 py-2 text-left">Sent At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {history.slice(0, 20).map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-2">{item.reminder_name}</td>
-                    <td className="px-4 py-2">{item.guest_name}</td>
-                    <td className="px-4 py-2">{item.guest_email}</td>
-                    <td className="px-4 py-2">{formatLocaleDateTime(item.sent_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
