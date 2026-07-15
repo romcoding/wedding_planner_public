@@ -4,6 +4,37 @@ Tracked deferrals surfaced during security/launch audits. Each item names the
 trigger, the gap, and the concrete remediation so it can be picked up later
 without re-deriving context. See `AUDIT.md` for the full go-live audit.
 
+## Seating chart has no way to list unassigned guest "members" (P5)
+
+**Status:** open — found while fixing `SeatingChartPage.jsx`'s dead API calls
+(part of the larger dead-API-call sweep). Not fixed here; needs backend work,
+not a wiring fix.
+
+**Gap:** the "Unassigned People" panel called `GET /seating/guests/unassigned`,
+which doesn't exist. Fixing it isn't a simple rewiring like the invitation
+"Resend" button was — each rendered "person" needs a synthetic member id
+(`person-{id}`), a `guest_id`, an optional `attendee_name`, and a
+`display_name`, meaning the intended endpoint enumerates one seatable member
+per guest **plus** each of their named plus-ones (`guests.invitee_names`,
+already a JSON column), then subtracts whoever's already in
+`seat_assignments` (matched by `guest_id` + `attendee_name`). That logic
+doesn't exist anywhere server-side today.
+
+Also fixed in the same pass: `assignGuest` was POSTing to a flat
+`/seating/assignments` that doesn't exist — repointed to the real
+`POST /seating/tables/{table_id}/assign` (every call site already had
+`table_id` in its payload, so this restores "move a guest between seats"
+even though "drag from Unassigned" still can't populate its source list).
+`unassignGuest` was already correct. "Auto-assign" was removed (no backend
+equivalent, and was already permanently disabled in practice since it
+required a non-empty unassigned-guests list that never populated). CSV
+export was rewritten to generate client-side from the already-loaded table/
+assignment data instead of calling a nonexistent `GET /seating/export.csv`.
+
+**Remediation:** add a `GET /seating/guests/unassigned` route that expands
+guests × invitee_names into member rows and filters out anyone present in
+`seat_assignments`, matching the shape `assignGuest`/`GuestCard` already
+expect (`id`, `guest_id`, `attendee_name`, `display_name`).
 ## Dead frontend→backend API calls — full sweep (2026-07)
 
 A systematic sweep (every `api.*` call site in the frontend cross-referenced
