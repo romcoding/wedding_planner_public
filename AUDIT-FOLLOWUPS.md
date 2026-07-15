@@ -23,13 +23,17 @@ each. Status:
   `/guest/login` is a static "use your Wedding Pass link" message, not a
   form). Removed `Register.jsx`, `Home.jsx`, their routes, and
   `GuestAuthContext.login()`.
-- [ ] `VenuesPage.jsx` / `VenuesPageComponents.jsx` — venue create/update/delete/
+- [x] `VenuesPage.jsx` / `VenuesPageComponents.jsx` — venue create/update/delete/
   export/import, venue requests update/delete, and an entire categories/
   offers/documents CRUD sub-feature (12 calls). Plus the already-flagged
   `/venues/scrape` tool.
-- [ ] `SeatingChartPage.jsx` — unassigned-guest list, manual assign, auto-assign,
+- [x] `SeatingChartPage.jsx` — unassigned-guest list, manual assign, auto-assign,
   CSV export.
-- [ ] `InvitationsPage.jsx` — resend, revoke.
+- [x] `InvitationsPage.jsx` — resend, revoke. "Resend" was pointed at the
+  wrong URL and repointed to the real `POST /invitations/{id}/send`;
+  "Revoke" had no backend route and was removed. Creation is separately
+  broken by a data-model mismatch, not a URL problem — see "Invitation
+  creation sends a payload the backend can't use" below.
 - [ ] `RSVPRemindersPage.jsx` — history, edit, send.
 - [ ] `UsersPage.jsx` (platform-admin only) — create, delete.
 - [ ] `ImagesPage.jsx` — guest-portal-settings GET/POST, admin agenda view,
@@ -39,6 +43,34 @@ each. Status:
 - [ ] `pages/admin/PricingBillingPage.jsx` — orphaned, not routed anywhere in
   `App.jsx`; lower priority since it's unreachable regardless of its dead
   `/subscriptions/*` calls.
+
+## Invitation creation sends a payload the backend can't use (P5)
+
+**Status:** open — found while fixing `InvitationsPage.jsx`'s dead "Resend"/
+"Revoke" buttons (part of the sweep above). Not fixed here — this needs a
+product/UI decision, not a wiring fix.
+
+**Gap:** `POST /invitations` (`wedding-planner-backend/src/routes/
+invitation_routes.py`) requires `InvitationBody.guest_id` — an existing row in
+`guests`, since `invitations.guest_id` is a real foreign key. But
+`InvitationsPage.jsx`'s "Send Invitation" form collects `email`, `guest_name`,
+`plus_one_allowed`, `plus_one_count`, `expires_days`, `send_email` and submits
+that shape directly — it never collects or sends a `guest_id`. Every
+invitation created through this form is missing its one required field.
+
+There's also a working, independent invite path already in the product: every
+`guests` row gets a `unique_token`-based RSVP link (`{frontend_url}/rsvp/
+{token}`, fixed in the shell-repair PR) with no separate "invitation" object
+needed. `InvitationsPage.jsx`'s `invitations` table looks like a second,
+parallel, guest-linked invite-tracking system (open/sent/accepted status,
+resend, templates) that was never wired to the guest picker it needs.
+
+**Remediation — needs a decision, not a guess:** either (a) add a guest
+picker to the create form (select an existing `guests` row instead of typing
+a raw email), which makes the two invite systems coexist correctly, or (b)
+conclude this second system is redundant with the working token-based guest
+RSVP flow and retire `InvitationsPage.jsx` entirely (matching the "Webpage
+Builder" and legacy guest-account-flow removals elsewhere in this doc).
 
 ## Account / wedding deletion must cascade the website tables (P4)
 
