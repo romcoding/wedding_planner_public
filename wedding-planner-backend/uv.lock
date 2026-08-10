@@ -550,7 +550,7 @@ dev = [
 
 [[package]]
 name = "workers-py"
-version = "1.15.0"
+version = "1.16.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -562,9 +562,9 @@ dependencies = [
     { name = "rich" },
     { name = "workers-runtime-sdk" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/79/da/a4bd0ac02c21420ae3eb610d67051b40634f21b8be51131271f4bb93759b/workers_py-1.15.0.tar.gz", hash = "sha256:0ffe5ffe313415b85a3fcda3afab84bf3649d894bfaded8990fe37e1979e11f2", size = 114340, upload-time = "2026-07-08T18:43:43.222Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/7a/68/b7a0c147a1d41aa7c1b1dfcc23f9509b64c68e68016959bf68e67808f4a1/workers_py-1.16.2.tar.gz", hash = "sha256:82c78a890e94e5079903dbc20a6e3c049a974cecd44143f0ea9219479e2f4a21", size = 139164, upload-time = "2026-08-04T03:12:48.117Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/27/e2767056ce43dba12f7c29189214b0966622b85cdf0bd6d8e3c569780ef7/workers_py-1.15.0-py3-none-any.whl", hash = "sha256:d017cd76067f94080bf77cce62d04bfa5655415fac2e1cada8f6384767c4c5b2", size = 16239, upload-time = "2026-07-08T18:43:42.059Z" },
+    { url = "https://files.pythonhosted.org/packages/5d/84/bad529c5a07702d59d49fa0483d77de53f0329703671b8414aba84aeccfc/workers_py-1.16.2-py3-none-any.whl", hash = "sha256:c35cfd01b37988f22dda1811a968700315ca37d4a0b79086d553778e0231d994", size = 16534, upload-time = "2026-08-04T03:12:46.578Z" },
 ]
 
 [[package]]
