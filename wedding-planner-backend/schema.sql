@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 0,
   email_verified_at TEXT,
   current_wedding_id TEXT,
+  token_version INTEGER NOT NULL DEFAULT 0, -- bump to revoke all JWTs (migrations/009)
+  pending_email TEXT,                       -- unverified new email; old one stays active (migrations/009)
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -24,6 +26,7 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   token TEXT UNIQUE NOT NULL,
   expires_at TEXT NOT NULL,
   used_at TEXT,
+  new_email TEXT,                           -- set when the token verifies a NEW address (migrations/009)
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id)
 );

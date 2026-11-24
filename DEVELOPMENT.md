@@ -24,7 +24,7 @@ npx wrangler d1 execute wedding-planner-db --local --file=schema.sql
 uv run pywrangler dev
 ```
 
-Default local Worker URL: `http://localhost:8787`
+Default local Worker URL: `http://localhost:8787` (this is also the target of the Vite dev proxy for `/api`, see `wedding-planner-frontend/vite.config.js`).
 
 ### Optional: run FastAPI directly (without Worker env)
 
@@ -32,6 +32,8 @@ Default local Worker URL: `http://localhost:8787`
 cd wedding-planner-backend
 uv run uvicorn src.main:app --reload --port 8000
 ```
+
+If you run it this way, point the frontend at it with `VITE_API_URL=http://localhost:8000/api` (the Vite proxy only targets the Worker on 8787).
 
 ---
 

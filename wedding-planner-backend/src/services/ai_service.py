@@ -10,17 +10,24 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "claude-sonnet-4-6"
 DEFAULT_MAX_TOKENS = 2000
+DEFAULT_TIMEOUT = 30.0
 ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 
 
-def call_claude_json(
+def get_model() -> str:
+    """Model id from the ANTHROPIC_MODEL setting (read per call: on Workers the
+    setting is copied into os.environ per request), else DEFAULT_MODEL."""
+    return os.environ.get("ANTHROPIC_MODEL", "").strip() or DEFAULT_MODEL
+
+
+async def call_claude_json(
     system_prompt: str,
     user_message: str,
     *,
-    model: str = DEFAULT_MODEL,
+    model: str | None = None,
     max_tokens: int = DEFAULT_MAX_TOKENS,
     temperature: float | None = None,
-    timeout: float = 60.0,
+    timeout: float = DEFAULT_TIMEOUT,
 ) -> dict:
     """Call the Anthropic Messages API and return the FULL parsed response dict.
 
@@ -43,7 +50,7 @@ def call_claude_json(
         "content-type": "application/json",
     }
     body = {
-        "model": model,
+        "model": model or get_model(),
         "max_tokens": max_tokens,
         "system": system_prompt,
         "messages": [{"role": "user", "content": user_message}],
@@ -51,7 +58,9 @@ def call_claude_json(
     if temperature is not None:
         body["temperature"] = temperature
     try:
-        response = httpx.post(ANTHROPIC_API_URL, headers=headers, json=body, timeout=timeout)
+        # Async client: a synchronous call would block the whole isolate.
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.post(ANTHROPIC_API_URL, headers=headers, json=body)
         response.raise_for_status()
         return response.json()
     except Exception as e:
@@ -59,9 +68,9 @@ def call_claude_json(
         raise RuntimeError(f"AI request failed: {str(e)}")
 
 
-def call_claude(system_prompt: str, user_message: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
+async def call_claude(system_prompt: str, user_message: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
     """Call Claude and return just the assistant text. Raises RuntimeError on failure."""
-    data = call_claude_json(system_prompt, user_message, max_tokens=max_tokens)
+    data = await call_claude_json(system_prompt, user_message, max_tokens=max_tokens)
     return data["content"][0]["text"]
 
 
@@ -76,7 +85,7 @@ def _parse_json_response(raw: str) -> dict:
         return {"raw": raw}
 
 
-def generate_timeline(wedding_date: str, location: str, guest_count: int, ceremony_type: str) -> dict:
+async def generate_timeline(wedding_date: str, location: str, guest_count: int, ceremony_type: str) -> dict:
     system = (
         "You are an expert wedding planner with 20+ years of experience. "
         "Generate detailed, realistic, actionable wedding planning timelines. "
@@ -92,11 +101,11 @@ def generate_timeline(wedding_date: str, location: str, guest_count: int, ceremo
         f"- Ceremony type: {ceremony_type}\n\n"
         f"Return ONLY a JSON object with a 'timeline' array, no other text."
     )
-    raw = call_claude(system, user, max_tokens=3000)
+    raw = await call_claude(system, user, max_tokens=3000)
     return _parse_json_response(raw)
 
 
-def generate_vendor_suggestions(budget: float, location: str, style_preferences: str, guest_count: int) -> dict:
+async def generate_vendor_suggestions(budget: float, location: str, style_preferences: str, guest_count: int) -> dict:
     system = (
         "You are a professional wedding planner and financial advisor specializing in weddings. "
         "Generate specific, practical vendor recommendations and budget allocations. "
@@ -112,11 +121,11 @@ def generate_vendor_suggestions(budget: float, location: str, style_preferences:
         f"- Guests: {guest_count}\n\n"
         f"Return ONLY a JSON object with a 'vendors' array, no other text."
     )
-    raw = call_claude(system, user, max_tokens=2500)
+    raw = await call_claude(system, user, max_tokens=2500)
     return _parse_json_response(raw)
 
 
-def generate_website_copy(couple_names: str, wedding_date: str, location: str, story_notes: str) -> dict:
+async def generate_website_copy(couple_names: str, wedding_date: str, location: str, story_notes: str) -> dict:
     system = (
         "You are a professional wedding copywriter who crafts warm, personal, and elegant wedding website content. "
         "Return valid JSON only with keys: 'welcome_text' (string), 'our_story' (string), "
@@ -130,11 +139,11 @@ def generate_website_copy(couple_names: str, wedding_date: str, location: str, s
         f"- Their story: {story_notes}\n\n"
         f"Return ONLY a JSON object with 'welcome_text', 'our_story', and 'faq' keys."
     )
-    raw = call_claude(system, user, max_tokens=2500)
+    raw = await call_claude(system, user, max_tokens=2500)
     return _parse_json_response(raw)
 
 
-def generate_seating_suggestions(guests: list) -> dict:
+async def generate_seating_suggestions(guests: list) -> dict:
     system = (
         "You are a professional wedding seating coordinator. "
         "Group guests into tables considering relationships, dietary needs, and social dynamics. "
@@ -149,5 +158,5 @@ def generate_seating_suggestions(guests: list) -> dict:
         f"Create seating arrangements for {len(guests)} guests:\n{guest_list}\n\n"
         f"Aim for 8-10 guests per table. Return ONLY a JSON object with a 'tables' array."
     )
-    raw = call_claude(system, user, max_tokens=3000)
+    raw = await call_claude(system, user, max_tokens=3000)
     return _parse_json_response(raw)

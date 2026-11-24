@@ -90,7 +90,7 @@ async def ai_timeline(
 
     from services.ai_service import generate_timeline
     try:
-        result = generate_timeline(
+        result = await generate_timeline(
             wedding_date=body.wedding_date,
             location=body.location,
             guest_count=body.guest_count,
@@ -120,7 +120,7 @@ async def ai_vendor_suggestions(
 
     from services.ai_service import generate_vendor_suggestions
     try:
-        result = generate_vendor_suggestions(
+        result = await generate_vendor_suggestions(
             budget=body.budget,
             location=body.location,
             style_preferences=body.style_preferences,
@@ -150,7 +150,7 @@ async def ai_copy_generator(
 
     from services.ai_service import generate_website_copy
     try:
-        result = generate_website_copy(
+        result = await generate_website_copy(
             couple_names=body.couple_names,
             wedding_date=body.wedding_date,
             location=body.location,
@@ -182,7 +182,7 @@ async def ai_seating(
 
     from services.ai_service import generate_seating_suggestions
     try:
-        result = generate_seating_suggestions(guests=body.guests)
+        result = await generate_seating_suggestions(guests=body.guests)
     except RuntimeError as e:
         print(f"[ai] request failed: {e}")
         raise HTTPException(502, "AI request failed. Please try again later.")

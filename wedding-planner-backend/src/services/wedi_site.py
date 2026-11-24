@@ -222,13 +222,13 @@ async def generate_site_content(env, wedding_context: dict, couple_prompt: str,
     the API key is read per-call inside ``ai_service``.
     """
     mode = "refine" if mode == "refine" else "full"
-    model = ai_service.DEFAULT_MODEL
+    model = ai_service.get_model()
     system = _system_prompt(mode)
 
     last_error = None
     for _attempt in range(2):  # initial try + exactly one retry
         user = _user_message(wedding_context, couple_prompt, current_content, mode, last_error)
-        data = ai_service.call_claude_json(
+        data = await ai_service.call_claude_json(
             system,
             user,
             model=model,

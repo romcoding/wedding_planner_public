@@ -54,6 +54,8 @@ async def update_user(
             updates.append(f"{col} = ?"); binds.append(body[col])
     if "is_active" in body:
         updates.append("is_active = ?"); binds.append(int(body["is_active"]))
+        if not int(body["is_active"]):
+            updates.append("token_version = token_version + 1")  # revoke live sessions
 
     if updates:
         updates.append("updated_at = datetime('now')")

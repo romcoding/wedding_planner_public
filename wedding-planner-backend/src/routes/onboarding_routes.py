@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Request, Depends, HTTPException
 from auth import require_couple_auth
 from middleware import get_db, get_or_create_wedding
@@ -55,7 +55,8 @@ def _clean_text(value, fallback="", max_len=MAX_TEXT_FIELD_LENGTH):
 def _parse_wedding_date(raw_value):
     value = (raw_value or "").strip()
     if not value:
-        return datetime.utcnow() + timedelta(days=180)
+        # Naive UTC (same stored shape as before) without the deprecated utcnow().
+        return datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=180)
     normalized = value.replace("Z", "+00:00")
     try:
         return datetime.fromisoformat(normalized)

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { getApiError } from '../../lib/api'
+import { useLimitUpgrade } from '../../hooks/useLimitUpgrade'
 import { CheckCircle, XCircle, Clock, Search, Filter, PlusCircle, Copy, QrCode, Mail, Link as LinkIcon, Download, Upload, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -42,7 +43,8 @@ export default function GuestsPage() {
     language: 'en',
   })
   const [fieldErrors, setFieldErrors] = useState({})
-  const [importStatus, setImportStatus] = useState(null) // { created, errors[] }
+  const [importStatus, setImportStatus] = useState(null) // { created, errors[], skipped_duplicates[], not_imported[], limit }
+  const { handleLimitError, limitModal } = useLimitUpgrade()
   const fileInputRef = useRef(null)
 
   const { data: guests, isLoading } = useQuery({
@@ -83,6 +85,7 @@ export default function GuestsPage() {
     },
     onError: (err) => {
       console.error('Create guest failed:', err)
+      if (handleLimitError(err)) return
       const msg = getApiError(err, err?.message || 'Failed to create guest')
       alert(msg)
     },
@@ -168,6 +171,7 @@ export default function GuestsPage() {
       setImportStatus(response.data)
       queryClient.invalidateQueries(['guests'])
     } catch (err) {
+      if (handleLimitError(err)) return
       const msg = getApiError(err, err?.message || 'Failed to import CSV')
       alert(msg)
     } finally {
@@ -590,6 +594,8 @@ export default function GuestsPage() {
         </div>
       )}
 
+      {limitModal}
+
       {importStatus && (
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900" role="status">
           <div className="flex items-start justify-between gap-3">
@@ -597,6 +603,21 @@ export default function GuestsPage() {
               <p className="font-medium">
                 Imported {importStatus.created} guest{importStatus.created === 1 ? '' : 's'} from CSV.
               </p>
+              {importStatus.skipped_duplicates?.length > 0 && (
+                <p className="mt-2">
+                  Skipped {importStatus.skipped_duplicates.length} row{importStatus.skipped_duplicates.length === 1 ? '' : 's'} whose
+                  email already exists (rows {importStatus.skipped_duplicates.slice(0, 10).map((d) => d.row).join(', ')}
+                  {importStatus.skipped_duplicates.length > 10 ? '…' : ''}).
+                </p>
+              )}
+              {importStatus.not_imported?.length > 0 && (
+                <p className="mt-2 font-medium text-amber-800">
+                  Your plan allows {importStatus.limit} guest entries (households), so {importStatus.not_imported.length} row
+                  {importStatus.not_imported.length === 1 ? ' was' : 's were'} not imported (rows{' '}
+                  {importStatus.not_imported.slice(0, 10).map((d) => d.row).join(', ')}
+                  {importStatus.not_imported.length > 10 ? '…' : ''}). Upgrade to import the rest.
+                </p>
+              )}
               {importStatus.errors?.length > 0 && (
                 <ul className="mt-2 space-y-1 list-disc pl-5">
                   {importStatus.errors.slice(0, 5).map((err) => (

@@ -170,3 +170,44 @@ def require_feature(feature: str):
             )
         return wedding
     return _check
+
+
+# ---------------------------------------------------------------------------
+# Row-count limits (max_guests / max_tasks)
+# ---------------------------------------------------------------------------
+
+# limit key -> (table, feature name reported to the client). Guests are counted
+# by ROWS (households), not people.
+_COUNTED = {"max_guests": ("guests", "guests"), "max_tasks": ("tasks", "tasks")}
+
+
+def limit_reached(limit: int, feature: str) -> HTTPException:
+    return HTTPException(
+        403,
+        detail={
+            "code": "limit_reached",
+            "detail": f"Your plan allows up to {limit} {feature}. Upgrade to add more.",
+            "limit": limit,
+            "feature": feature,
+        },
+    )
+
+
+async def remaining_capacity(db, wedding: dict, limit_key: str) -> int | None:
+    """Rows still allowed for this wedding under its plan; None = unlimited."""
+    from db import row_to_dict
+    limit = get_limit(get_plan(wedding), limit_key)
+    if limit is None:
+        return None
+    table, _ = _COUNTED[limit_key]  # whitelisted: never interpolate caller input
+    row = row_to_dict(await db.prepare(
+        f"SELECT COUNT(*) AS n FROM {table} WHERE wedding_id = ?"
+    ).bind(wedding["id"]).first())
+    return max(limit - int((row or {}).get("n") or 0), 0)
+
+
+async def enforce_limit(db, wedding: dict, limit_key: str) -> None:
+    """403 ``limit_reached`` {limit, feature} when no capacity is left."""
+    remaining = await remaining_capacity(db, wedding, limit_key)
+    if remaining is not None and remaining <= 0:
+        raise limit_reached(get_limit(get_plan(wedding), limit_key), _COUNTED[limit_key][1])

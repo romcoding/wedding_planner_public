@@ -2,6 +2,7 @@ import uuid
 from fastapi import APIRouter, Request, Depends, HTTPException
 from pydantic import BaseModel
 from middleware import get_db, get_wedding
+from entitlements import enforce_limit
 
 from db import row_to_dict, rows_to_list
 
@@ -39,7 +40,8 @@ async def get_tasks(
         sql += " AND priority = ?"; binds.append(priority)
     if category:
         sql += " AND category = ?"; binds.append(category)
-    sql += " ORDER BY due_date ASC, priority DESC"
+    # Tasks without a due date go last (NULLs sort first in SQLite ASC).
+    sql += " ORDER BY due_date IS NULL, due_date ASC, priority DESC"
     result = await db.prepare(sql).bind(*binds).all()
     return rows_to_list(result)
 
@@ -53,6 +55,7 @@ async def create_task(
     db = await get_db(request)
     if not body.title:
         raise HTTPException(400, "Title is required")
+    await enforce_limit(db, wedding, "max_tasks")
 
     task_id = str(uuid.uuid4())
     await db.prepare(

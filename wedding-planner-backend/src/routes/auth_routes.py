@@ -41,6 +41,7 @@ class ProfileUpdateBody(BaseModel):
     name: str | None = None
     email: str | None = None
     password: str | None = None
+    current_password: str | None = None
 
 class ResendVerificationBody(BaseModel):
     email: str
@@ -195,6 +196,10 @@ async def login(body: LoginBody, request: Request):
     if not user or not _check_password(body.password, user.get("password_hash", "")):
         raise HTTPException(401, "Invalid credentials")
 
+    if not user.get("is_active", 1):
+        raise HTTPException(403, {"code": "account_disabled",
+                                  "detail": "This account has been disabled. Please contact support."})
+
     # Block login if email not yet verified (when column exists)
     if user.get("email_verified") == 0:
         raise HTTPException(
@@ -206,7 +211,8 @@ async def login(body: LoginBody, request: Request):
             },
         )
 
-    token = create_token(user["id"], user.get("current_wedding_id"), user.get("role", "admin"))
+    token = create_token(user["id"], user.get("current_wedding_id"), user.get("role", "admin"),
+                         user.get("token_version", 0))
     return {
         "access_token": token,
         "user": {
@@ -362,17 +368,35 @@ async def verify_email(body: VerifyEmailBody, request: Request):
         raise HTTPException(400, "Invalid verification token")
 
     user_id = row["user_id"]
+    new_email = row.get("new_email")
+
+    if new_email:
+        # Email-change token: swap the login address only now that it is verified.
+        clash = await db.prepare(
+            "SELECT id FROM users WHERE email = ? AND id != ?"
+        ).bind(new_email, user_id).first()
+        if clash:
+            raise HTTPException(400, {"code": "email_in_use", "detail": "That email address is already in use"})
+        await db.batch([
+            db.prepare(
+                "UPDATE users SET email = ?, pending_email = NULL, email_verified = 1, "
+                "email_verified_at = datetime('now'), updated_at = datetime('now') "
+                "WHERE id = ? AND pending_email = ?"
+            ).bind(new_email, user_id, new_email),
+            db.prepare("UPDATE email_verifications SET used_at = datetime('now') WHERE id = ?").bind(row["id"]),
+        ])
+        return {"message": "Email address updated. Use it to log in from now on."}
 
     # Mark user as verified (email_verified columns are guaranteed by schema.sql).
-    await db.prepare(
-        "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
-        "updated_at = datetime('now') WHERE id = ?"
-    ).bind(user_id).run()
-
-    # Mark token as used
-    await db.prepare(
-        "UPDATE email_verifications SET used_at = datetime('now') WHERE id = ?"
-    ).bind(row["id"]).run()
+    await db.batch([
+        db.prepare(
+            "UPDATE users SET email_verified = 1, email_verified_at = datetime('now'), "
+            "updated_at = datetime('now') WHERE id = ?"
+        ).bind(user_id),
+        db.prepare(
+            "UPDATE email_verifications SET used_at = datetime('now') WHERE id = ?"
+        ).bind(row["id"]),
+    ])
 
     return {"message": "Email verified successfully. You can now log in."}
 
@@ -493,14 +517,16 @@ async def reset_password(body: ResetPasswordBody, request: Request):
 
     user_id = row["user_id"]
     # email_verified column is guaranteed by schema.sql.
-    await db.prepare(
-        "UPDATE users SET password_hash = ?, email_verified = 1, "
-        "updated_at = datetime('now') WHERE id = ?"
-    ).bind(_hash_password(body.password), user_id).run()
-
-    await db.prepare(
-        "UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?"
-    ).bind(row["id"]).run()
+    # New password + revoke every existing session + burn the token, atomically.
+    await db.batch([
+        db.prepare(
+            "UPDATE users SET password_hash = ?, email_verified = 1, "
+            "token_version = token_version + 1, updated_at = datetime('now') WHERE id = ?"
+        ).bind(_hash_password(body.password), user_id),
+        db.prepare(
+            "UPDATE password_reset_tokens SET used_at = datetime('now') WHERE id = ?"
+        ).bind(row["id"]),
+    ])
 
     return {"message": "Password reset successfully. You can now log in."}
 
@@ -555,37 +581,89 @@ async def update_profile(
     payload: dict = Depends(require_couple_auth),
     request: Request = None,
 ):
+    """Update name, email and/or password.
+
+    Changing the email or the password needs ``current_password``. An email
+    change does NOT take effect immediately: the new address is stored as
+    ``pending_email`` and a verification link is sent to it; the old address
+    keeps working as the login until the new one is verified. A password change
+    revokes all other sessions and returns a fresh ``access_token``.
+    """
     db = await get_db(request)
     user_id = payload["sub"]
+    user = row_to_dict(await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first())
+    if not user:
+        raise HTTPException(404, "User not found")
 
-    if body.email:
-        conflict = await db.prepare(
-            "SELECT id FROM users WHERE email = ? AND id != ?"
-        ).bind(body.email.strip().lower(), user_id).first()
-        if conflict:
-            raise HTTPException(400, "Email already in use")
-        await db.prepare(
-            "UPDATE users SET email = ?, updated_at = datetime('now') WHERE id = ?"
-        ).bind(body.email.strip().lower(), user_id).run()
+    new_email = body.email.strip().lower() if body.email else None
+    email_changing = bool(new_email) and new_email != (user.get("email") or "").lower()
+    password_changing = bool(body.password)
 
-    if body.name:
-        await db.prepare(
-            "UPDATE users SET name = ?, updated_at = datetime('now') WHERE id = ?"
-        ).bind(body.name, user_id).run()
+    if email_changing or password_changing:
+        await _enforce_rate_limit(request, f"profile-secure:{user_id}", _RATE_LIMIT_SENSITIVE)
+        if not body.current_password:
+            raise HTTPException(400, {"code": "current_password_required",
+                                      "detail": "Enter your current password to change your email or password"})
+        if not _check_password(body.current_password, user.get("password_hash", "")):
+            raise HTTPException(403, {"code": "invalid_current_password",
+                                      "detail": "Your current password is incorrect"})
 
-    if body.password:
+    if password_changing:
         pw_errors = _validate_password_strength(body.password)
         if pw_errors:
             raise HTTPException(400, {"code": "weak_password", "detail": "Password too weak", "errors": pw_errors})
-        await db.prepare(
-            "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?"
-        ).bind(_hash_password(body.password), user_id).run()
 
-    user = await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first()
-    user = row_to_dict(user)
-    return {
-        "id": user["id"],
-        "email": user["email"],
-        "name": user["name"],
-        "role": user["role"],
+    verification_token = None
+    if email_changing:
+        conflict = await db.prepare(
+            "SELECT id FROM users WHERE (email = ? OR pending_email = ?) AND id != ?"
+        ).bind(new_email, new_email, user_id).first()
+        if conflict:
+            raise HTTPException(400, {"code": "email_in_use", "detail": "Email already in use"})
+
+    statements = []
+    if body.name:
+        statements.append(db.prepare(
+            "UPDATE users SET name = ?, updated_at = datetime('now') WHERE id = ?"
+        ).bind(body.name, user_id))
+    if password_changing:
+        statements.append(db.prepare(
+            "UPDATE users SET password_hash = ?, token_version = token_version + 1, "
+            "updated_at = datetime('now') WHERE id = ?"
+        ).bind(_hash_password(body.password), user_id))
+    if email_changing:
+        verification_token = secrets.token_hex(64)
+        expires_at = (datetime.now(timezone.utc) + timedelta(hours=24)).strftime("%Y-%m-%d %H:%M:%S")
+        statements += [
+            db.prepare("UPDATE users SET pending_email = ?, updated_at = datetime('now') WHERE id = ?")
+              .bind(new_email, user_id),
+            # one live change token at a time
+            db.prepare("UPDATE email_verifications SET used_at = datetime('now') "
+                       "WHERE user_id = ? AND used_at IS NULL AND new_email IS NOT NULL").bind(user_id),
+            db.prepare("INSERT INTO email_verifications (id, user_id, token, expires_at, new_email, created_at) "
+                       "VALUES (?, ?, ?, ?, ?, datetime('now'))")
+              .bind(str(uuid.uuid4()), user_id, verification_token, expires_at, new_email),
+        ]
+    if statements:
+        await db.batch(statements)
+
+    if verification_token:
+        try:
+            from services.email_service import send_verification_email
+            await send_verification_email(new_email, user.get("name", ""), verification_token)
+        except Exception:
+            pass
+
+    fresh = row_to_dict(await db.prepare("SELECT * FROM users WHERE id = ?").bind(user_id).first())
+    out = {
+        "id": fresh["id"],
+        "email": fresh["email"],
+        "name": fresh["name"],
+        "role": fresh["role"],
+        "pending_email": fresh.get("pending_email"),
     }
+    if password_changing:
+        out["access_token"] = create_token(
+            fresh["id"], fresh.get("current_wedding_id"), fresh.get("role", "admin"),
+            fresh.get("token_version", 0))
+    return out

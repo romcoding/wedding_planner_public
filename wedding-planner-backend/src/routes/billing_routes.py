@@ -369,8 +369,15 @@ async def stripe_webhook(request: Request):
             await _handle_payment_failed(db, obj)
         else:
             logger.info(f"[stripe] unhandled event type: {event_type}")
-    finally:
-        await _mark_event_seen(db, event_id, event_type)
+    except Exception as exc:
+        # Do NOT mark the event seen: a 500 makes Stripe retry, and the retry
+        # must run the handler again (marking it first would swallow the event).
+        logger.error(f"[stripe] handler failed for {event_id} ({event_type}): {type(exc).__name__}")
+        log_event("stripe_webhook_failed", event_id=event_id, type=event_type)
+        raise HTTPException(500, {"code": "webhook_handler_failed", "detail": "Webhook handler failed; will be retried"})
+
+    # Only after the handler succeeded.
+    await _mark_event_seen(db, event_id, event_type)
 
     log_event("stripe_webhook", event_id=event_id, type=event_type)
     return {"received": True}

@@ -17,7 +17,7 @@ from contextlib import contextmanager
 _SRC = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src"))
 _SCHEMA = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "schema.sql"))
 _OURS = ("auth", "middleware", "entitlements", "db", "errors", "public_cors", "main",
-         "obs", "routes", "services")
+         "obs", "cors_config", "routes", "services")
 
 
 def _is_ours(name: str) -> bool:

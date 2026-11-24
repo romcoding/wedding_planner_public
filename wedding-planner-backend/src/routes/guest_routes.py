@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from auth import create_guest_token
 from middleware import get_db, get_wedding
+from entitlements import enforce_limit, remaining_capacity, limit_reached, get_limit, get_plan
 from services.urls import rsvp_link as _rsvp_link
 
 from db import row_to_dict, rows_to_list
@@ -65,6 +66,75 @@ class UpdateRsvpBody(BaseModel):
     address: str | None = None
 
 
+# ---------- RSVP / guest field validation ----------
+
+RSVP_STATUSES = ("pending", "confirmed", "declined")
+MAX_TEXT = 500
+_TEXT_FIELDS = ("dietary_restrictions", "allergies", "special_requests",
+                "music_wish", "address", "notes", "phone")
+
+
+def _invalid(code: str, detail: str, **extra) -> HTTPException:
+    return HTTPException(422, {"code": code, "detail": detail, **extra})
+
+
+def _check_status(value) -> None:
+    if value is not None and value not in RSVP_STATUSES:
+        raise _invalid("invalid_rsvp_status",
+                       f"rsvp_status must be one of: {', '.join(RSVP_STATUSES)}")
+
+
+def _check_text(body) -> None:
+    for field in _TEXT_FIELDS:
+        v = getattr(body, field, None)
+        if v is not None and len(v) > MAX_TEXT:
+            raise _invalid("field_too_long", f"{field} is too long (max {MAX_TEXT} characters)", field=field)
+
+
+def _norm(name: str) -> str:
+    return " ".join(str(name or "").split()).casefold()
+
+
+def _stored_names(raw) -> list[str]:
+    try:
+        val = json.loads(raw) if raw else []
+    except (TypeError, ValueError):
+        return []
+    return [str(n) for n in val] if isinstance(val, list) else []
+
+
+def _household(first: str, last: str, invitees: list[str]) -> dict[str, str]:
+    """casefolded name -> canonical spelling for everyone in the household."""
+    out: dict[str, str] = {}
+    for n in [f"{first or ''} {last or ''}".strip(), *invitees]:
+        n = " ".join(str(n or "").split())
+        if n:
+            out.setdefault(_norm(n), n)
+    return out
+
+
+def _resolve_attending(names: list[str], household: dict[str, str]) -> list[str]:
+    """Canonicalise attending names; 422 if any is not in the household."""
+    resolved: list[str] = []
+    bad: list[str] = []
+    for n in names:
+        key = _norm(n)
+        if not key:
+            continue
+        if key not in household:
+            bad.append(str(n)[:100])
+        elif household[key] not in resolved:
+            resolved.append(household[key])
+    if bad:
+        raise _invalid("invalid_attending_names",
+                       "attending_names must be people in this household", invalid_names=bad)
+    return resolved
+
+
+def _party_cap(invitees: list[str]) -> int:
+    return 1 + len(invitees)
+
+
 def _guest_dict(g: dict, include_token: bool = False) -> dict:
     out = {
         "id": g["id"],
@@ -117,6 +187,12 @@ async def update_rsvp(body: UpdateRsvpBody, request: Request):
     if not guest:
         raise HTTPException(404, "Guest not found")
 
+    _check_status(body.rsvp_status)
+    _check_text(body)
+
+    invitees = _stored_names(guest.get("invitee_names"))
+    final_status = body.rsvp_status if body.rsvp_status is not None else guest.get("rsvp_status")
+
     updates = []
     binds = []
 
@@ -124,12 +200,17 @@ async def update_rsvp(body: UpdateRsvpBody, request: Request):
         updates.append("rsvp_status = ?"); binds.append(body.rsvp_status)
     if body.overnight_stay is not None:
         updates.append("overnight_stay = ?"); binds.append(int(body.overnight_stay))
-    if body.number_of_guests is not None:
-        updates.append("number_of_guests = ?"); binds.append(body.number_of_guests)
     if body.attending_names is not None:
-        updates.append("attending_names = ?"); binds.append(json.dumps(body.attending_names))
-        if body.rsvp_status == "confirmed":
-            updates.append("number_of_guests = ?"); binds.append(len(body.attending_names))
+        household = _household(guest.get("first_name"), guest.get("last_name"), invitees)
+        attending = _resolve_attending(body.attending_names, household)
+        if final_status == "declined":
+            attending = []  # nobody attends a declined household
+        updates.append("attending_names = ?"); binds.append(json.dumps(attending))
+        # Party size is derived from who is attending, never trusted from the client.
+        updates.append("number_of_guests = ?"); binds.append(len(attending))
+    elif body.number_of_guests is not None:
+        updates.append("number_of_guests = ?")
+        binds.append(max(0, min(int(body.number_of_guests), _party_cap(invitees))))
     if body.dietary_restrictions is not None:
         updates.append("dietary_restrictions = ?"); binds.append(body.dietary_restrictions)
     if body.allergies is not None:
@@ -163,6 +244,9 @@ async def create_guest(
     request: Request = None,
 ):
     db = await get_db(request)
+    _check_status(body.rsvp_status)
+    _check_text(body)
+    await enforce_limit(db, wedding, "max_guests")
     import os
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
     wedding_id = wedding["id"]
@@ -375,8 +459,22 @@ async def import_guests_csv(
     import os
     frontend_url = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
+    # Plan limit: stop at the limit and report what was left out.
+    remaining = await remaining_capacity(db, wedding, "max_guests")
+    limit = get_limit(get_plan(wedding), "max_guests")
+    if remaining is not None and remaining <= 0:
+        raise limit_reached(limit, "guests")
+
+    existing = {
+        (r.get("email") or "").strip().lower()
+        for r in rows_to_list(await db.prepare(
+            "SELECT email FROM guests WHERE wedding_id = ?").bind(wedding["id"]).all())
+    }
+
     created = 0
     errors: list[dict] = []
+    skipped_duplicates: list[dict] = []
+    not_imported: list[dict] = []
 
     for index, row in enumerate(reader, start=2):  # row 1 is header
         first_name = (row.get("first_name") or "").strip()
@@ -387,6 +485,19 @@ async def import_guests_csv(
                 "row": index,
                 "error": "first_name, last_name and email are required",
             })
+            continue
+
+        status = (row.get("rsvp_status") or "pending").strip().lower() or "pending"
+        if status not in RSVP_STATUSES:
+            errors.append({"row": index, "error": f"rsvp_status must be one of: {', '.join(RSVP_STATUSES)}"})
+            continue
+
+        if email.lower() in existing:
+            skipped_duplicates.append({"row": index, "email": email})
+            continue
+
+        if remaining is not None and created >= remaining:
+            not_imported.append({"row": index, "email": email, "reason": "limit_reached"})
             continue
 
         try:
@@ -412,7 +523,7 @@ async def import_guests_csv(
                 email,
                 (row.get("phone") or "").strip() or None,
                 token,
-                (row.get("rsvp_status") or "pending").strip() or "pending",
+                status,
                 1 if _csv_truthy(row.get("overnight_stay")) else 0,
                 number_of_guests,
                 json.dumps(names) if names else None,
@@ -425,12 +536,17 @@ async def import_guests_csv(
                 (row.get("language") or "en").strip() or "en",
             ).run()
             created += 1
+            existing.add(email.lower())
         except Exception as exc:  # pragma: no cover - DB-specific error surface
             errors.append({"row": index, "error": str(exc)})
 
     return {
         "created": created,
         "errors": errors,
+        "skipped_duplicates": skipped_duplicates,
+        "not_imported": not_imported,
+        "limit": limit,
+        "limit_reached": bool(not_imported),
         "frontend_url": frontend_url,
     }
 
@@ -470,6 +586,23 @@ async def update_guest(
     if not guest:
         raise HTTPException(404, "Guest not found")
 
+    _check_status(body.rsvp_status)
+    _check_text(body)
+    invitees = (body.invitee_names if body.invitee_names is not None
+                else _stored_names(guest.get("invitee_names")))
+    attending_resolved = None
+    if body.attending_names is not None:
+        household = _household(
+            body.first_name if body.first_name is not None else guest.get("first_name"),
+            body.last_name if body.last_name is not None else guest.get("last_name"),
+            invitees,
+        )
+        attending_resolved = _resolve_attending(body.attending_names, household)
+    if body.number_of_guests is not None and attending_resolved is None:
+        body.number_of_guests = max(0, min(int(body.number_of_guests), _party_cap(invitees)))
+    if attending_resolved is not None:
+        body.number_of_guests = len(attending_resolved)
+
     updates = []
     binds = []
 
@@ -498,7 +631,7 @@ async def update_guest(
         binds.append(json.dumps(body.invitee_names) if body.invitee_names else None)
     if body.attending_names is not None:
         updates.append("attending_names = ?")
-        binds.append(json.dumps(body.attending_names) if body.attending_names else None)
+        binds.append(json.dumps(attending_resolved) if attending_resolved else None)
 
     if updates:
         updates.append("updated_at = datetime('now')")
@@ -525,12 +658,15 @@ async def delete_guest(
     if not guest:
         raise HTTPException(404, "Guest not found")
 
-    # Clean up references
-    await db.prepare("UPDATE invitations SET guest_id = NULL WHERE guest_id = ?").bind(guest_id).run()
-    await db.prepare("UPDATE seat_assignments SET guest_id = NULL WHERE guest_id = ?").bind(guest_id).run()
-    await db.prepare("DELETE FROM guest_photos WHERE guest_id = ?").bind(guest_id).run()
-    await db.prepare("DELETE FROM reminder_sent WHERE guest_id = ?").bind(guest_id).run()
-    await db.prepare("UPDATE messages SET guest_id = NULL WHERE guest_id = ?").bind(guest_id).run()
-    await db.prepare("DELETE FROM guests WHERE id = ?").bind(guest_id).run()
+    # All cleanup succeeds or fails together. Seat assignments are DELETED (a
+    # NULL-guest row would be an orphaned seat nobody can identify).
+    await db.batch([
+        db.prepare("UPDATE invitations SET guest_id = NULL WHERE guest_id = ?").bind(guest_id),
+        db.prepare("DELETE FROM seat_assignments WHERE guest_id = ?").bind(guest_id),
+        db.prepare("DELETE FROM guest_photos WHERE guest_id = ?").bind(guest_id),
+        db.prepare("DELETE FROM reminder_sent WHERE guest_id = ?").bind(guest_id),
+        db.prepare("UPDATE messages SET guest_id = NULL WHERE guest_id = ?").bind(guest_id),
+        db.prepare("DELETE FROM guests WHERE id = ? AND wedding_id = ?").bind(guest_id, wedding["id"]),
+    ])
 
     return {"message": "Guest deleted successfully"}

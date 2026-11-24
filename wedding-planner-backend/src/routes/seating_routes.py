@@ -100,8 +100,10 @@ async def delete_table(
     ).bind(table_id, wedding["id"]).first()
     if not t:
         raise HTTPException(404, "Table not found")
-    await db.prepare("DELETE FROM seat_assignments WHERE table_id = ?").bind(table_id).run()
-    await db.prepare("DELETE FROM seating_tables WHERE id = ?").bind(table_id).run()
+    await db.batch([
+        db.prepare("DELETE FROM seat_assignments WHERE table_id = ?").bind(table_id),
+        db.prepare("DELETE FROM seating_tables WHERE id = ? AND wedding_id = ?").bind(table_id, wedding["id"]),
+    ])
     return {"message": "Table deleted successfully"}
 
 

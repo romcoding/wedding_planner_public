@@ -132,7 +132,7 @@ async def venue_chat(
             system += f"Venue information:\n{doc_context}"
 
         messages_text = "\n".join(f"{m['role']}: {m['content']}" for m in history[-10:])
-        reply = call_claude(system, messages_text)
+        reply = await call_claude(system, messages_text)
     except Exception as e:
         reply = f"I'm sorry, I couldn't process your request at this time."
 

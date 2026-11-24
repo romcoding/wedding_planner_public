@@ -161,7 +161,7 @@ def _fake_caller(text, usage_actuals=None):
     usage_actuals = usage_actuals or {"input_tokens": 100, "output_tokens": 200}
     state = {"calls": 0, "last_user": None}
 
-    def fake(system_prompt, user_message, *, model=None, max_tokens=None,
+    async def fake(system_prompt, user_message, *, model=None, max_tokens=None,
              temperature=None, timeout=None):
         state["calls"] += 1
         state["last_user"] = user_message
