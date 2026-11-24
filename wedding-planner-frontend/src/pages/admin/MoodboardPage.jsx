@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import api, { getApiError } from '../../lib/api'
 import { useToast } from '../../components/ui/Toast'
+import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import TutorialModal from '../../components/TutorialModal'
 import { useTutorial } from '../../components/useTutorial'
 import moodboardTutorial from '../../assets/tutorials/moodboard.json'
@@ -258,6 +259,8 @@ export default function MoodboardPage() {
   const longPressStartRef = useRef(null) // { x, y }
 
   const didBootstrapRef = useRef(false)
+  const loadedBoardRef = useRef(null)
+  const lastSavedRef = useRef('')
   const gestureRef = useRef({ isPinching: false, startDist: 0, startScale: 1, startCenter: null, startPos: null })
 
   const [viewport, setViewport] = useState({ w: 900, h: 600 })
@@ -272,6 +275,7 @@ export default function MoodboardPage() {
   const [pasteMenu, setPasteMenu] = useState({ open: false, localX: 0, localY: 0, pos: null })
 
   const [boardId, setBoardId] = useState(null)
+  const [confirm, setConfirm] = useState(null) // { kind: 'delete' | 'reset' }
   const [boardTitleDraft, setBoardTitleDraft] = useState('')
   const [showRename, setShowRename] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -320,17 +324,21 @@ export default function MoodboardPage() {
   const fetchBoard = useMutation({
     mutationFn: (id) => api.get(`/moodboards/${id}`).then((r) => r.data),
     onSuccess: (b) => {
-      const raw = b.contentJson
-      if (raw) {
+      // content_json is the whole canvas ({} for a brand-new board).
+      let parsed = b.content_json
+      if (typeof parsed === 'string') {
         try {
-          const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
-          setContent(parsed)
+          parsed = JSON.parse(parsed)
         } catch {
-          setContent(defaultBoardContent())
+          parsed = null
         }
-      } else {
-        setContent(defaultBoardContent())
       }
+      const next = parsed && Array.isArray(parsed.objects) ? parsed : defaultBoardContent()
+      // Autosave is allowed for this board only once its content has loaded, and
+      // skips a save that would just write back what we just read.
+      loadedBoardRef.current = b.id
+      lastSavedRef.current = JSON.stringify(next)
+      setContent(next)
       setSelectedIds([])
       setHistory({ past: [], future: [] })
       setSaveError('')
@@ -352,7 +360,7 @@ export default function MoodboardPage() {
   })
 
   const renameBoard = useMutation({
-    mutationFn: ({ id, title }) => api.put(`/moodboards/${id}`, { title }).then((r) => r.data),
+    mutationFn: ({ id, title }) => api.patch(`/moodboards/${id}`, { title }).then((r) => r.data),
     onSuccess: () => {
       queryClient.invalidateQueries(['moodboards'])
       setShowRename(false)
@@ -365,6 +373,7 @@ export default function MoodboardPage() {
     mutationFn: (id) => api.delete(`/moodboards/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries(['moodboards'])
+      loadedBoardRef.current = null
       setBoardId(null)
       setContent(defaultBoardContent())
       toast.success('Board deleted')
@@ -378,7 +387,10 @@ export default function MoodboardPage() {
       queryClient.invalidateQueries(['moodboards'])
       setBoardId(b.id)
       setBoardTitleDraft(b.title || '')
-      setContent(defaultBoardContent())
+      const fresh = defaultBoardContent()
+      loadedBoardRef.current = b.id
+      lastSavedRef.current = JSON.stringify(fresh)
+      setContent(fresh)
       setSelectedIds([])
       setHistory({ past: [], future: [] })
       toast.success('Moodboards reset')
@@ -387,8 +399,10 @@ export default function MoodboardPage() {
   })
 
   const saveBoard = useMutation({
-    mutationFn: ({ id, contentJson }) => api.put(`/moodboards/${id}`, { contentJson }).then((r) => r.data),
-    onSuccess: () => {
+    mutationFn: ({ id, content: body }) =>
+      api.put(`/moodboards/${id}/content`, { content_json: body }).then((r) => r.data),
+    onSuccess: (_data, vars) => {
+      lastSavedRef.current = vars.json
       setIsSaving(false)
       setSaveError('')
       queryClient.invalidateQueries(['moodboards'])
@@ -423,12 +437,21 @@ export default function MoodboardPage() {
 
   // Autosave (debounced)
   useEffect(() => {
-    if (!boardId) return
+    // Never save before this board's own content has loaded (the initial default
+    // canvas would overwrite it), and never re-save unchanged content.
+    if (!boardId || loadedBoardRef.current !== boardId) return
+    let json
+    try {
+      json = JSON.stringify(content)
+    } catch {
+      setSaveError('Failed to serialize board JSON')
+      return
+    }
+    if (json === lastSavedRef.current) return
     setIsSaving(true)
     const t = setTimeout(() => {
       try {
-        const json = JSON.stringify(content)
-        saveBoard.mutate({ id: boardId, contentJson: json })
+        saveBoard.mutate({ id: boardId, content, json })
       } catch (e) {
         setIsSaving(false)
         setSaveError('Failed to serialize board JSON')
@@ -1265,9 +1288,7 @@ export default function MoodboardPage() {
             title="Delete board"
             onClick={() => {
               if (!boardId) return
-              if (window.confirm('Delete this board? This cannot be undone.')) {
-                deleteBoard.mutate(boardId)
-              }
+              setConfirm({ kind: 'delete' })
             }}
             disabled={!boardId}
           >
@@ -1277,11 +1298,7 @@ export default function MoodboardPage() {
           {boards && boards.length > 1 && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm('Reset moodboards? This deletes ALL moodboards and recreates a single "Main Moodboard".')) {
-                  resetBoards.mutate()
-                }
-              }}
+              onClick={() => setConfirm({ kind: 'reset' })}
               className="ml-2 px-3 h-10 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 text-sm font-medium"
               title="Delete all moodboards and recreate a single default board"
             >
@@ -1340,6 +1357,23 @@ export default function MoodboardPage() {
       </div>
 
       {/* Rename modal */}
+      <ConfirmDialog
+        isOpen={!!confirm}
+        onClose={() => setConfirm(null)}
+        onConfirm={() => {
+          if (confirm?.kind === 'delete' && boardId) deleteBoard.mutate(boardId)
+          if (confirm?.kind === 'reset') resetBoards.mutate()
+          setConfirm(null)
+        }}
+        title={confirm?.kind === 'reset' ? 'Reset moodboards?' : 'Delete this board?'}
+        message={
+          confirm?.kind === 'reset'
+            ? 'This deletes ALL moodboards and recreates a single "Main Moodboard".'
+            : 'This cannot be undone.'
+        }
+        confirmText={confirm?.kind === 'reset' ? 'Reset' : 'Delete'}
+      />
+
       {showRename && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white border border-gray-200 shadow-xl p-6">

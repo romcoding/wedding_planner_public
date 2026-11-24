@@ -221,7 +221,7 @@ app.include_router(venue_router, prefix="/api/venues")
 app.include_router(seating_router, prefix="/api/seating")
 app.include_router(rsvp_reminder_router, prefix="/api/rsvp-reminders")
 app.include_router(user_router, prefix="/api/users")
-app.include_router(moodboard_router)  # Has own /api/moodboards prefix in routes
+app.include_router(moodboard_router, prefix="/api/moodboards")
 app.include_router(agenda_router, prefix="/api/agenda")
 app.include_router(onboarding_router, prefix="/api/onboarding")
 app.include_router(subscription_router, prefix="/api/subscriptions")
