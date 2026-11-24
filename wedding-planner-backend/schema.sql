@@ -443,12 +443,13 @@ CREATE TABLE IF NOT EXISTS moodboards (
   id TEXT PRIMARY KEY,
   wedding_id TEXT,
   user_id TEXT,
-  name TEXT NOT NULL,
+  name TEXT NOT NULL,                      -- exposed by the API as `title`
+  content_json TEXT NOT NULL DEFAULT '{}', -- whole canvas as JSON text (migrations/007)
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
--- Moodboard Elements
+-- Moodboard Elements (legacy row-per-element model: read-only, unused — migrations/007)
 CREATE TABLE IF NOT EXISTS moodboard_elements (
   id TEXT PRIMARY KEY,
   moodboard_id TEXT NOT NULL,
@@ -563,6 +564,7 @@ CREATE INDEX IF NOT EXISTS idx_venue_offers_category ON venue_offers(category_id
 CREATE INDEX IF NOT EXISTS idx_venue_documents_venue ON venue_documents(venue_id);
 CREATE INDEX IF NOT EXISTS idx_invitation_templates_wedding ON invitation_templates(wedding_id);
 CREATE INDEX IF NOT EXISTS idx_moodboards_user ON moodboards(user_id);
+CREATE INDEX IF NOT EXISTS idx_moodboards_wedding ON moodboards(wedding_id);
 CREATE INDEX IF NOT EXISTS idx_moodboard_elements_moodboard ON moodboard_elements(moodboard_id);
 CREATE INDEX IF NOT EXISTS idx_token_usage_user ON token_usage(user_id);
 CREATE INDEX IF NOT EXISTS idx_reminder_sent_reminder ON reminder_sent(reminder_id);

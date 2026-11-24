@@ -88,10 +88,12 @@ each. Status:
   `/guest/login` is a static "use your Wedding Pass link" message, not a
   form). Removed `Register.jsx`, `Home.jsx`, their routes, and
   `GuestAuthContext.login()`.
-- [x] `VenuesPage.jsx` / `VenuesPageComponents.jsx` — venue create/update/delete/
+- [x] ~~`VenuesPage.jsx` / `VenuesPageComponents.jsx` — venue create/update/delete/
   export/import, venue requests update/delete, and an entire categories/
   offers/documents CRUD sub-feature (12 calls). Plus the already-flagged
-  `/venues/scrape` tool.
+  `/venues/scrape` tool.~~ **Re-opened (round 1 contract check):** `POST /venues` and
+  `POST /venues/scrape` are still called by `VenuesPage.jsx` and have no backend
+  route, so creating a venue still fails. Allowlisted for round 3 (proposed).
 - [x] `SeatingChartPage.jsx` — unassigned-guest list, manual assign, auto-assign,
   CSV export.
 - [x] `InvitationsPage.jsx` — resend, revoke. "Resend" was pointed at the
@@ -103,8 +105,10 @@ each. Status:
 - [ ] `UsersPage.jsx` (platform-admin only) — create, delete.
 - [ ] `ImagesPage.jsx` — guest-portal-settings GET/POST, admin agenda view,
   image update (PUT).
-- [ ] `MoodboardPage.jsx` — single-image fetch, moodboard reset.
-- [ ] `WeddingManagement.jsx` — `/analytics/budget`, `/analytics/dietary`.
+- [~] `MoodboardPage.jsx` — moodboard reset **fixed (round 1)** along with the whole moodboard
+  contract; the single-image fetch (`GET /images/{id}`) is still open.
+- [x] `WeddingManagement.jsx` — `/analytics/budget`, `/analytics/dietary` (round 1: the
+  dashboard now reads one `/analytics/overview`).
 - [ ] `pages/admin/PricingBillingPage.jsx` — orphaned, not routed anywhere in
   `App.jsx`; lower priority since it's unreachable regardless of its dead
   `/subscriptions/*` calls.
@@ -225,3 +229,51 @@ delete there.
 
 This closes the "Clawed Bot" off-brand name leak and its "Tokens used" string
 noted in the brand sweep above.
+
+## Round 1 — contract safety net + first-screen fixes (this PR)
+
+- [x] `scripts/check-api-contract.mjs` (wired into `test.yml` and `deploy.yml`):
+  every frontend `api.*` call must match a backend route. Calls still broken are
+  listed in `scripts/api-contract-allowlist.txt` with the round that fixes them;
+  the check also fails on stale allowlist entries, so the list can only shrink.
+- [x] `tests/test_mounted_routes.py` + `tests/mounted_app.py`: tests run through the
+  real `main.app` over an in-memory sqlite "D1" built from `schema.sql`
+  (`tests/conftest.py` gives `world` / `real_app` fixtures). This caught the
+  moodboard router mounted without its prefix.
+- [x] Error envelope: `errors._normalize` passes extra keys and maps legacy
+  `error_code`; `email_not_verified`, `missing_fields`, `weak_password` codes;
+  frontend `getApiError`/`getApiCode`/`getApiData` replace every legacy
+  `response.data.error` read. (The old reads silently showed fallback text for
+  every backend error, since the backend has only ever sent `detail`.)
+- [x] Couple dashboard reads only `/analytics/overview`; hard-coded "Next steps" and
+  "[Set in Content Management]" removed.
+- [x] Couple analytics page is per-wedding only; security events moved to
+  `/admin/platform/security` (platform admin only). `utils/analytics.js` posts to
+  `/analytics/track` and no longer calls the nonexistent visit routes.
+- [x] Moodboards: mounted at `/api/moodboards`, wedding-scoped (migration 007), rename
+  can no longer wipe content, atomic content PUT with a 1 MB cap; frontend
+  autosave no longer overwrites a board whose content has not loaded yet.
+
+### Found in round 1, not fixed
+
+- [ ] **Nothing sends page views for published sites.** `/analytics/track` now stores
+  the wedding from a `slug`, and the couple page charts it, but `/s/{slug}` is
+  server-rendered (edge-cached 5 min) and nothing calls `/track`. Needs a product
+  decision: a beacon in `site_renderer` (CSP/XSS-test impact), or count server-side
+  in `serve_site` (undercounts cached hits). Until then the visit cards show 0.
+- [ ] **Nothing writes `security_events`**, so the platform security page is empty.
+- [ ] **No wedding currency field.** `weddings` has no `currency` column, so the
+  dashboard shows CHF (the code already honours `wedding.currency` once it exists);
+  `costs.currency` is per row and is not converted when summing the budget.
+- [ ] **RSVP progress is bucketed by `guests.updated_at`**, which also moves on later
+  edits ("last touched", not "first answered"). A real answered-at column would fix it.
+- [ ] **Headcount for a household that confirmed:** `number_of_guests` is overwritten with
+  the attending count at RSVP, so the original party size is only recoverable from
+  `invitee_names`. Households with no `invitee_names` that partly decline are
+  counted as fully attending/invited.
+- [ ] `moodboard_elements` is now unused (kept read-only, no data to migrate since the
+  old routes were unreachable). Drop it in a later migration once confirmed.
+- [ ] Moodboard images: `GET /api/images/{id}` does not exist, so image nodes on a board
+  never render (allowlisted, round 2 proposed).
+- [ ] `window.alert`/`alert()` is still used in ~15 places (rule: toast + confirm dialog).
+- [ ] `CLAUDE.md` is referenced by the task brief but does not exist in the repo.

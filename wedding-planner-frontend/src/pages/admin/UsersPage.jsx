@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { Users, Plus, Edit, Trash2, Shield, CheckCircle, XCircle } from 'lucide-react'
 import ConfirmDialog from '../../components/ui/ConfirmDialog'
 import Tooltip from '../../components/ui/Tooltip'
@@ -122,7 +122,7 @@ const UsersPage = () => {
         </div>
         {(createMutation.isError || updateMutation.isError || deleteMutation.isError) && (
           <ErrorMessage
-            message={createMutation.error?.response?.data?.error || updateMutation.error?.response?.data?.error || deleteMutation.error?.response?.data?.error || 'An error occurred'}
+            message={getApiError(createMutation.error || updateMutation.error || deleteMutation.error, 'An error occurred')}
             onDismiss={() => {
               createMutation.reset()
               updateMutation.reset()

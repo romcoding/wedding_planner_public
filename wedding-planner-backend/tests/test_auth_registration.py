@@ -524,7 +524,7 @@ def test_login_unverified_returns_error_code():
     with pytest.raises(FastHTTPException) as exc:
         run(login(body, req))
     assert exc.value.status_code == 403
-    assert exc.value.detail.get("error_code") == "email_not_verified"
+    assert exc.value.detail.get("code") == "email_not_verified"
 
 
 # ---------------------------------------------------------------------------

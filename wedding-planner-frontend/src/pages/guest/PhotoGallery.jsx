@@ -2,7 +2,7 @@ import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { Upload, Camera, X, CheckCircle } from 'lucide-react'
 
 export default function PhotoGallery() {
@@ -41,7 +41,7 @@ export default function PhotoGallery() {
       alert(t('photoGalleryUploadSuccess'))
     },
     onError: (error) => {
-      alert(error.response?.data?.error || t('photoGalleryUploadFailed'))
+      alert(getApiError(error, t('photoGalleryUploadFailed')))
     },
   })
 

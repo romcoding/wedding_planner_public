@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { useToast } from '../../components/ui/Toast'
 import { PlusCircle, Trash, Mail, X, Eye } from 'lucide-react'
 import EmptyState from '../../components/ui/EmptyState'
@@ -40,7 +40,7 @@ const RSVPRemindersPage = () => {
     },
     onError: (error) => {
       console.error('Error creating reminder:', error)
-      toast.error(error.response?.data?.error || 'Failed to create reminder. Please check all required fields.')
+      toast.error(getApiError(error, 'Failed to create reminder. Please check all required fields.'))
     },
   })
 

@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ToastProvider } from './components/ui/Toast.jsx'
 import App from './App.jsx'
 import './index.css'
-import './utils/analytics' // Initialize analytics tracking
 
 const queryClient = new QueryClient({
   defaultOptions: {

@@ -14,7 +14,7 @@ import {
   useDroppable
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { HelpCircle, PlusCircle, Trash, Edit, Users, X, Move, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
 import TutorialModal from '../../components/TutorialModal'
 import { useTutorial } from '../../components/useTutorial'
@@ -240,7 +240,7 @@ const SeatingChartPage = () => {
               },
               onError: (error) => {
                 console.error('Error assigning guest:', error)
-                alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
+                alert(getApiError(error, 'Failed to assign guest to seat. Please try again.'))
               }
             })
           },
@@ -263,7 +263,7 @@ const SeatingChartPage = () => {
             queryClient.invalidateQueries(['unassigned-guests'])
           },
           onError: (error) => {
-            alert(error.response?.data?.error || 'Failed to assign guest to seat. Please try again.')
+            alert(getApiError(error, 'Failed to assign guest to seat. Please try again.'))
           }
         })
       }
@@ -315,7 +315,7 @@ const SeatingChartPage = () => {
                   }, {
                     onError: (error) => {
                       console.error('Error assigning guest:', error)
-                      alert(error.response?.data?.error || 'Failed to move guest. Please try again.')
+                      alert(getApiError(error, 'Failed to move guest. Please try again.'))
                     }
                   })
                 }
@@ -334,7 +334,7 @@ const SeatingChartPage = () => {
               }, {
                 onError: (error) => {
                   console.error('Error assigning guest:', error)
-                  alert(error.response?.data?.error || 'Failed to move guest. Please try again.')
+                  alert(getApiError(error, 'Failed to move guest. Please try again.'))
                 }
               })
             },

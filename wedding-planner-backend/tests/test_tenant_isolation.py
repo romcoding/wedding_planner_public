@@ -131,11 +131,11 @@ def test_images_cross_tenant_delete_404():
     assert exc.value.status_code == 404
 
 
-def test_moodboards_cross_user_get_404():
+def test_moodboards_cross_tenant_get_404():
     db = TenantFakeDB()
-    db.add("moodboards", "mB", user_id="userB")
+    db.add("moodboards", "mB", wedding_id="wB")
     with pytest.raises(HTTPException) as exc:
-        run(get_moodboard("mB", wedding=WED_A, payload={"sub": "userA"}, request=_req(db)))
+        run(get_moodboard("mB", wedding=WED_A, request=_req(db)))
     assert exc.value.status_code == 404
 
 

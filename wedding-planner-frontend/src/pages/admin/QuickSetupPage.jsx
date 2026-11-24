@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { Sparkles, Wand2, Calendar, Globe2, ListChecks } from 'lucide-react'
 import DateInput from '../../components/ui/DateInput'
 
@@ -58,14 +58,7 @@ export default function QuickSetupPage() {
       const response = await api.post('/onboarding/quick-setup', payload)
       setResult(response.data)
     } catch (err) {
-      const data = err.response?.data
-      const detail = data?.detail
-      const message =
-        data?.error ||
-        (detail && typeof detail === 'object' && detail.error) ||
-        (typeof detail === 'string' ? detail : null) ||
-        err.message ||
-        'Quick setup failed. Please try again.'
+      const message = getApiError(err, err.message || 'Quick setup failed. Please try again.')
       setError(message)
     } finally {
       setLoading(false)

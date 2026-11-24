@@ -232,10 +232,15 @@ export default function AuthPage() {
         }
       } else {
         const errData = result.errorData
-        if (errData?.missing_fields) {
+        if (result.errorCode === 'missing_fields' && Array.isArray(errData?.missing_fields)) {
           const fieldErrors = {}
           errData.missing_fields.forEach((f) => { fieldErrors[f] = 'This field is required' })
           setRegisterErrors(fieldErrors)
+        } else if (result.errorCode === 'weak_password') {
+          const msgs = Array.isArray(errData?.errors) && errData.errors.length
+            ? errData.errors.join(' ')
+            : result.error
+          setRegisterErrors({ password: msgs })
         } else {
           setGlobalError(result.error || 'Registration failed')
         }

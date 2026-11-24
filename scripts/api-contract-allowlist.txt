@@ -1,0 +1,22 @@
+# Known-broken frontend -> backend calls that scripts/check-api-contract.mjs
+# tolerates TEMPORARILY. One `METHOD /path   # round N: reason` per line
+# (path without the /api prefix, `*` for template params). Entries may only be
+# removed: the check fails if an entry starts matching a route or is no longer
+# called, so delete the line in the same PR that fixes the call.
+#
+# Only round 1 and round 6 are defined in the brief; "(proposed)" rounds below
+# are this PR's suggested grouping, to be confirmed.
+
+GET    /images/*                   # round 2 (proposed): images — single-image fetch (moodboard image nodes), no GET /api/images/{id}
+PUT    /images/*                   # round 2 (proposed): images — ImagesPage update, no PUT route
+GET    /events/guest-portal-settings   # round 2 (proposed): images — guest-portal settings, no route
+POST   /events/guest-portal-settings   # round 2 (proposed): images — guest-portal settings, no route
+GET    /agenda/admin               # round 2 (proposed): images — admin agenda view, no route
+GET    /seating/guests/unassigned  # round 3 (proposed): seating — needs backend member expansion (AUDIT-FOLLOWUPS)
+POST   /venues                     # round 3 (proposed): venues — create venue, no route (AUDIT-FOLLOWUPS marks venues done; it is not)
+POST   /venues/scrape              # round 3 (proposed): venues — scrape tool, no route
+POST   /users                      # round 4 (proposed): platform admin — user create, no route
+DELETE /users/*                    # round 4 (proposed): platform admin — user delete, no route
+GET    /subscriptions              # round 5 (proposed): delete orphan PricingBillingPage (not routed in App.jsx)
+POST   /subscriptions/top-up       # round 5 (proposed): delete orphan PricingBillingPage
+POST   /subscriptions/upgrade      # round 5 (proposed): delete orphan PricingBillingPage

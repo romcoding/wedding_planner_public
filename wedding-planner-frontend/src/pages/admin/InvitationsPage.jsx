@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError, getApiData } from '../../lib/api'
 import { PlusCircle, Trash, Mail, X, CheckCircle, Clock, AlertCircle } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 
@@ -33,21 +33,14 @@ const InvitationsPage = () => {
       toast.success(response.data?.message || 'Invitation created successfully!')
     },
     onError: (error) => {
-      const errorData = error.response?.data
-      let errorMsg = 'Failed to create invitation'
-      
-      if (errorData) {
-        if (errorData.error) {
-          errorMsg = errorData.error
-        } else if (errorData.errors) {
-          // Handle field-specific errors
-          setFieldErrors(errorData.errors)
-          errorMsg = 'Please fix the errors below'
-        } else if (errorData.message) {
-          errorMsg = errorData.message
-        }
+      const errorData = getApiData(error)
+      let errorMsg = getApiError(error, 'Failed to create invitation')
+      if (errorData?.errors && typeof errorData.errors === 'object') {
+        // Field-specific errors
+        setFieldErrors(errorData.errors)
+        errorMsg = 'Please fix the errors below'
       }
-      
+
       setFieldErrors(prev => ({ ...prev, general: errorMsg }))
       toast.error(errorMsg)
     },
@@ -60,7 +53,7 @@ const InvitationsPage = () => {
       alert('Invitation resent successfully!')
     },
     onError: (error) => {
-      alert(error.response?.data?.error || 'Failed to resend invitation')
+      alert(getApiError(error, 'Failed to resend invitation'))
     },
   })
 
