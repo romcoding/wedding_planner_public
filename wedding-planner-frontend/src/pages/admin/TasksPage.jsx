@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import api, { getApiError, getApiData } from '../../lib/api'
+import { useLimitUpgrade } from '../../hooks/useLimitUpgrade'
 import { PlusCircle, Trash, Edit, FileText, X, GripVertical, ListChecks } from 'lucide-react'
 import taskTemplates from '../../data/taskTemplates.json'
 import EmptyState from '../../components/ui/EmptyState'
@@ -263,6 +264,7 @@ const TasksPage = () => {
   })
 
   const [fieldErrors, setFieldErrors] = useState({})
+  const { handleLimitError, limitModal } = useLimitUpgrade()
 
   const createTask = useMutation({
     mutationFn: (payload) => api.post('/tasks', payload),
@@ -281,6 +283,7 @@ const TasksPage = () => {
     },
     onError: (error) => {
       console.error('Error creating task:', error)
+      if (handleLimitError(error)) return
       const errorData = getApiData(error)
       if (errorData?.errors) {
         setFieldErrors(errorData.errors)
@@ -490,6 +493,7 @@ const TasksPage = () => {
 
   return (
     <div>
+      {limitModal}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Tasks</h1>
