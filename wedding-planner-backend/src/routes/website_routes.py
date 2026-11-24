@@ -254,11 +254,15 @@ async def update_settings(
 
     updates: list[str] = []
     binds: list = []
+    # Settings that change what /s/{slug} renders or whether it is gated. The
+    # published HTML is edge-cached, so any of these must purge it.
+    rendering_changed = False
 
     if body.theme is not None:
         if body.theme not in site_schema.VALID_THEMES:
             raise HTTPException(400, {"code": "invalid_theme", "error": "Unknown theme"})
         updates.append("theme = ?"); binds.append(body.theme)
+        rendering_changed = rendering_changed or body.theme != site.get("theme")
 
     new_slug = None
     if body.slug is not None:
@@ -273,8 +277,12 @@ async def update_settings(
 
     if body.rsvp_enabled is not None:
         updates.append("rsvp_enabled = ?"); binds.append(int(body.rsvp_enabled))
+        rendering_changed = rendering_changed or int(body.rsvp_enabled) != int(site.get("rsvp_enabled", 1))
 
     if body.password is not None:
+        # Setting, changing or clearing the password changes the page that is served
+        # (open site <-> password gate), so it always counts as a change.
+        rendering_changed = True
         if body.password == "":
             updates.append("password_hash = ?"); binds.append(None)  # clear
         else:
@@ -290,9 +298,18 @@ async def update_settings(
     # Changing the slug while published re-points the live site to the SAME
     # published_snapshot (the snapshot lives on the row, so it travels with the
     # slug). Purge both addresses so the edge serves the new one.
-    if new_slug and new_slug != site["slug"] and site.get("status") == "published":
-        await purge_site_cache(site["slug"])
-        await purge_site_cache(new_slug)
+    if site.get("status") == "published":
+        if new_slug and new_slug != site["slug"]:
+            await purge_site_cache(site["slug"])
+            await purge_site_cache(new_slug)
+        elif rendering_changed:
+            # NOTE: the Workers Cache API only purges the CURRENT data center's
+            # cache (caches.default is per-colo). Other colos keep serving the
+            # old copy until it expires, so the `max-age=300` on public sites in
+            # public_site_routes.serve_site is the real upper bound on staleness
+            # (5 minutes), not this purge. Password-protected pages are
+            # `no-store` and never cached at all.
+            await purge_site_cache(site["slug"])
 
     raw = await db.prepare("SELECT * FROM wedding_sites WHERE id = ?").bind(site["id"]).first()
     return _site_dict(row_to_dict(raw))

@@ -8,6 +8,16 @@ import httpx
 import pytest
 
 
+def _run(coro):
+    """Run on a private loop. _run() would clear the global event loop
+    that older tests in this suite still fetch with get_event_loop()."""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 @pytest.fixture()
 def ai(real_app):
     return sys.modules["services.ai_service"]
@@ -54,7 +64,7 @@ def test_call_uses_async_client_with_30s_timeout_and_configured_model(ai, monkey
         return _ok(request)
 
     seen = _capture(monkeypatch, handler)
-    out = asyncio.run(ai.call_claude("sys", "hello"))
+    out = _run(ai.call_claude("sys", "hello"))
     assert out == "hi"
     assert seen["timeout"] == 30.0
     assert sent["body"]["model"] == "claude-custom-model" and sent["key"] == "sk-test"
@@ -70,8 +80,8 @@ def test_model_defaults_when_setting_absent_and_explicit_model_wins(ai, monkeypa
         return _ok(request)
 
     _capture(monkeypatch, handler)
-    asyncio.run(ai.call_claude_json("s", "u"))
-    asyncio.run(ai.call_claude_json("s", "u", model="explicit"))
+    _run(ai.call_claude_json("s", "u"))
+    _run(ai.call_claude_json("s", "u", model="explicit"))
     assert bodies == [ai.DEFAULT_MODEL, "explicit"] and ai.DEFAULT_MODEL == "claude-sonnet-4-6"
 
 
@@ -79,13 +89,13 @@ def test_http_failure_becomes_runtimeerror(ai, monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
     _capture(monkeypatch, lambda r: httpx.Response(529, json={"error": "overloaded"}))
     with pytest.raises(RuntimeError):
-        asyncio.run(ai.call_claude("s", "u"))
+        _run(ai.call_claude("s", "u"))
 
 
 def test_missing_key_raises(ai, monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     with pytest.raises(RuntimeError):
-        asyncio.run(ai.call_claude("s", "u"))
+        _run(ai.call_claude("s", "u"))
 
 
 def test_anthropic_model_is_mirrored_from_worker_settings():
