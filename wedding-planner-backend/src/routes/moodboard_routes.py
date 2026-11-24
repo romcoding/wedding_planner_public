@@ -198,10 +198,12 @@ async def save_moodboard_content(
         )
 
     await _get_owned(db, moodboard_id, wedding["id"])  # 404 for another wedding's board
-    await db.prepare(
-        "UPDATE moodboards SET content_json = ?, updated_at = datetime('now') "
-        "WHERE id = ? AND wedding_id = ?"
-    ).bind(text, moodboard_id, wedding["id"]).run()
+    await db.batch([
+        db.prepare(
+            "UPDATE moodboards SET content_json = ?, updated_at = datetime('now') "
+            "WHERE id = ? AND wedding_id = ?"
+        ).bind(text, moodboard_id, wedding["id"]),
+    ])
     row = await _get_owned(db, moodboard_id, wedding["id"])
     return {"id": row["id"], "updated_at": row["updated_at"]}
 
