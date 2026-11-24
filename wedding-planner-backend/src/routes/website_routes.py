@@ -499,7 +499,7 @@ async def generate(
     try:
         await usage.check_budget(db, wedding_id, plan)
     except usage.BudgetExceeded as exc:
-        await usage.log_generation(db, wedding_id, ai_service.DEFAULT_MODEL, "over_limit", purpose=mode)
+        await usage.log_generation(db, wedding_id, ai_service.get_model(), "over_limit", purpose=mode)
         log_event("wedi_generation", wedding_id=wedding_id, status="over_limit", mode=mode)
         raise HTTPException(429, {
             "code": "wedi_limit",
@@ -517,7 +517,7 @@ async def generate(
         )
     except (wedi_site.GenerationError, RuntimeError) as exc:
         logger.warning(f"wedi generation failed for wedding {wedding_id}: {exc}")
-        await usage.log_generation(db, wedding_id, ai_service.DEFAULT_MODEL, "error", purpose=mode)
+        await usage.log_generation(db, wedding_id, ai_service.get_model(), "error", purpose=mode)
         log_event("wedi_generation", wedding_id=wedding_id, status="error", mode=mode)
         raise HTTPException(502, _WEDI_FAILED_DETAIL)
 

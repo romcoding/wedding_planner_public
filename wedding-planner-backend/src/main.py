@@ -53,7 +53,7 @@ class Default(WorkerEntrypoint):
             "STRIPE_STARTER_PRICE_ID", "STRIPE_PREMIUM_PRICE_ID",
             "STRIPE_MONTHLY_PRICE_ID", "STRIPE_LIFETIME_PRICE_ID",
             "ADMIN_EMAILS",
-            "ANTHROPIC_API_KEY",
+            "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL",
             # Public site hosting (P4): the shareable /s/{slug} origin, the
             # optional RSVP-cookie HMAC secret, and the "Made with Wedi" link.
             "PUBLIC_SITE_BASE_URL", "RSVP_COOKIE_SECRET", "WEDI_LANDING_URL",
