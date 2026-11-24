@@ -4,7 +4,6 @@ Wedding Planner API — FastAPI on Cloudflare Python Workers.
 import os
 from workers import WorkerEntrypoint
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 import asgi
 
 # Route imports
@@ -39,6 +38,7 @@ from routes.geo_routes import router as geo_router
 
 from errors import register_exception_handlers
 from public_cors import PublicRsvpCORSMiddleware
+from cors_config import DynamicCORSMiddleware, is_allowed_origin
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
@@ -70,7 +70,7 @@ class Default(WorkerEntrypoint):
             raise RuntimeError("JWT_SECRET_KEY not configured")
 
         origin = request.headers.get("origin") or ""
-        cors_origin = origin if origin in _allowed_origins else ""
+        cors_origin = origin if is_allowed_origin(origin) else ""
 
         # The public RSVP endpoint is uncredentialed and called cross-origin from
         # any couple-site origin, so it (and its preflight) get
@@ -163,19 +163,11 @@ class Default(WorkerEntrypoint):
 
 app = FastAPI(title="Wedding Planner API", version="2.0.0")
 
-_allowed_origins = [
-    "https://wedding-planner-frontend.romanhess1994.workers.dev",
-    "http://localhost:5173",
-    "http://localhost:3000",
-    "http://localhost:8000",
-]
-_extra = os.environ.get("CORS_EXTRA_ORIGINS", "")
-if _extra:
-    _allowed_origins.extend(o.strip() for o in _extra.split(",") if o.strip())
-
+# Allow-list is resolved per request (cors_config): CORS_EXTRA_ORIGINS and
+# FRONTEND_URL only land in os.environ after this module has been imported.
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=_allowed_origins,
+    DynamicCORSMiddleware,
+    allow_origins=[],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
