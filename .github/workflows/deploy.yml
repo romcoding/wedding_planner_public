@@ -40,8 +40,18 @@ jobs:
         working-directory: wedding-planner-frontend
         run: npm run test:run
 
+  test-api-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: API contract check (every frontend api.* call has a backend route)
+        run: node scripts/check-api-contract.mjs
+
   deploy:
-    needs: [test-backend, test-frontend]
+    needs: [test-backend, test-frontend, test-api-contract]
     runs-on: ubuntu-latest
 
     steps:
