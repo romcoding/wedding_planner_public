@@ -4,7 +4,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Heart, Loader } from 'lucide-react'
 import { useGuestAuth } from '../../contexts/GuestAuthContext'
 import { useLanguage } from '../../contexts/LanguageContext'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { ROUTES } from '../../lib/routes'
 
 /**
@@ -58,7 +58,7 @@ export default function GuestEntry() {
       }, 50)
     },
     onError: (err) => {
-      setError(err.response?.data?.error || t('authFailed') || 'Authentication failed')
+      setError(getApiError(err, t('authFailed') || 'Authentication failed'))
     },
   })
 
@@ -79,7 +79,7 @@ export default function GuestEntry() {
   // Handle fetch error
   useEffect(() => {
     if (fetchError) {
-      setError(fetchError.response?.data?.error || t('invalidInvitationLinkMessage') || 'Invalid invitation link')
+      setError(getApiError(fetchError, t('invalidInvitationLinkMessage') || 'Invalid invitation link'))
     }
   }, [fetchError, t])
 

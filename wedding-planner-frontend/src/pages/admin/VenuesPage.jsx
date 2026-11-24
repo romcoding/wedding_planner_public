@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import {
   PlusCircle,
   Search,
@@ -237,7 +237,7 @@ export default function VenuesPage() {
         alert('Venue information scraped successfully! Please review and edit as needed.')
       }
     } catch (error) {
-      let errorMsg = error.response?.data?.error || error.message || 'Failed to scrape venue information'
+      let errorMsg = getApiError(error, error.message || 'Failed to scrape venue information')
       if (errorMsg.includes('timeout')) {
         errorMsg = 'The website took too long to respond. Please try again or enter the information manually.'
       } else if (errorMsg.includes('Connection') || errorMsg.includes('reach')) {

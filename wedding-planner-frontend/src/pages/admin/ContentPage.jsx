@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { PlusCircle, Trash, Edit, Languages, Sparkles, Calendar, X, Eye, FileText } from 'lucide-react'
 import QuillEditor from '../../components/ui/QuillEditor'
 import DOMPurify from 'dompurify'
@@ -46,7 +46,7 @@ const ContentPage = () => {
     },
     onError: (error) => {
       console.error('Error creating content:', error)
-      alert(error.response?.data?.error || 'Failed to create content. Please check all required fields.')
+      alert(getApiError(error, 'Failed to create content. Please check all required fields.'))
     },
   })
 
@@ -60,7 +60,7 @@ const ContentPage = () => {
     },
     onError: (error) => {
       console.error('Error updating content:', error)
-      alert(error.response?.data?.error || 'Failed to update content. Please check all required fields.')
+      alert(getApiError(error, 'Failed to update content. Please check all required fields.'))
     },
   })
 

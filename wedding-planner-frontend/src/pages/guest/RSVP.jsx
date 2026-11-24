@@ -17,7 +17,7 @@ import HeartBurstAnimation from '../../components/HeartBurstAnimation'
 import LanguageSwitcher from '../../components/LanguageSwitcher'
 import SavePageBlock from '../../components/SavePageBlock'
 import StyledTitle from '../../components/StyledTitle'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { ROUTES } from '../../lib/routes'
 
 function PassCard({ children }) {
@@ -160,7 +160,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
       setLoading(false)
     },
     onError: (err) => {
-      setError(err.response?.data?.error || t('authFailed'))
+      setError(getApiError(err, t('authFailed')))
       setLoading(false)
     },
   })
@@ -376,7 +376,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
       } catch (err) {
         // One retry if backend says guest not found (stale token edge case)
         const status = err?.response?.status
-        const msg = err?.response?.data?.error
+        const msg = getApiError(err, '')
         if (status === 404 && msg && msg.toLowerCase().includes('guest not found')) {
           const authResponse = await api.post(`/guests/token/${token}/auth`)
           const { access_token, guest: guestInfo } = authResponse.data
@@ -389,7 +389,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     },
     onError: (err) => {
       console.error('Update error:', err)
-      setError(err.response?.data?.error || err.message || t('saveFailed'))
+      setError(getApiError(err, err.message || t('saveFailed')))
     },
   })
 
@@ -397,7 +397,7 @@ export default function RSVP({ token: tokenOverride, embedded = false, onClose }
     mutationFn: (formData) => api.post('/guest-photos', formData),
     onError: (err) => {
       console.error('Photo upload error:', err)
-      setError(err.response?.data?.error || err.message || t('photoUploadFailed'))
+      setError(getApiError(err, err.message || t('photoUploadFailed')))
     },
   })
 

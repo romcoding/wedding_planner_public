@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
+import { getApiError } from '../../lib/api'
 import useWebsite from './hooks/useWebsite'
 import PublishBar from './components/PublishBar'
 import ThemePicker from './components/ThemePicker'
@@ -16,21 +17,9 @@ import RsvpInbox from './components/RsvpInbox'
 import { BLOCK_LABELS } from './siteSchema'
 import { ROSE_GOLD, formatResetDate, isAtLimit } from './wedi'
 
-function errorMessage(err, fallback) {
-  const detail = err?.response?.data
-  if (detail && typeof detail === 'object' && detail.error) return detail.error
-  if (typeof detail === 'string') return detail
-  return fallback
-}
-
-// Wedi endpoints return FastAPI-style { detail: { code, detail } } bodies; pull
-// out the friendly message (e.g. the monthly-limit copy) when present.
-function wediError(err, fallback) {
-  const d = err?.response?.data?.detail
-  if (d && typeof d === 'object' && d.detail) return d.detail
-  if (typeof d === 'string') return d
-  return fallback
-}
+// Backend errors are {code, detail}; getApiError reads `detail`.
+const errorMessage = getApiError
+const wediError = getApiError
 
 export default function WebsiteBuilder() {
   const site = useWebsite()

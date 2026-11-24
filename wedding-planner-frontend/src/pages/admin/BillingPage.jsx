@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { CreditCard, Check, Zap, Crown, Heart, ExternalLink, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { useWedding } from '../../contexts/WeddingContext'
 import { usePricing } from '../../hooks/usePricing'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 
 // Plan metadata only — all amounts/period come from pricing.js (the single
 // source of truth) so the displayed currency always matches what Stripe charges.
@@ -96,7 +96,7 @@ export default function BillingPage() {
       const res = await api.post('/billing/create-checkout-session', { plan: planId, currency })
       window.location.href = res.data.checkout_url
     } catch (e) {
-      setError(e.response?.data?.error || 'Failed to start checkout. Please try again.')
+      setError(getApiError(e, 'Failed to start checkout. Please try again.'))
       setLoading(false)
     }
   }
@@ -108,7 +108,7 @@ export default function BillingPage() {
       const res = await api.get('/billing/portal')
       window.open(res.data.portal_url, '_blank')
     } catch (e) {
-      setError(e.response?.data?.error || 'Failed to open billing portal.')
+      setError(getApiError(e, 'Failed to open billing portal.'))
     } finally {
       setPortalLoading(false)
     }

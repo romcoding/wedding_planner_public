@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError, getApiData } from '../../lib/api'
 import { PlusCircle, Trash, Edit, FileText, X, GripVertical, ListChecks } from 'lucide-react'
 import taskTemplates from '../../data/taskTemplates.json'
 import EmptyState from '../../components/ui/EmptyState'
@@ -281,11 +281,11 @@ const TasksPage = () => {
     },
     onError: (error) => {
       console.error('Error creating task:', error)
-      const errorData = error.response?.data
+      const errorData = getApiData(error)
       if (errorData?.errors) {
         setFieldErrors(errorData.errors)
       } else {
-        setFieldErrors({ general: errorData?.error || 'Failed to create task. Please try again.' })
+        setFieldErrors({ general: getApiError(error, 'Failed to create task. Please try again.') })
       }
     },
   })
@@ -312,7 +312,7 @@ const TasksPage = () => {
     },
     onError: (error) => {
       console.error('Error updating task:', error)
-      alert(error.response?.data?.error || 'Failed to update task. Please try again.')
+      alert(getApiError(error, 'Failed to update task. Please try again.'))
     },
   })
 

@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import api from '../lib/api'
+import api, { getApiError, getApiCode, getApiData } from '../lib/api'
 
 const AuthContext = createContext(null)
 
@@ -45,15 +45,10 @@ export function AuthProvider({ children }) {
 
       return { success: true }
     } catch (error) {
-      const detail = error.response?.data?.detail
-      const errorCode = typeof detail === 'object' ? detail?.error_code : null
-      const message = typeof detail === 'object'
-        ? detail.message
-        : (typeof detail === 'string' ? detail : null)
       return {
         success: false,
-        error: message || 'Login failed',
-        errorCode,
+        error: getApiError(error, 'Login failed'),
+        errorCode: getApiCode(error),
         email,
       }
     }
@@ -85,12 +80,12 @@ export function AuthProvider({ children }) {
         wedding: response.data.wedding,
       }
     } catch (error) {
-      const detail = error.response?.data?.detail
-      const errorData = typeof detail === 'object' ? detail : null
+      // errorData carries the structured extras: code, missing_fields, errors.
       return {
         success: false,
-        error: errorData?.message || (typeof detail === 'string' ? detail : null) || 'Registration failed',
-        errorData,
+        error: getApiError(error, 'Registration failed'),
+        errorCode: getApiCode(error),
+        errorData: getApiData(error),
       }
     }
   }
@@ -102,7 +97,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || 'Could not resend verification email',
+        error: getApiError(error, 'Could not resend verification email'),
       }
     }
   }
@@ -114,7 +109,7 @@ export function AuthProvider({ children }) {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || 'Could not send reset email',
+        error: getApiError(error, 'Could not send reset email'),
       }
     }
   }
@@ -128,12 +123,10 @@ export function AuthProvider({ children }) {
       })
       return { success: true }
     } catch (error) {
-      const detail = error.response?.data?.detail
-      const errorData = typeof detail === 'object' ? detail : null
       return {
         success: false,
-        error: errorData?.message || (typeof detail === 'string' ? detail : null) || 'Password reset failed',
-        errors: errorData?.errors,
+        error: getApiError(error, 'Password reset failed'),
+        errors: getApiData(error)?.errors,
       }
     }
   }

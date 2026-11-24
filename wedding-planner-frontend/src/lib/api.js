@@ -86,3 +86,33 @@ api.interceptors.response.use(
 )
 
 export default api
+
+// ---------------------------------------------------------------------------
+// Error helpers. The backend always answers errors with {code, detail, ...extra}
+// (see backend errors.py). Read them through these helpers, never by poking at
+// `err.response.data.error` (legacy shape that no longer exists).
+// ---------------------------------------------------------------------------
+
+/** The response body of an axios error ({code, detail, ...}) or null. */
+export function getApiData(err) {
+  const data = err?.response?.data
+  return data && typeof data === 'object' ? data : null
+}
+
+/** Machine-readable error code ("email_not_verified", "upgrade_required", ...). */
+export function getApiCode(err) {
+  const code = getApiData(err)?.code
+  return typeof code === 'string' ? code : null
+}
+
+/**
+ * Human-readable error text: data.detail, then data.error (legacy), then the
+ * fallback. Never returns an object.
+ */
+export function getApiError(err, fallback = 'Something went wrong. Please try again.') {
+  const data = err?.response?.data
+  if (typeof data === 'string' && data && !data.trim().startsWith('<')) return data
+  if (typeof data?.detail === 'string' && data.detail) return data.detail
+  if (typeof data?.error === 'string' && data.error) return data.error
+  return fallback
+}

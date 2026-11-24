@@ -200,8 +200,8 @@ async def login(body: LoginBody, request: Request):
         raise HTTPException(
             403,
             {
-                "error_code": "email_not_verified",
-                "message": "Please verify your email address before logging in. "
+                "code": "email_not_verified",
+                "detail": "Please verify your email address before logging in. "
                            "Check your inbox for the verification link.",
             },
         )
@@ -240,7 +240,7 @@ async def register_couple(body: RegisterBody, request: Request):
     if missing:
         raise HTTPException(
             400,
-            {"message": "Missing required fields", "missing_fields": missing},
+            {"code": "missing_fields", "detail": "Missing required fields", "missing_fields": missing},
         )
 
     if body.password != body.password_confirmation:
@@ -249,7 +249,7 @@ async def register_couple(body: RegisterBody, request: Request):
     # Password strength check
     pw_errors = _validate_password_strength(body.password)
     if pw_errors:
-        raise HTTPException(400, {"message": "Password too weak", "errors": pw_errors})
+        raise HTTPException(400, {"code": "weak_password", "detail": "Password too weak", "errors": pw_errors})
 
     email = body.email.strip().lower()
     existing = await db.prepare("SELECT id FROM users WHERE email = ?").bind(email).first()
@@ -471,7 +471,7 @@ async def reset_password(body: ResetPasswordBody, request: Request):
 
     pw_errors = _validate_password_strength(body.password)
     if pw_errors:
-        raise HTTPException(400, {"message": "Password too weak", "errors": pw_errors})
+        raise HTTPException(400, {"code": "weak_password", "detail": "Password too weak", "errors": pw_errors})
 
     db = await get_db(request)
 
@@ -576,7 +576,7 @@ async def update_profile(
     if body.password:
         pw_errors = _validate_password_strength(body.password)
         if pw_errors:
-            raise HTTPException(400, {"message": "Password too weak", "errors": pw_errors})
+            raise HTTPException(400, {"code": "weak_password", "detail": "Password too weak", "errors": pw_errors})
         await db.prepare(
             "UPDATE users SET password_hash = ?, updated_at = datetime('now') WHERE id = ?"
         ).bind(_hash_password(body.password), user_id).run()

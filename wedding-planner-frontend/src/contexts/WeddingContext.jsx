@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import api from '../lib/api'
+import api, { getApiError } from '../lib/api'
 
 const WeddingContext = createContext(null)
 
@@ -40,7 +40,7 @@ export function WeddingProvider({ children }) {
         setWedding(null)
         setError('needs_onboarding')
       } else if (status !== 401) {
-        setError(err.response?.data?.detail || err.response?.data?.error || 'Failed to load wedding')
+        setError(getApiError(err, 'Failed to load wedding'))
       } else {
         setWedding(null)
       }
@@ -62,7 +62,7 @@ export function WeddingProvider({ children }) {
     } catch (err) {
       return {
         success: false,
-        error: err.response?.data?.error || 'Failed to create wedding',
+        error: getApiError(err, 'Failed to create wedding'),
       }
     }
   }
@@ -75,7 +75,7 @@ export function WeddingProvider({ children }) {
     } catch (err) {
       return {
         success: false,
-        error: err.response?.data?.error || 'Failed to update wedding',
+        error: getApiError(err, 'Failed to update wedding'),
       }
     }
   }

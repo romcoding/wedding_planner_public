@@ -47,17 +47,28 @@ def _envelope(code: str, detail: str) -> dict:
 
 
 def _normalize(status: int, detail) -> dict:
-    """Collapse an HTTPException detail (str | dict | other) into the envelope."""
+    """Collapse an HTTPException detail (str | dict | other) into the envelope.
+
+    ``code`` and ``detail`` are always present. For a dict detail every other
+    key (``missing_fields``, ``errors``, ``feature``, ...) is passed through
+    untouched so structured data reaches the client. A legacy ``error_code`` is
+    mapped to ``code``; the legacy ``error`` / ``message`` text keys are folded
+    into ``detail`` (not echoed).
+    """
     fallback_code = _STATUS_CODES.get(status, f"http_{status}")
     if isinstance(detail, dict):
-        code = detail.get("code") or fallback_code
+        extra = {
+            k: v for k, v in detail.items()
+            if k not in ("code", "error_code", "detail", "error", "message")
+        }
+        code = detail.get("code") or detail.get("error_code") or fallback_code
         message = (
             detail.get("detail")
             or detail.get("error")
             or detail.get("message")
             or fallback_code.replace("_", " ")
         )
-        return _envelope(code, message)
+        return {**extra, **_envelope(code, message)}
     if isinstance(detail, str) and detail:
         return _envelope(fallback_code, detail)
     return _envelope(fallback_code, fallback_code.replace("_", " "))

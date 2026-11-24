@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { CheckCircle, XCircle, Clock, Search, Filter, PlusCircle, Copy, QrCode, Mail, Link as LinkIcon, Download, Upload, Users } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
@@ -83,7 +83,7 @@ export default function GuestsPage() {
     },
     onError: (err) => {
       console.error('Create guest failed:', err)
-      const msg = err?.response?.data?.error || err?.message || 'Failed to create guest'
+      const msg = getApiError(err, err?.message || 'Failed to create guest')
       alert(msg)
     },
   })
@@ -151,7 +151,7 @@ export default function GuestsPage() {
       link.remove()
       window.URL.revokeObjectURL(url)
     } catch (err) {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to export guests'
+      const msg = getApiError(err, err?.message || 'Failed to export guests')
       alert(msg)
     }
   }
@@ -168,7 +168,7 @@ export default function GuestsPage() {
       setImportStatus(response.data)
       queryClient.invalidateQueries(['guests'])
     } catch (err) {
-      const msg = err?.response?.data?.error || err?.message || 'Failed to import CSV'
+      const msg = getApiError(err, err?.message || 'Failed to import CSV')
       alert(msg)
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = ''

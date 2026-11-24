@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { useToast } from '../../components/ui/Toast'
 import TutorialModal from '../../components/TutorialModal'
 import { useTutorial } from '../../components/useTutorial'
@@ -336,7 +336,7 @@ export default function MoodboardPage() {
       setSaveError('')
     },
     onError: (err) => {
-      toast.error(err?.response?.data?.error || 'Failed to load moodboard')
+      toast.error(getApiError(err, 'Failed to load moodboard'))
     },
   })
 
@@ -348,7 +348,7 @@ export default function MoodboardPage() {
       setBoardTitleDraft(b.title || '')
       fetchBoard.mutate(b.id)
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to create board'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to create board')),
   })
 
   const renameBoard = useMutation({
@@ -358,7 +358,7 @@ export default function MoodboardPage() {
       setShowRename(false)
       toast.success('Board renamed')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to rename board'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to rename board')),
   })
 
   const deleteBoard = useMutation({
@@ -369,7 +369,7 @@ export default function MoodboardPage() {
       setContent(defaultBoardContent())
       toast.success('Board deleted')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to delete board'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to delete board')),
   })
 
   const resetBoards = useMutation({
@@ -383,7 +383,7 @@ export default function MoodboardPage() {
       setHistory({ past: [], future: [] })
       toast.success('Moodboards reset')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to reset moodboards'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to reset moodboards')),
   })
 
   const saveBoard = useMutation({
@@ -395,7 +395,7 @@ export default function MoodboardPage() {
     },
     onError: (err) => {
       setIsSaving(false)
-      const msg = err?.response?.data?.error || 'Failed to save'
+      const msg = getApiError(err, 'Failed to save')
       setSaveError(msg)
     },
   })
@@ -1041,7 +1041,7 @@ export default function MoodboardPage() {
       })
       toast.success('Image added to board')
     } catch (err) {
-      toast.error(err?.response?.data?.error || 'Upload failed')
+      toast.error(getApiError(err, 'Upload failed'))
     }
   }
 

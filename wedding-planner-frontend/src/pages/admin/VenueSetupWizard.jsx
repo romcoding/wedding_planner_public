@@ -1,6 +1,7 @@
 // Venue Setup Wizard Component
 import { useState, useEffect } from 'react'
 import { X, Check } from 'lucide-react'
+import { getApiError } from '../../lib/api'
 
 export default function VenueSetupWizard({
   wizardStep,
@@ -128,7 +129,7 @@ export default function VenueSetupWizard({
       setWizardStep(2)
       setScrapingUrl('')
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to scrape venue information')
+      alert(getApiError(error, 'Failed to scrape venue information'))
     } finally {
       setIsScraping(false)
     }

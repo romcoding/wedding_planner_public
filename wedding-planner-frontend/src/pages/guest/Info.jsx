@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { MapPin, Clock, Shirt, Check, Loader, Bed, Copy, Info, Car, TrainFront, Plane, Flag, Theater, UtensilsCrossed } from 'lucide-react'
 import DOMPurify from 'dompurify'
 import Timeline from '../../components/Timeline'
@@ -137,7 +137,7 @@ export default function GuestInfo() {
       setIsEditing(false)
     },
     onError: (err) => {
-      alert(err.response?.data?.error || t('saveFailed'))
+      alert(getApiError(err, t('saveFailed')))
     },
   })
 

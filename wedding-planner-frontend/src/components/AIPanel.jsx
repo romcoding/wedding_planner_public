@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { X, Sparkles, Calendar, Users, FileText, Layout, ChevronRight, Loader2, Copy, Check, Plus } from 'lucide-react'
 import { useWedding } from '../contexts/WeddingContext'
 import UpgradeModal from './UpgradeModal'
-import api from '../lib/api'
+import api, { getApiError } from '../lib/api'
 import { ASSISTANT_NAME, ASSISTANT_INTRO } from '../lib/brand'
 import { usePricing } from '../hooks/usePricing'
 
@@ -45,7 +45,7 @@ function TimelineTool({ wedding, onApply }) {
       const res = await api.post('/ai/timeline', form)
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
+      setError(getApiError(e, "Wedi couldn't complete that — please try again."))
     } finally {
       setLoading(false)
     }
@@ -145,7 +145,7 @@ function VendorTool({ wedding }) {
       const res = await api.post('/ai/vendor-suggestions', form)
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
+      setError(getApiError(e, "Wedi couldn't complete that — please try again."))
     } finally {
       setLoading(false)
     }
@@ -232,7 +232,7 @@ function CopyTool({ wedding }) {
       const res = await api.post('/ai/copy-generator', form)
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
+      setError(getApiError(e, "Wedi couldn't complete that — please try again."))
     } finally {
       setLoading(false)
     }
@@ -343,7 +343,7 @@ function SeatingTool() {
       const res = await api.post('/ai/seating', { guests })
       setResult(res.data)
     } catch (e) {
-      setError(e.response?.data?.error || "Wedi couldn't complete that — please try again.")
+      setError(getApiError(e, "Wedi couldn't complete that — please try again."))
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import api from '../../lib/api'
+import api, { getApiError } from '../../lib/api'
 import { PlusCircle, Trash, Edit, Image as ImageIcon, Upload, X, Clock, GripVertical, ChevronUp, ChevronDown } from 'lucide-react'
 import { useToast } from '../../components/ui/Toast'
 import {
@@ -198,7 +198,7 @@ const ImagesPage = () => {
       resetAgendaForm()
       toast.success('Agenda item created')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to create agenda item'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to create agenda item')),
   })
 
   const updateAgendaItem = useMutation({
@@ -210,7 +210,7 @@ const ImagesPage = () => {
       resetAgendaForm()
       toast.success('Agenda item updated')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to update agenda item'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to update agenda item')),
   })
 
   const deleteAgendaItem = useMutation({
@@ -219,7 +219,7 @@ const ImagesPage = () => {
       queryClient.invalidateQueries(['agenda'])
       toast.success('Agenda item deleted')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to delete agenda item'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to delete agenda item')),
   })
 
   const resetAgendaForm = () => {
@@ -397,7 +397,7 @@ const ImagesPage = () => {
       queryClient.invalidateQueries(['content', 'public'])
       toast.success('Saved guest portal items')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to save guest portal items'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to save guest portal items')),
   })
 
   const saveWebSettings = useMutation({
@@ -423,7 +423,7 @@ const ImagesPage = () => {
       queryClient.invalidateQueries(['content', 'public'])
       toast.success('Saved')
     },
-    onError: (err) => toast.error(err?.response?.data?.error || 'Failed to save'),
+    onError: (err) => toast.error(getApiError(err, 'Failed to save')),
   })
 
   const { data: images, isLoading } = useQuery({
@@ -444,7 +444,7 @@ const ImagesPage = () => {
     },
     onError: (error) => {
       console.error('Error creating image:', error)
-      alert(error.response?.data?.error || 'Failed to upload image. Please try again.')
+      alert(getApiError(error, 'Failed to upload image. Please try again.'))
       setUploading(false)
     },
   })
@@ -607,7 +607,7 @@ const ImagesPage = () => {
       setShowForm(false)
     } catch (error) {
       console.error('Error creating image:', error)
-      alert(error.response?.data?.error || 'Failed to upload image. Please try again.')
+      alert(getApiError(error, 'Failed to upload image. Please try again.'))
     } finally {
       setUploading(false)
     }
