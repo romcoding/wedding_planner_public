@@ -21,6 +21,7 @@ import TasksPage from './pages/admin/TasksPage'
 import CostsPage from './pages/admin/CostsPage'
 import ContentPage from './pages/admin/ContentPage'
 import AnalyticsPage from './pages/admin/AnalyticsPage'
+import PlatformSecurityPage from './pages/admin/PlatformSecurityPage'
 import WeddingManagement from './pages/admin/WeddingManagement'
 import ImagesPage from './pages/admin/ImagesPage'
 import InvitationsPage from './pages/admin/InvitationsPage'
@@ -206,6 +207,7 @@ function AppRoutes() {
         <Route path="costs" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<CostsPage />} fallbackTo="/admin/guests" />} />
         <Route path="content" element={<AdminRouteGuard user={user} platformAdminOnly element={<ContentPage />} fallbackTo="/admin/guests" />} />
         <Route path="analytics" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin']} element={<AnalyticsPage />} fallbackTo="/admin/guests" />} />
+        <Route path="platform/security" element={<AdminRouteGuard user={user} platformAdminOnly element={<PlatformSecurityPage />} fallbackTo="/admin/guests" />} />
         <Route path="users" element={<AdminRouteGuard user={user} platformAdminOnly element={<UsersPage />} fallbackTo="/admin/guests" />} />
         <Route path="billing" element={<AdminRouteGuard user={user} allowRoles={['admin', 'planner', 'super_admin']} element={<BillingPage />} fallbackTo="/admin/guests" />} />
         <Route path="setup" element={<AdminRouteGuard user={user} allowRoles={['admin', 'super_admin', 'planner']} element={<QuickSetupPage />} fallbackTo="/admin/guests" />} />

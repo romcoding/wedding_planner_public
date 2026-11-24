@@ -90,7 +90,10 @@ export default function AdminLayout() {
           : []),
         { path: '/admin/analytics', icon: BarChart3, label: 'Analytics', featureKey: 'analytics_basic' },
         ...(isPlatformAdmin
-          ? [{ path: '/admin/users', icon: Shield, label: 'User Management', featureKey: 'dashboard' }]
+          ? [
+              { path: '/admin/users', icon: Shield, label: 'User Management', featureKey: 'dashboard' },
+              { path: '/admin/platform/security', icon: Shield, label: 'Platform Security', featureKey: 'dashboard' },
+            ]
           : []),
         { path: '/admin/billing', icon: CreditCard, label: 'Billing', featureKey: 'dashboard' },
       ]

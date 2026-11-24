@@ -1,154 +1,34 @@
 /**
- * Client-side analytics tracking utility
- * Automatically tracks page views and sessions
+ * Client-side page-view tracking.
+ *
+ * Posts to the one real endpoint, POST /analytics/track ({path, referrer}).
+ * There is no visit/session tracking: the old /track/visit/start|end and
+ * /track/pageview routes never existed on the backend.
+ *
+ * Signed-in app screens (admin, auth, onboarding) are never tracked — couples'
+ * analytics are about their published site, not about them using this app.
+ * Rows without a site slug are stored with no wedding, so they never appear in
+ * any couple's numbers.
  */
+import api from '../lib/api'
 
-let sessionId = null
-let visitStarted = false
+const UNTRACKED_PREFIXES = ['/admin', '/auth', '/onboarding']
 
-// Initialize session on load
-function initSession() {
-  // Get or create session ID from sessionStorage
-  sessionId = sessionStorage.getItem('analytics_session_id')
-  if (!sessionId) {
-    sessionId = generateSessionId()
-    sessionStorage.setItem('analytics_session_id', sessionId)
-  }
-  
-  // Start visit tracking
-  if (!visitStarted) {
-    startVisit()
-    visitStarted = true
-  }
+let lastPath = null
+
+export function shouldTrack(pathname) {
+  return !!pathname && !UNTRACKED_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
 }
 
-function generateSessionId() {
-  return `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+export function trackPageView(pagePath) {
+  if (!shouldTrack(pagePath) || pagePath === lastPath) return
+  lastPath = pagePath
+  const referrer = typeof document !== 'undefined' ? document.referrer || null : null
+  // Fire and forget; analytics must never surface an error to the user.
+  api.post('/analytics/track', { path: pagePath, referrer }).catch(() => {})
 }
 
-async function startVisit() {
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null')
-    // Get base URL and ensure it doesn't have double /api
-    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
-    const response = await fetch(`${baseUrl}/api/analytics/track/visit/start`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        user_id: user?.id || null,
-        guest_id: null, // Could be extracted from token if guest is logged in
-      }),
-    })
-    
-    if (response.ok) {
-      const data = await response.json()
-      if (data.session_id) {
-        sessionId = data.session_id
-        sessionStorage.setItem('analytics_session_id', sessionId)
-      }
-    }
-  } catch (error) {
-    if (import.meta.env.DEV) console.error('Error starting visit tracking:', error)
-  }
+// React Router calls this on every route change (see App.jsx).
+export function trackRouteChange(pathname) {
+  trackPageView(pathname)
 }
-
-export function trackPageView(pagePath, pageTitle = null) {
-  if (!sessionId) {
-    initSession()
-  }
-  
-  try {
-    const user = JSON.parse(localStorage.getItem('user') || 'null')
-    // Get base URL and ensure it doesn't have double /api
-    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
-    
-    fetch(`${baseUrl}/api/analytics/track/pageview`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        page_path: pagePath,
-        page_title: pageTitle || document.title,
-        session_id: sessionId,
-        user_id: user?.id || null,
-        guest_id: null,
-      }),
-    }).catch(error => {
-      if (import.meta.env.DEV) console.error('Error tracking page view:', error)
-    })
-  } catch (error) {
-    if (import.meta.env.DEV) console.error('Error in trackPageView:', error)
-  }
-}
-
-export function endVisit() {
-  if (!sessionId) {
-    return
-  }
-
-  try {
-    const baseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5000').replace(/\/api$/, '')
-    const url = `${baseUrl}/api/analytics/track/visit/end`
-    const payload = JSON.stringify({ session_id: sessionId })
-
-    if (typeof navigator !== 'undefined' && navigator.sendBeacon) {
-      const blob = new Blob([payload], { type: 'application/json' })
-      navigator.sendBeacon(url, blob)
-      return
-    }
-
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: payload,
-    }).catch(error => {
-      if (import.meta.env.DEV) console.error('Error ending visit:', error)
-    })
-  } catch (error) {
-    if (import.meta.env.DEV) console.error('Error in endVisit:', error)
-  }
-}
-
-// Initialize on module load
-if (typeof window !== 'undefined') {
-  initSession()
-  
-  // Track page view on initial load
-  setTimeout(() => {
-    trackPageView(window.location.pathname, document.title)
-  }, 100)
-  
-  // Track page view on popstate (browser back/forward)
-  window.addEventListener('popstate', () => {
-    setTimeout(() => {
-      trackPageView(window.location.pathname, document.title)
-    }, 100)
-  })
-  
-  // End visit on page unload
-  window.addEventListener('beforeunload', () => {
-    endVisit()
-  })
-  
-  // Track visibility changes (when user switches tabs)
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      // User left the page
-      endVisit()
-    } else {
-      // User returned to the page
-      startVisit()
-    }
-  })
-}
-
-// Export function to manually track route changes (for React Router)
-export function trackRouteChange(pathname, title = null) {
-  trackPageView(pathname, title || document.title)
-}
-
-export { sessionId }
