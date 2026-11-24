@@ -277,3 +277,41 @@ noted in the brand sweep above.
   never render (allowlisted, round 2 proposed).
 - [ ] `window.alert`/`alert()` is still used in ~15 places (rule: toast + confirm dialog).
 - [ ] `CLAUDE.md` is referenced by the task brief but does not exist in the repo.
+
+## Round 2 — integrity & security (branch fix/round2-integrity-security)
+
+- [x] Stripe webhook: event is marked seen only after its handler succeeds; a handler
+  exception returns 500 (`webhook_handler_failed`) so Stripe retries.
+- [x] `max_guests` / `max_tasks` enforced server-side (POST /guests, /guests/import,
+  /tasks) with 403 `limit_reached {limit, feature}`; the frontend opens the upgrade
+  modal. Guests are counted by rows (households) and the copy says so.
+- [x] RSVP validation (`rsvp_status`, household-subset `attending_names`, derived
+  `number_of_guests`, 500-char text cap), mirrored in admin `update_guest`/`create_guest`.
+- [x] `delete_guest` / `delete_table` / moodboard content replace use `db.batch`; seat rows
+  are deleted; migration 008 removes existing orphans.
+- [x] Account security: `current_password` gate, `pending_email`, `token_version`
+  revocation, `account_disabled` (migration 009).
+- [x] CORS origins resolved per request (+ `FRONTEND_URL`).
+- [x] Async Anthropic client, `ANTHROPIC_MODEL` setting.
+- [x] Published-site cache purged on password / rsvp_enabled / theme change.
+- [x] Tasks list sorts undated tasks last; onboarding uses timezone-aware `now`; CSV import
+  skips duplicate emails; Vite proxy -> 8787.
+
+### Found in round 2, not fixed
+
+- [ ] **Apply migrations 008 and 009 before/with the deploy.** Until 009 is applied
+  `require_couple_auth` logs an error and skips the revocation check (so the app is not
+  locked out), and password change / email change / deactivation will fail on the
+  missing columns.
+- [ ] No frontend UI calls `PUT /auth/profile` yet (email/password change screen), and the
+  email-change message reuses the "verify your email" template. Needs a settings screen
+  (planned for the couple-app round).
+- [ ] Wedi generation keeps its own 60 s timeout (`wedi_site.TIMEOUT_SECONDS`); only the
+  shared client default dropped to 30 s. A 4k-token site generation can exceed 30 s.
+- [ ] Limit checks are count-then-insert, so two simultaneous requests can overshoot a
+  limit by one. Fine at this scale; a `INSERT ... SELECT WHERE count < limit` would close it.
+- [ ] `update_rsvp` still looks the guest up by id only (the id comes from a signed guest
+  token, so it is not a tenant leak, but it does not re-check `wedding_id`).
+- [ ] `ai_routes._ai_gate` raises dict details with an `error` key and no `code`.
+- [ ] Platform-admin `PUT /users/{id}` can still change another user's email/role without
+  re-verification.

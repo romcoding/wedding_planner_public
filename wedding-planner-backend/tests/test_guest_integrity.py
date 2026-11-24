@@ -223,3 +223,16 @@ def test_tasks_without_due_date_sort_last(world):
     for title, due in [("none", None), ("late", "2026-09-01"), ("early", "2026-01-01")]:
         world.client.post("/api/tasks", json={"title": title, "due_date": due}, headers=w.h)
     assert [t["title"] for t in world.client.get("/api/tasks", headers=w.h).json()] == ["early", "late", "none"]
+
+
+def test_onboarding_default_date_is_naive_utc_180_days_out(real_app):
+    import warnings
+    from datetime import datetime, timedelta, timezone
+    import sys
+    onb = sys.modules["routes.onboarding_routes"]
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        d = onb._parse_wedding_date("")
+    assert d.tzinfo is None
+    expected = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=180)
+    assert abs((d - expected).total_seconds()) < 5

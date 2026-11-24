@@ -37,7 +37,7 @@ pip install -r requirements.txt
 python src/main.py
 ```
 
-The backend will start on `http://localhost:5000`
+The backend will start on `http://localhost:8787`
 
 ## Frontend Setup (3 minutes)
 
@@ -50,7 +50,7 @@ pnpm install
 # or: npm install
 
 # Create .env.local file
-# Add: VITE_API_URL=http://localhost:5000/api
+# Add: VITE_API_URL=http://localhost:8787/api
 
 # Start development server
 pnpm run dev
@@ -68,7 +68,7 @@ Once both servers are running:
 
 **Option 1: Using curl**
 ```bash
-curl -X POST http://localhost:5000/api/auth/register \
+curl -X POST http://localhost:8787/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "admin@example.com",

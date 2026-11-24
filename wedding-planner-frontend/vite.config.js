@@ -49,8 +49,9 @@ export default defineConfig(({ mode }) => {
       // frontend project root) during dev.
       fs: { allow: [path.resolve(__dirname, '..')] },
       proxy: {
+        // `pywrangler dev` serves the Worker on 8787 (see DEVELOPMENT.md).
         '/api': {
-          target: 'http://localhost:5000',
+          target: 'http://localhost:8787',
           changeOrigin: true,
         },
       },
